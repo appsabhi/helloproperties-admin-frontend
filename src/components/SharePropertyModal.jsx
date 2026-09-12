@@ -1,0 +1,241 @@
+import React, { useState } from 'react';
+import { Share2, X, Check, MessageCircle, ExternalLink } from 'lucide-react';
+
+export function buildCleanWhatsAppText(property) {
+  const isRent = property?.listingType === 'Rent';
+  const priceLines = [];
+
+  if (isRent) {
+    const formattedRent = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(property.monthlyRent || 0);
+
+    const formattedDeposit = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(property.securityDeposit || 0);
+
+    priceLines.push(`💰 Monthly Rent: ${formattedRent}`);
+    priceLines.push(`🔐 Security Deposit: ${formattedDeposit}`);
+  } else {
+    const formattedPrice = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0
+    }).format(property.expectedPrice || property.price || 0);
+
+    priceLines.push(`💰 Price: ${formattedPrice}`);
+  }
+
+  const validImageUrl = (property?.imageUrl && typeof property.imageUrl === 'string' && !property.imageUrl.startsWith('blob:'))
+    ? property.imageUrl.trim()
+    : null;
+
+  const messageLines = [
+    `Hello! 👋`,
+    ``,
+    `Here are the property details matching your requirement:`,
+    ``,
+    `🏡 Property Type: ${property.propertyType || 'Plot/Land'}`,
+    `📍 District: ${property.district || '—'}`,
+    `📐 Area: ${property.area || '—'}`,
+    ...priceLines
+  ];
+
+  if (validImageUrl) {
+    messageLines.push(``, `🖼️ Property Image:`, `${validImageUrl}`);
+  }
+
+  messageLines.push(
+    ``,
+    `Please let us know if you are interested.`,
+    ``,
+    `Regards,`,
+    `HelloProperties`
+  );
+
+  return messageLines.join('\n');
+}
+
+export function buildWhatsAppShareUrl(property, buyerPhone) {
+  const cleanPhone = buyerPhone ? String(buyerPhone).replace(/\D/g, '') : '';
+  const fullText = buildCleanWhatsAppText(property);
+  const encodedText = encodeURIComponent(fullText);
+
+  if (cleanPhone) {
+    const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    return `https://web.whatsapp.com/send?phone=${phoneWithCountry}&text=${encodedText}`;
+  }
+  return `https://web.whatsapp.com/send?text=${encodedText}`;
+}
+
+let globalWhatsAppWindowRef = null;
+
+export function openWhatsAppShareWindow(url) {
+  const windowName = 'helloproperties-whatsapp';
+
+  // Always invoke window.open with the fixed named target 'helloproperties-whatsapp'.
+  // In HTML5 standard, window.open(url, windowName) natively locates any open tab/window
+  // assigned windowName, navigates that tab to url, and brings it into focus.
+  // This avoids cross-origin SecurityErrors when mutating location.href across domains.
+  try {
+    globalWhatsAppWindowRef = window.open(url, windowName);
+    if (globalWhatsAppWindowRef && globalWhatsAppWindowRef.focus) {
+      globalWhatsAppWindowRef.focus();
+    }
+  } catch (e) {
+    console.warn('Error opening/reusing named WhatsApp window:', e);
+  }
+
+  return globalWhatsAppWindowRef;
+}
+
+export default function SharePropertyModal({ property, buyer, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!property) return null;
+
+  const isRent = property?.listingType === 'Rent';
+  const formattedPrice = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  }).format(property.expectedPrice || property.price || 0);
+
+  const formattedRent = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  }).format(property.monthlyRent || 0);
+
+  const formattedDeposit = new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0
+  }).format(property.securityDeposit || 0);
+
+  const whatsappUrl = buildWhatsAppShareUrl(property, buyer?.phoneNumber || buyer?.buyerPhone);
+  const validImageUrl = (property?.imageUrl && typeof property.imageUrl === 'string' && !property.imageUrl.startsWith('blob:'))
+    ? property.imageUrl.trim()
+    : null;
+
+  const handleCopyText = () => {
+    const text = buildCleanWhatsAppText(property);
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
+
+  const handleOpenWhatsApp = () => {
+    openWhatsAppShareWindow(whatsappUrl);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[60] flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-fade-in space-y-4 p-6 my-6">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center space-x-2 text-[#C4005A]">
+            <Share2 className="w-5 h-5" />
+            <h3 className="font-bold text-lg text-slate-900">Share Property</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Customer-Facing Shared Details Preview */}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+            Customer-Facing Details Preview
+          </span>
+
+          {validImageUrl && (
+            <div className="h-44 w-full rounded-lg overflow-hidden border border-slate-200 bg-white">
+              <img
+                src={validImageUrl}
+                alt={property.title || 'Property Image'}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
+                }}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 pt-1">
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Property Type</span>
+              <span className="font-bold text-slate-900">{property.propertyType || 'Plot/Land'}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">District</span>
+              <span className="font-bold text-slate-900">{property.district || '—'}</span>
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Total Area</span>
+              <span className="font-bold text-slate-900">{property.area || '—'}</span>
+            </div>
+            {isRent ? (
+              <>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Monthly Rent</span>
+                  <span className="font-extrabold text-[#C4005A]">{formattedRent}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Security Deposit</span>
+                  <span className="font-bold text-slate-800">{formattedDeposit}</span>
+                </div>
+              </>
+            ) : (
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Price</span>
+                <span className="font-extrabold text-[#C4005A]">{formattedPrice}</span>
+              </div>
+            )}
+          </div>
+
+          {validImageUrl && (
+            <div className="pt-2 border-t border-slate-200/60 text-2xs text-slate-500">
+              <span className="font-semibold text-slate-600 block mb-0.5">Public Image Link:</span>
+              <span className="text-slate-700 font-mono select-all truncate block">{validImageUrl}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Target Buyer Info */}
+        {buyer && (
+          <div className="text-xs text-slate-500 flex items-center justify-between px-1 border-t border-slate-100 pt-3">
+            <span>Recipient Buyer: <strong className="text-slate-800">{buyer.buyerName || 'Customer'}</strong></span>
+            <span className="font-mono text-slate-600">{buyer.phoneNumber || buyer.buyerPhone}</span>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+          <button
+            onClick={handleOpenWhatsApp}
+            className="flex-1 inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+          >
+            <MessageCircle className="w-4 h-4 fill-white" />
+            <span>Open in WhatsApp</span>
+            <ExternalLink className="w-3.5 h-3.5 ml-1 opacity-80" />
+          </button>
+          <button
+            onClick={handleCopyText}
+            className="inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+          >
+            {copied ? <Check className="w-4 h-4 text-emerald-600" /> : null}
+            <span>{copied ? 'Copied!' : 'Copy Text'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

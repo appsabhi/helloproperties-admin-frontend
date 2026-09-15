@@ -25,6 +25,7 @@ import {
   ArrowLeft,
   Share2,
   ChevronDown,
+  ChevronUp,
   Eye,
   Building2,
   Calendar
@@ -84,6 +85,7 @@ export default function Properties() {
     setEditingRequirement(null);
     setDeletingTarget(null);
     setActiveMatchTarget(null);
+    setExpandedBreakdowns({});
     setSharingTarget(null);
     setViewingDetailTarget(null);
     setSearchQuery('');
@@ -163,6 +165,7 @@ export default function Properties() {
   const [activeMatchTarget, setActiveMatchTarget] = useState(null);
   const [matchResults, setMatchResults] = useState([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
+  const [expandedBreakdowns, setExpandedBreakdowns] = useState({});
 
   // Property Sharing State ({ property: object, buyer: object })
   const [sharingTarget, setSharingTarget] = useState(null);
@@ -346,6 +349,7 @@ export default function Properties() {
   // Open Matches Modal
   const handleOpenMatches = async (type, item) => {
     setActiveMatchTarget({ type, data: item });
+    setExpandedBreakdowns({});
     
     // 1. Instantly calculate and display matches with 0ms delay directly from item
     const instantMatches = type === 'property'
@@ -1603,11 +1607,11 @@ export default function Properties() {
                 <div className="py-12 flex flex-col items-center justify-center space-y-3">
                   <div className="w-8 h-8 border-3 border-[#B0004F] border-t-transparent rounded-full animate-spin"></div>
                   <p className="text-slate-600 text-sm font-medium">Finding 2-Way Matches...</p>
-                  <p className="text-xs text-slate-400">Comparing criteria, locations, price range & types</p>
+                  <p className="text-xs text-slate-400">Comparing district, locality, type, budget & area</p>
                 </div>
               ) : matchResults.length === 0 ? (
                 <div className="py-12 text-center border border-slate-200 border-dashed rounded-xl bg-slate-50 space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">No matches found above the 60% threshold.</p>
+                  <p className="text-sm font-semibold text-slate-700">No matches found above the 55% threshold.</p>
                   <p className="text-xs text-slate-500">As new {activeMatchTarget.type === 'property' ? 'requirements' : 'properties'} are added, matching results update automatically.</p>
                 </div>
               ) : (
@@ -1669,6 +1673,51 @@ export default function Properties() {
 
                       {matchItem.description && (
                         <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{matchItem.description}</p>
+                      )}
+
+                      {/* Match Breakdown Toggle */}
+                      {matchItem.matchReasons && matchItem.matchReasons.length > 0 && (
+                        <div className="border-t border-slate-100 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedBreakdowns(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                            className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-[#B0004F] transition-colors cursor-pointer group w-full"
+                          >
+                            {expandedBreakdowns[idx] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                            <span>Match Breakdown</span>
+                            <div className="flex-1 h-px bg-slate-100 ml-2" />
+                          </button>
+                          {expandedBreakdowns[idx] && (
+                            <div className="mt-2.5 space-y-2 animate-fade-in">
+                              {matchItem.matchReasons.map((reason, rIdx) => {
+                                const pct = reason.maxScore > 0 ? Math.round((reason.score / reason.maxScore) * 100) : 0;
+                                const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : pct > 0 ? 'bg-orange-400' : 'bg-slate-200';
+                                const textColor = pct >= 80 ? 'text-emerald-700' : pct >= 50 ? 'text-amber-700' : pct > 0 ? 'text-orange-600' : 'text-slate-400';
+                                return (
+                                  <div key={rIdx} className="flex items-center gap-3">
+                                    <div className="w-[85px] shrink-0 text-right">
+                                      <span className={`text-[10.5px] font-bold ${textColor}`}>{reason.factor}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full ${barColor} transition-all duration-500`}
+                                          style={{ width: `${pct}%` }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="w-[38px] text-right shrink-0">
+                                      <span className={`text-[10px] font-bold ${textColor}`}>{reason.score}/{reason.maxScore}</span>
+                                    </div>
+                                    <div className="hidden sm:block min-w-0 max-w-[180px]">
+                                      <span className="text-[10px] text-slate-400 truncate block">{reason.detail}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       )}
 
                       <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs">

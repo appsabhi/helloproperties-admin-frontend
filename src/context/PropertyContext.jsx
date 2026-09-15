@@ -484,7 +484,349 @@ export const PropertyProvider = ({ children }) => {
     }, 'Deleting requirement...');
   };
 
-  // Helper: Client-side 2-way matching calculation (Exact PostgreSQL matching parity)
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AREA PARSING UTILITIES — Normalize any area string to square feet
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Conversion factors to square feet
+  const AREA_UNIT_TO_SQFT = {
+    'sq ft': 1, 'sqft': 1, 'sft': 1, 'square feet': 1, 'square foot': 1, 'sf': 1,
+    'sq m': 10.764, 'sqm': 10.764, 'square meter': 10.764, 'square meters': 10.764, 'square metre': 10.764,
+    'acre': 43560, 'acres': 43560,
+    'cent': 435.6, 'cents': 435.6,
+    'guntha': 1089, 'gunthas': 1089, 'guntas': 1089, 'gunta': 1089,
+    'kanal': 5445, 'kanals': 5445,
+    'marla': 272.25, 'marlas': 272.25,
+    'bigha': 27000, 'bighas': 27000,
+    'hectare': 107639, 'hectares': 107639, 'ha': 107639,
+    'ground': 2400, 'grounds': 2400,
+    'perch': 272.25, 'perches': 272.25,
+    'are': 1076.39, 'ares': 1076.39,
+  };
+
+  /**
+   * Parse a single area string like "2400 sq ft", "1.5 acres", "60 cents" into square feet.
+   * Returns null if unparseable.
+   */
+  const parseAreaToSqFt = (areaStr) => {
+    if (!areaStr || typeof areaStr !== 'string') return null;
+    const cleaned = areaStr.toLowerCase().replace(/,/g, '').trim();
+
+    // Try matching number + unit pattern
+    for (const [unit, factor] of Object.entries(AREA_UNIT_TO_SQFT)) {
+      // Match patterns like "2400 sq ft", "1.5acres", "60 cents", etc.
+      const regex = new RegExp(`([\\d.]+)\\s*${unit.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+      const match = cleaned.match(regex);
+      if (match) {
+        const num = parseFloat(match[1]);
+        if (!isNaN(num) && num > 0) return num * factor;
+      }
+    }
+
+    // Fallback: if it's just a number, assume sq ft
+    const plainNum = parseFloat(cleaned);
+    if (!isNaN(plainNum) && plainNum > 0 && /^\d+\.?\d*$/.test(cleaned)) {
+      return plainNum;
+    }
+
+    return null;
+  };
+
+  /**
+   * Parse buyer's required area which may be a range ("5-15 Acres", "Min 5000 sq ft", "2000-3000 sq ft")
+   * Returns { min: sqft|null, max: sqft|null }
+   */
+  const parseAreaRange = (areaStr) => {
+    if (!areaStr || typeof areaStr !== 'string') return { min: null, max: null };
+    const cleaned = areaStr.toLowerCase().replace(/,/g, '').trim();
+
+    // Detect unit used in the string
+    let detectedUnit = 'sq ft';
+    let detectedFactor = 1;
+    for (const [unit, factor] of Object.entries(AREA_UNIT_TO_SQFT)) {
+      if (cleaned.includes(unit)) {
+        detectedUnit = unit;
+        detectedFactor = factor;
+        break;
+      }
+    }
+
+    // Pattern: "5-15 Acres" or "2000 - 3000 sq ft"
+    const rangeMatch = cleaned.match(/([\d.]+)\s*[-–to]+\s*([\d.]+)/);
+    if (rangeMatch) {
+      const v1 = parseFloat(rangeMatch[1]);
+      const v2 = parseFloat(rangeMatch[2]);
+      if (!isNaN(v1) && !isNaN(v2)) {
+        return { min: Math.min(v1, v2) * detectedFactor, max: Math.max(v1, v2) * detectedFactor };
+      }
+    }
+
+    // Pattern: "Min 5000 sq ft" or "minimum 2 acres"
+    const minMatch = cleaned.match(/min(?:imum)?\s*([\d.]+)/);
+    if (minMatch) {
+      const v = parseFloat(minMatch[1]);
+      if (!isNaN(v)) return { min: v * detectedFactor, max: null };
+    }
+
+    // Pattern: "Max 3000 sq ft" or "upto 5 acres"
+    const maxMatch = cleaned.match(/(?:max(?:imum)?|upto|up\s*to)\s*([\d.]+)/);
+    if (maxMatch) {
+      const v = parseFloat(maxMatch[1]);
+      if (!isNaN(v)) return { min: null, max: v * detectedFactor };
+    }
+
+    // Single value fallback
+    const singleVal = parseAreaToSqFt(cleaned);
+    if (singleVal !== null) {
+      return { min: singleVal, max: singleVal };
+    }
+
+    return { min: null, max: null };
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FUZZY LOCALITY MATCHING — Token-based comparison
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const tokenize = (str) => {
+    if (!str) return [];
+    return str.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(t => t.length > 1);
+  };
+
+  const computeLocalityScore = (loc1, loc2, dist1, dist2) => {
+    const tokens1 = tokenize(loc1);
+    const tokens2 = tokenize(loc2);
+
+    if (tokens1.length === 0 || tokens2.length === 0) return { score: 0, detail: 'Locality info missing' };
+
+    const l1 = (loc1 || '').toLowerCase().trim();
+    const l2 = (loc2 || '').toLowerCase().trim();
+
+    // Exact locality match
+    if (l1 && l2 && l1 === l2) {
+      return { score: 20, detail: `Exact: "${loc1}"` };
+    }
+
+    // Token overlap
+    const commonTokens = tokens1.filter(t => tokens2.some(t2 => t2 === t || t2.includes(t) || t.includes(t2)));
+    const overlapRatio = commonTokens.length / Math.max(tokens1.length, tokens2.length);
+
+    if (overlapRatio >= 0.5) {
+      return { score: 15, detail: `Strong overlap: ${commonTokens.join(', ')}` };
+    }
+
+    if (commonTokens.length > 0) {
+      return { score: 10, detail: `Partial: ${commonTokens.join(', ')}` };
+    }
+
+    // Substring match (one contains the other)
+    if (l1 && l2 && (l1.includes(l2) || l2.includes(l1))) {
+      return { score: 10, detail: `Substring match` };
+    }
+
+    // Locality found in district name
+    const d2Lower = (dist2 || '').toLowerCase();
+    if (l1 && d2Lower && d2Lower.includes(l1)) {
+      return { score: 5, detail: `"${loc1}" in district name` };
+    }
+    const d1Lower = (dist1 || '').toLowerCase();
+    if (l2 && d1Lower && d1Lower.includes(l2)) {
+      return { score: 5, detail: `"${loc2}" in district name` };
+    }
+
+    return { score: 0, detail: 'No locality overlap' };
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // UNIFIED MATCH SCORER — Single function used by both directions
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Compute match score between a property and a buyer requirement.
+   * Returns { matchScore, matchReasons } or null if hard-filtered out.
+   *
+   * Scoring weights (total 100):
+   *   District:      25 pts
+   *   Locality:      20 pts
+   *   Property Type:  25 pts
+   *   Budget/Price:  15 pts
+   *   Area:          15 pts
+   */
+  const computeMatchScore = (prop, req) => {
+    const matchReasons = [];
+
+    // ── Hard Filter 1: Transaction Type ──
+    const propIsRent = (prop.listingType || 'Sale').toLowerCase() === 'rent';
+    const reqIsRent = (req.requirementType || 'Buy').toLowerCase() === 'rent';
+    if (propIsRent !== reqIsRent) return null;
+
+    // ── Hard Filter 2: State Validation ──
+    const propState = (prop.state || '').toLowerCase().trim();
+    const reqState = (req.state || '').toLowerCase().trim();
+    if (propState && reqState && propState !== reqState) return null;
+
+    // ── Factor 1: District Match (25 pts) ──
+    const propDist = (prop.district || '').toLowerCase().trim();
+    const reqDist = (req.district || '').toLowerCase().trim();
+    let districtScore = 0;
+    let districtDetail = '';
+    if (propDist && reqDist && propDist === reqDist) {
+      districtScore = 25;
+      districtDetail = `${prop.district} ✓`;
+    } else if (propDist && reqDist) {
+      districtDetail = `${prop.district} ≠ ${req.district}`;
+    } else {
+      districtDetail = 'District info missing';
+    }
+    matchReasons.push({ factor: 'District', score: districtScore, maxScore: 25, detail: districtDetail });
+
+    // ── Factor 2: Locality Match (20 pts — fuzzy token-based) ──
+    const propLoc = prop.location || '';
+    const reqLoc = req.preferredLocation || '';
+    const localityResult = computeLocalityScore(propLoc, reqLoc, prop.district, req.district);
+    matchReasons.push({ factor: 'Locality', score: localityResult.score, maxScore: 20, detail: localityResult.detail });
+
+    // ── Hard Filter 3: Location must have SOME match ──
+    if (districtScore === 0 && localityResult.score === 0) return null;
+
+    // ── Factor 3: Property Type Match (25 pts) ──
+    const propPType = (prop.propertyType || '').toLowerCase().trim();
+    const reqPType = (req.propertyType || '').toLowerCase().trim();
+    let typeScore = 0;
+    let typeDetail = '';
+    if (propPType && reqPType) {
+      if (propPType === reqPType) {
+        typeScore = 25;
+        typeDetail = `Exact: ${prop.propertyType}`;
+      } else {
+        // Category similarity — group related types
+        const plotTypes = ['plot/land', 'commercial plot', 'residential plot', 'industrial plot'];
+        const bothPlots = plotTypes.includes(propPType) && plotTypes.includes(reqPType);
+        const landTypes = ['agricultural land', 'plot/land'];
+        const bothLand = landTypes.includes(propPType) && landTypes.includes(reqPType);
+
+        if (bothPlots) {
+          typeScore = 15;
+          typeDetail = `Similar plot types: ${prop.propertyType} ~ ${req.propertyType}`;
+        } else if (bothLand) {
+          typeScore = 12;
+          typeDetail = `Related land types: ${prop.propertyType} ~ ${req.propertyType}`;
+        } else {
+          typeDetail = `${prop.propertyType} ≠ ${req.propertyType}`;
+        }
+      }
+    } else {
+      typeScore = 5;
+      typeDetail = 'Property type info missing';
+    }
+    matchReasons.push({ factor: 'Property Type', score: typeScore, maxScore: 25, detail: typeDetail });
+
+    // ── Factor 4: Budget / Price Match (15 pts — smooth gradient) ──
+    const budget = Number(reqIsRent ? (req.maximumMonthlyRent || req.budget || 0) : (req.budget || 0));
+    const price = Number(propIsRent ? (prop.monthlyRent || prop.expectedPrice || 0) : (prop.expectedPrice || 0));
+    let budgetScore = 0;
+    let budgetDetail = '';
+
+    if (budget > 0 && price > 0) {
+      const ratio = price / budget;
+      const formatP = (v) => {
+        if (v >= 10000000) return `₹${(v / 10000000).toFixed(1)}Cr`;
+        if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+        if (v >= 1000) return `₹${(v / 1000).toFixed(0)}K`;
+        return `₹${v}`;
+      };
+
+      if (ratio <= 1.0) {
+        budgetScore = 15;
+        budgetDetail = `${formatP(price)} within ${formatP(budget)} budget`;
+      } else if (ratio <= 1.10) {
+        budgetScore = 12;
+        budgetDetail = `${formatP(price)} slightly over ${formatP(budget)} (+${Math.round((ratio - 1) * 100)}%)`;
+      } else if (ratio <= 1.20) {
+        budgetScore = 8;
+        budgetDetail = `${formatP(price)} over ${formatP(budget)} (+${Math.round((ratio - 1) * 100)}%)`;
+      } else if (ratio <= 1.35) {
+        budgetScore = 4;
+        budgetDetail = `${formatP(price)} exceeds ${formatP(budget)} (+${Math.round((ratio - 1) * 100)}%)`;
+      } else {
+        budgetScore = 0;
+        budgetDetail = `${formatP(price)} well over ${formatP(budget)} (+${Math.round((ratio - 1) * 100)}%)`;
+      }
+    } else {
+      budgetScore = 7;
+      budgetDetail = 'Budget/price info incomplete';
+    }
+    matchReasons.push({ factor: 'Budget', score: budgetScore, maxScore: 15, detail: budgetDetail });
+
+    // ── Factor 5: Area Fit (15 pts — NEW) ──
+    const propAreaSqFt = parseAreaToSqFt(prop.area);
+    const reqAreaRange = parseAreaRange(req.requiredArea);
+    let areaScore = 0;
+    let areaDetail = '';
+
+    if (propAreaSqFt !== null && (reqAreaRange.min !== null || reqAreaRange.max !== null)) {
+      const formatArea = (sqft) => {
+        if (sqft >= 43560) return `${(sqft / 43560).toFixed(1)} acres`;
+        if (sqft >= 435.6) return `${Math.round(sqft)} sq ft`;
+        return `${sqft} sq ft`;
+      };
+
+      if (reqAreaRange.min !== null && reqAreaRange.max !== null && reqAreaRange.min !== reqAreaRange.max) {
+        // Range comparison
+        if (propAreaSqFt >= reqAreaRange.min && propAreaSqFt <= reqAreaRange.max) {
+          areaScore = 15;
+          areaDetail = `${formatArea(propAreaSqFt)} within ${formatArea(reqAreaRange.min)}-${formatArea(reqAreaRange.max)} range`;
+        } else {
+          const rangeCenter = (reqAreaRange.min + reqAreaRange.max) / 2;
+          const rangeSpan = reqAreaRange.max - reqAreaRange.min;
+          const deviation = Math.abs(propAreaSqFt - rangeCenter) / (rangeSpan / 2);
+          if (deviation <= 1.2) {
+            areaScore = 10;
+            areaDetail = `${formatArea(propAreaSqFt)} near ${formatArea(reqAreaRange.min)}-${formatArea(reqAreaRange.max)} range`;
+          } else if (deviation <= 1.5) {
+            areaScore = 5;
+            areaDetail = `${formatArea(propAreaSqFt)} outside ${formatArea(reqAreaRange.min)}-${formatArea(reqAreaRange.max)} range`;
+          } else {
+            areaDetail = `${formatArea(propAreaSqFt)} far from ${formatArea(reqAreaRange.min)}-${formatArea(reqAreaRange.max)} range`;
+          }
+        }
+      } else {
+        // Single value or min-only / max-only comparison
+        const targetArea = reqAreaRange.min || reqAreaRange.max;
+        if (targetArea) {
+          const ratio = propAreaSqFt / targetArea;
+          if (ratio >= 0.8 && ratio <= 1.2) {
+            areaScore = 15;
+            areaDetail = `${formatArea(propAreaSqFt)} ≈ ${formatArea(targetArea)} (±20%)`;
+          } else if (ratio >= 0.6 && ratio <= 1.4) {
+            areaScore = 10;
+            areaDetail = `${formatArea(propAreaSqFt)} close to ${formatArea(targetArea)}`;
+          } else if (ratio >= 0.4 && ratio <= 1.6) {
+            areaScore = 5;
+            areaDetail = `${formatArea(propAreaSqFt)} differs from ${formatArea(targetArea)}`;
+          } else {
+            areaDetail = `${formatArea(propAreaSqFt)} far from ${formatArea(targetArea)}`;
+          }
+        }
+      }
+    } else {
+      areaScore = 7;
+      areaDetail = 'Area info incomplete or unparseable';
+    }
+    matchReasons.push({ factor: 'Area', score: areaScore, maxScore: 15, detail: areaDetail });
+
+    // ── Final Score ──
+    const totalScore = Math.min(100, Math.max(0,
+      districtScore + localityResult.score + typeScore + budgetScore + areaScore
+    ));
+
+    return { matchScore: totalScore, matchReasons };
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MATCH LOOKUP — Find matching buyers for a property (and vice versa)
+  // ═══════════════════════════════════════════════════════════════════════════
+
   const computePropertyMatchesLocally = useCallback((propTarget) => {
     let prop = null;
     if (typeof propTarget === 'object' && propTarget !== null) {
@@ -498,73 +840,11 @@ export const PropertyProvider = ({ children }) => {
     }
     if (!prop) return [];
 
-    const propListingType = (prop.listingType || 'Sale').toLowerCase();
-    const isPropRent = propListingType === 'rent';
-
     return requirements.map(req => {
-      // 1. Transaction type hard filter (Rent only with Rent, Sale only with Buy)
-      const reqListingType = (req.requirementType || 'Buy').toLowerCase();
-      const isReqRent = reqListingType === 'rent';
-      if (isPropRent !== isReqRent) {
-        return null;
-      }
-
-      // 2. Location & District Match (MANDATORY HARD FILTER)
-      const reqLoc = (req.preferredLocation || '').toLowerCase().trim();
-      const propLoc = (prop.location || '').toLowerCase().trim();
-      const reqDist = (req.district || '').toLowerCase().trim();
-      const propDist = (prop.district || '').toLowerCase().trim();
-
-      let locScore = 0;
-      if (reqDist && propDist && reqDist === propDist) {
-        locScore += 30;
-      }
-      if (reqLoc && propLoc && (propLoc.includes(reqLoc) || reqLoc.includes(propLoc))) {
-        locScore += 15;
-      } else if (reqLoc && (prop.district || '').toLowerCase().includes(reqLoc)) {
-        locScore += 10;
-      }
-
-      // Hard filter: If location/district does not match at all, they CANNOT match
-      if (locScore === 0) {
-        return null;
-      }
-
-      let score = 10; // Base transaction eligibility
-      score += Math.min(40, locScore);
-
-      // 3. Property type match (30% max)
-      const reqPType = (req.propertyType || '').toLowerCase().trim();
-      const propPType = (prop.propertyType || '').toLowerCase().trim();
-      if (reqPType && propPType) {
-        if (reqPType === propPType) {
-          score += 30;
-        } else if (reqPType.includes('plot') && propPType.includes('plot') && !reqPType.includes('agricultural') && !propPType.includes('agricultural')) {
-          score += 15;
-        }
-      }
-
-      // 4. Budget match (20% max)
-      const budget = Number(isReqRent ? (req.maximumMonthlyRent || req.budget || 0) : (req.budget || 0));
-      const price = Number(isPropRent ? (prop.monthlyRent || prop.expectedPrice || 0) : (prop.expectedPrice || 0));
-
-      if (budget > 0 && price > 0) {
-        if (price <= budget) {
-          score += 20;
-        } else if (price <= budget * 1.15) {
-          score += 12;
-        } else if (price <= budget * 1.25) {
-          score += 5;
-        }
-      } else {
-        score += 10;
-      }
-
-      return {
-        ...req,
-        matchScore: Math.min(100, Math.max(0, score))
-      };
-    }).filter(item => item !== null && item.matchScore >= 60).sort((a, b) => b.matchScore - a.matchScore);
+      const result = computeMatchScore(prop, req);
+      if (!result) return null;
+      return { ...req, matchScore: result.matchScore, matchReasons: result.matchReasons };
+    }).filter(item => item !== null && item.matchScore >= 55).sort((a, b) => b.matchScore - a.matchScore);
   }, [properties, requirements]);
 
   const computeRequirementMatchesLocally = useCallback((reqTarget) => {
@@ -580,79 +860,18 @@ export const PropertyProvider = ({ children }) => {
     }
     if (!req) return [];
 
-    const reqListingType = (req.requirementType || 'Buy').toLowerCase();
-    const isReqRent = reqListingType === 'rent';
-
     return properties.map(prop => {
-      // 1. Transaction type hard filter (Rent only with Rent, Sale only with Buy)
-      const propListingType = (prop.listingType || 'Sale').toLowerCase();
-      const isPropRent = propListingType === 'rent';
-      if (isReqRent !== isPropRent) {
-        return null;
-      }
-
-      // 2. Location & District Match (MANDATORY HARD FILTER)
-      const reqLoc = (req.preferredLocation || '').toLowerCase().trim();
-      const propLoc = (prop.location || '').toLowerCase().trim();
-      const reqDist = (req.district || '').toLowerCase().trim();
-      const propDist = (prop.district || '').toLowerCase().trim();
-
-      let locScore = 0;
-      if (reqDist && propDist && reqDist === propDist) {
-        locScore += 30;
-      }
-      if (reqLoc && propLoc && (propLoc.includes(reqLoc) || reqLoc.includes(propLoc))) {
-        locScore += 15;
-      } else if (reqLoc && (prop.district || '').toLowerCase().includes(reqLoc)) {
-        locScore += 10;
-      }
-
-      // Hard filter: If location/district does not match at all, they CANNOT match
-      if (locScore === 0) {
-        return null;
-      }
-
-      let score = 10; // Base transaction eligibility
-      score += Math.min(40, locScore);
-
-      // 3. Property type match (30% max)
-      const reqPType = (req.propertyType || '').toLowerCase().trim();
-      const propPType = (prop.propertyType || '').toLowerCase().trim();
-      if (reqPType && propPType) {
-        if (reqPType === propPType) {
-          score += 30;
-        } else if (reqPType.includes('plot') && propPType.includes('plot') && !reqPType.includes('agricultural') && !propPType.includes('agricultural')) {
-          score += 15;
-        }
-      }
-
-      // 4. Budget match (20% max)
-      const budget = Number(isReqRent ? (req.maximumMonthlyRent || req.budget || 0) : (req.budget || 0));
-      const price = Number(isPropRent ? (prop.monthlyRent || prop.expectedPrice || 0) : (prop.expectedPrice || 0));
-
-      if (budget > 0 && price > 0) {
-        if (price <= budget) {
-          score += 20;
-        } else if (price <= budget * 1.15) {
-          score += 12;
-        } else if (price <= budget * 1.25) {
-          score += 5;
-        }
-      } else {
-        score += 10;
-      }
-
-      return {
-        ...prop,
-        matchScore: Math.min(100, Math.max(0, score))
-      };
-    }).filter(item => item !== null && item.matchScore >= 60).sort((a, b) => b.matchScore - a.matchScore);
+      const result = computeMatchScore(prop, req);
+      if (!result) return null;
+      return { ...prop, matchScore: result.matchScore, matchReasons: result.matchReasons };
+    }).filter(item => item !== null && item.matchScore >= 55).sort((a, b) => b.matchScore - a.matchScore);
   }, [properties, requirements]);
 
-  // Sanitize and filter match results strictly (ensuring backend responses don't include cross-district items)
+  // Sanitize and filter match results strictly (ensuring backend responses don't include cross-state/district items)
   const sanitizeMatches = useCallback((target, list) => {
     if (!Array.isArray(list) || !target) return list || [];
     const targetDist = (target.district || '').toLowerCase().trim();
+    const targetState = (target.state || '').toLowerCase().trim();
     const targetLoc = (target.location || target.preferredLocation || '').toLowerCase().trim();
     const targetIsRent = (target.listingType || target.requirementType || '').toLowerCase() === 'rent';
 
@@ -661,7 +880,11 @@ export const PropertyProvider = ({ children }) => {
       const itemIsRent = (item.listingType || item.requirementType || '').toLowerCase() === 'rent';
       if (targetIsRent !== itemIsRent) return false;
 
-      // 2. Hard filter: District / Location matching
+      // 2. Hard filter: State must match
+      const itemState = (item.state || '').toLowerCase().trim();
+      if (targetState && itemState && targetState !== itemState) return false;
+
+      // 3. Hard filter: District / Location matching
       const itemDist = (item.district || '').toLowerCase().trim();
       const itemLoc = (item.location || item.preferredLocation || '').toLowerCase().trim();
 
@@ -671,7 +894,7 @@ export const PropertyProvider = ({ children }) => {
         }
       }
 
-      return (item.matchScore || 0) >= 60;
+      return (item.matchScore || 0) >= 55;
     });
   }, []);
 

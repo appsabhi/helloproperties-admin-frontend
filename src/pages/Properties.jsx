@@ -86,6 +86,7 @@ export default function Properties() {
     setDeletingTarget(null);
     setActiveMatchTarget(null);
     setExpandedBreakdowns({});
+    setMatchFilter('all');
     setSharingTarget(null);
     setViewingDetailTarget(null);
     setSearchQuery('');
@@ -166,6 +167,7 @@ export default function Properties() {
   const [matchResults, setMatchResults] = useState([]);
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [expandedBreakdowns, setExpandedBreakdowns] = useState({});
+  const [matchFilter, setMatchFilter] = useState('all'); // 'all' | 'top'
 
   // Property Sharing State ({ property: object, buyer: object })
   const [sharingTarget, setSharingTarget] = useState(null);
@@ -350,6 +352,7 @@ export default function Properties() {
   const handleOpenMatches = async (type, item) => {
     setActiveMatchTarget({ type, data: item });
     setExpandedBreakdowns({});
+    setMatchFilter('all');
     
     // 1. Instantly calculate and display matches with 0ms delay directly from item
     const instantMatches = type === 'property'
@@ -1603,24 +1606,67 @@ export default function Properties() {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4 flex-1">
+              {/* Top Matches Filter Bar */}
+              {!isLoadingMatches && matchResults.length > 0 && (
+                <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/70">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setMatchFilter('all')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        matchFilter === 'all'
+                          ? 'bg-white text-slate-800 shadow-sm border border-slate-200'
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      All Matches ({matchResults.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMatchFilter('top')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                        matchFilter === 'top'
+                          ? 'bg-emerald-600 text-white shadow-sm'
+                          : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                      }`}
+                    >
+                      <span>🎯 90%+ Top Choice Only</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                        matchFilter === 'top' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-800'
+                      }`}>
+                        {matchResults.filter(m => m.matchScore >= 90).length}
+                      </span>
+                    </button>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
+                    {matchFilter === 'top' ? 'Showing high-accuracy 90%+ matches' : 'Minimum score threshold: 60%'}
+                  </span>
+                </div>
+              )}
+
               {isLoadingMatches ? (
                 <div className="py-12 flex flex-col items-center justify-center space-y-3">
                   <div className="w-8 h-8 border-3 border-[#B0004F] border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-slate-600 text-sm font-medium">Finding 2-Way Matches...</p>
+                  <p className="text-slate-600 text-sm font-medium">Finding High-Accuracy Matches...</p>
                   <p className="text-xs text-slate-400">Comparing district, locality, type, budget & area</p>
                 </div>
               ) : matchResults.length === 0 ? (
                 <div className="py-12 text-center border border-slate-200 border-dashed rounded-xl bg-slate-50 space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">No matches found above the 55% threshold.</p>
+                  <p className="text-sm font-semibold text-slate-700">No matches found above the 60% threshold.</p>
                   <p className="text-xs text-slate-500">As new {activeMatchTarget.type === 'property' ? 'requirements' : 'properties'} are added, matching results update automatically.</p>
+                </div>
+              ) : matchFilter === 'top' && matchResults.filter(m => m.matchScore >= 90).length === 0 ? (
+                <div className="py-10 text-center border border-emerald-100 rounded-xl bg-emerald-50/50 space-y-2">
+                  <p className="text-sm font-semibold text-slate-800">No 90%+ Top Choice matches found yet.</p>
+                  <p className="text-xs text-slate-500">Switch to "All Matches" to see strong matches between 60% and 89%.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {matchResults.map((matchItem, idx) => (
+                  {(matchFilter === 'top' ? matchResults.filter(m => m.matchScore >= 90) : matchResults).map((matchItem, idx) => (
                     <div key={idx} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-slate-300 transition-all duration-200 space-y-3.5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                               (matchItem.requirementType === 'Rent' || matchItem.listingType === 'Rent')
                                 ? 'bg-violet-50 text-violet-700 border border-violet-100'
@@ -1630,9 +1676,22 @@ export default function Properties() {
                                 ? (matchItem.requirementType === 'Rent' ? 'Rent Customer' : 'Buy Customer') 
                                 : (matchItem.listingType || 'Sale')}
                             </span>
-                            <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/70">
-                              {matchItem.matchScore}% Match
-                            </span>
+
+                            {/* Match Quality Badge */}
+                            {matchItem.matchScore >= 90 ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
+                                <span>🎯 90%+ Top Choice</span>
+                                <span className="text-[10px] text-emerald-800 bg-emerald-200/60 px-1 rounded">({matchItem.matchScore}%)</span>
+                              </span>
+                            ) : matchItem.matchScore >= 75 ? (
+                              <span className="inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                                ⭐ Strong Match ({matchItem.matchScore}%)
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                {matchItem.matchScore}% Match
+                              </span>
+                            )}
                           </div>
                           <h4 className="font-bold text-slate-900 text-base mt-1.5 truncate">
                             {activeMatchTarget.type === 'property' 

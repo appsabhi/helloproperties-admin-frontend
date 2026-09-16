@@ -1,6 +1,8 @@
 import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { PropertyContext } from '../context/PropertyContext';
+import { AuthContext } from '../context/AuthContext';
+import ActivityLogView from '../components/ActivityLogView';
 import { 
   Building2, 
   CheckCircle2, 
@@ -11,6 +13,7 @@ import {
 
 export default function Dashboard() {
   const { properties, requirements } = useContext(PropertyContext);
+  const { user } = useContext(AuthContext);
 
   const totalProps = properties.length;
   const availableProps = properties.filter(p => p.status === 'Available').length;
@@ -191,6 +194,27 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Recent User Activity Feed (Admin Only) */}
+      {user?.role === 'Admin' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-[20px] font-bold text-[#171717]">User Activity Monitoring</h3>
+              <p className="text-xs text-[#6B6B6B]">Live audit trail of user actions across the admin portal.</p>
+            </div>
+            <Link
+              to="/activities"
+              className="text-xs font-semibold text-[#C4005A] hover:text-[#B0004F] flex items-center space-x-1 transition-colors duration-150"
+            >
+              <span>View full activity log</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <ActivityLogView compact limit={5} />
+        </div>
+      )}
     </div>
   );
 }
+

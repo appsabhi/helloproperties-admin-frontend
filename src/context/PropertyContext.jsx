@@ -112,6 +112,9 @@ export const PropertyProvider = ({ children }) => {
     securityDeposit: Number(p.securityDeposit || p.security_deposit || 0),
     securityDepositUnit: p.securityDepositUnit || p.security_deposit_unit,
     description: p.description || '',
+    keywords: Array.isArray(p.keywords)
+      ? p.keywords
+      : (p.keywords ? String(p.keywords).split(/,\s*/).map(s=>s.trim()).filter(Boolean) : (p.description ? p.description.split(/,\s*/).map(s=>s.trim()).filter(Boolean) : [])),
     ownerName: p.ownerName || p.owner_name,
     phoneNumber: p.ownerPhone || p.phoneNumber || p.owner_phone || '',
     ownerPhone: p.ownerPhone || p.phoneNumber || p.owner_phone || '',
@@ -217,6 +220,7 @@ export const PropertyProvider = ({ children }) => {
         monthlyRent: listingType === 'Rent' ? Number(propertyData.monthlyRent || 0) : 0,
         securityDeposit: listingType === 'Rent' ? Number(propertyData.securityDeposit || 0) : 0,
         description: propertyData.description || '',
+        keywords: propertyData.keywords || (propertyData.description ? propertyData.description.split(/,\s*/).map(s => s.trim()).filter(Boolean) : []),
         ownerName: propertyData.ownerName,
         ownerPhone: propertyData.phoneNumber || propertyData.ownerPhone || '',
         ownerAddress: propertyData.ownerAddress || '',
@@ -381,6 +385,7 @@ export const PropertyProvider = ({ children }) => {
         monthlyRent: listingType === 'Rent' ? Number(updatedData.monthlyRent || 0) : 0,
         securityDeposit: listingType === 'Rent' ? Number(updatedData.securityDeposit || 0) : 0,
         description: updatedData.description || '',
+        keywords: updatedData.keywords || (updatedData.description ? updatedData.description.split(/,\s*/).map(s => s.trim()).filter(Boolean) : []),
         ownerName: updatedData.ownerName,
         ownerPhone: updatedData.phoneNumber || updatedData.ownerPhone || '',
         phoneNumber: updatedData.phoneNumber || updatedData.ownerPhone || '',

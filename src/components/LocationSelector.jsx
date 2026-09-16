@@ -8,27 +8,117 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
     : 'https://helloproperties-admin-backend.vercel.app/api'
 );
 
-// Client-side fallback dictionary for instant offline lookup
+// Client-side fallback dictionary for instant offline lookup & common localities
 const CLIENT_LOCATION_LOOKUP = {
+  // Kozhikode District
+  'engapuzha': { district: 'Kozhikode', state: 'Kerala' },
+  'kodencherry': { district: 'Kozhikode', state: 'Kerala' },
+  'kunnamangalam': { district: 'Kozhikode', state: 'Kerala' },
+  'mukkam': { district: 'Kozhikode', state: 'Kerala' },
+  'mavoor': { district: 'Kozhikode', state: 'Kerala' },
   'thondayad': { district: 'Kozhikode', state: 'Kerala' },
   'thondayadu': { district: 'Kozhikode', state: 'Kerala' },
-  'mavoor': { district: 'Kozhikode', state: 'Kerala' },
   'palayam': { district: 'Kozhikode', state: 'Kerala' },
+  'feroke': { district: 'Kozhikode', state: 'Kerala' },
+  'ramanattukara': { district: 'Kozhikode', state: 'Kerala' },
+  'elathur': { district: 'Kozhikode', state: 'Kerala' },
+  'pantheeramkavu': { district: 'Kozhikode', state: 'Kerala' },
+  'balussery': { district: 'Kozhikode', state: 'Kerala' },
+  'koyilandy': { district: 'Kozhikode', state: 'Kerala' },
+  'vadakara': { district: 'Kozhikode', state: 'Kerala' },
+  'beypore': { district: 'Kozhikode', state: 'Kerala' },
+  'medical college': { district: 'Kozhikode', state: 'Kerala' },
+  'chevayur': { district: 'Kozhikode', state: 'Kerala' },
+  'west hill': { district: 'Kozhikode', state: 'Kerala' },
+  'mankavu': { district: 'Kozhikode', state: 'Kerala' },
   'calicut': { district: 'Kozhikode', state: 'Kerala' },
   'kozhikode': { district: 'Kozhikode', state: 'Kerala' },
+
+  // Palakkad District
+  'kanjikode': { district: 'Palakkad', state: 'Kerala' },
+  'ottapalam': { district: 'Palakkad', state: 'Kerala' },
+  'cherpulassery': { district: 'Palakkad', state: 'Kerala' },
+  'pattambi': { district: 'Palakkad', state: 'Kerala' },
+  'chittur': { district: 'Palakkad', state: 'Kerala' },
+  'mannarkkad': { district: 'Palakkad', state: 'Kerala' },
+  'alathur': { district: 'Palakkad', state: 'Kerala' },
+  'nemmara': { district: 'Palakkad', state: 'Kerala' },
+  'stadium bye pass': { district: 'Palakkad', state: 'Kerala' },
+  'pudussery': { district: 'Palakkad', state: 'Kerala' },
+  'walayar': { district: 'Palakkad', state: 'Kerala' },
+  'palakkad': { district: 'Palakkad', state: 'Kerala' },
+
+  // Malappuram District
+  'manjeri': { district: 'Malappuram', state: 'Kerala' },
+  'perinthalmanna': { district: 'Malappuram', state: 'Kerala' },
+  'tirur': { district: 'Malappuram', state: 'Kerala' },
+  'ponnani': { district: 'Malappuram', state: 'Kerala' },
+  'kottakkal': { district: 'Malappuram', state: 'Kerala' },
+  'nilambur': { district: 'Malappuram', state: 'Kerala' },
+  'kondotty': { district: 'Malappuram', state: 'Kerala' },
+  'malappuram': { district: 'Malappuram', state: 'Kerala' },
+  'changaramkulam': { district: 'Malappuram', state: 'Kerala' },
+  'valanchery': { district: 'Malappuram', state: 'Kerala' },
+
+  // Ernakulam District
   'kakkanad': { district: 'Ernakulam', state: 'Kerala' },
   'edappally': { district: 'Ernakulam', state: 'Kerala' },
   'aluva': { district: 'Ernakulam', state: 'Kerala' },
   'vyttila': { district: 'Ernakulam', state: 'Kerala' },
+  'kalamassery': { district: 'Ernakulam', state: 'Kerala' },
+  'fort kochi': { district: 'Ernakulam', state: 'Kerala' },
+  'tripunithura': { district: 'Ernakulam', state: 'Kerala' },
+  'palarivattom': { district: 'Ernakulam', state: 'Kerala' },
+  'marine drive': { district: 'Ernakulam', state: 'Kerala' },
+  'mg road': { district: 'Ernakulam', state: 'Kerala' },
+  'kadavanthra': { district: 'Ernakulam', state: 'Kerala' },
   'kochi': { district: 'Ernakulam', state: 'Kerala' },
   'cochin': { district: 'Ernakulam', state: 'Kerala' },
+
+  // Thrissur District
+  'swaraj round': { district: 'Thrissur', state: 'Kerala' },
+  'puzhakkal': { district: 'Thrissur', state: 'Kerala' },
+  'guruvayur': { district: 'Thrissur', state: 'Kerala' },
+  'chalakudy': { district: 'Thrissur', state: 'Kerala' },
+  'kodungallur': { district: 'Thrissur', state: 'Kerala' },
+  'irinjalakuda': { district: 'Thrissur', state: 'Kerala' },
+  'mannuthy': { district: 'Thrissur', state: 'Kerala' },
+  'trichur': { district: 'Thrissur', state: 'Kerala' },
+
+  // Thiruvananthapuram District
   'kowdiar': { district: 'Thiruvananthapuram', state: 'Kerala' },
   'technopark': { district: 'Thiruvananthapuram', state: 'Kerala' },
   'kazhakkoottam': { district: 'Thiruvananthapuram', state: 'Kerala' },
+  'vellayambalam': { district: 'Thiruvananthapuram', state: 'Kerala' },
+  'pattom': { district: 'Thiruvananthapuram', state: 'Kerala' },
+  'east fort': { district: 'Thiruvananthapuram', state: 'Kerala' },
+  'sasthamangalam': { district: 'Thiruvananthapuram', state: 'Kerala' },
+  'poojappura': { district: 'Thiruvananthapuram', state: 'Kerala' },
+  'neyyattinkara': { district: 'Thiruvananthapuram', state: 'Kerala' },
   'trivandrum': { district: 'Thiruvananthapuram', state: 'Kerala' },
-  'swaraj round': { district: 'Thrissur', state: 'Kerala' },
-  'puzhakkal': { district: 'Thrissur', state: 'Kerala' },
-  'trichur': { district: 'Thrissur', state: 'Kerala' },
+
+  // Wayanad District
+  'kalpetta': { district: 'Wayanad', state: 'Kerala' },
+  'sulthan bathery': { district: 'Wayanad', state: 'Kerala' },
+  'mananthavady': { district: 'Wayanad', state: 'Kerala' },
+  'meppadi': { district: 'Wayanad', state: 'Kerala' },
+  'vythiri': { district: 'Wayanad', state: 'Kerala' },
+
+  // Kottayam District
+  'kottayam': { district: 'Kottayam', state: 'Kerala' },
+  'changanassery': { district: 'Kottayam', state: 'Kerala' },
+  'pala': { district: 'Kottayam', state: 'Kerala' },
+  'kanjirappally': { district: 'Kottayam', state: 'Kerala' },
+  'ettumanoor': { district: 'Kottayam', state: 'Kerala' },
+
+  // Kannur District
+  'kannur': { district: 'Kannur', state: 'Kerala' },
+  'thalassery': { district: 'Kannur', state: 'Kerala' },
+  'payyanur': { district: 'Kannur', state: 'Kerala' },
+  'mattannur': { district: 'Kannur', state: 'Kerala' },
+  'taliparamba': { district: 'Kannur', state: 'Kerala' },
+
+  // Other Major Cities
   'velachery': { district: 'Chennai', state: 'Tamil Nadu' },
   'anna nagar': { district: 'Chennai', state: 'Tamil Nadu' },
   'whitefield': { district: 'Bengaluru Urban', state: 'Karnataka' },
@@ -48,7 +138,7 @@ export default function LocationSelector({
 }) {
   const locationValue = formData[locationFieldName] || '';
   const districtValue = formData.district || '';
-  const stateValue = formData.state || '';
+  const stateValue = formData.state || 'Kerala';
 
   const [query, setQuery] = useState(locationValue);
   const [suggestions, setSuggestions] = useState([]);
@@ -65,7 +155,7 @@ export default function LocationSelector({
 
   // Sync district options based on current State
   useEffect(() => {
-    const districts = getDistrictsForState(stateValue);
+    const districts = getDistrictsForState(stateValue || 'Kerala');
     setAvailableDistricts(districts);
   }, [stateValue]);
 
@@ -80,7 +170,7 @@ export default function LocationSelector({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Live Location Search (Backend API + Client-side Fallback)
+  // Live Location Search (Backend API + Instant Client-side Lookup + OpenStreetMap Fallback)
   useEffect(() => {
     if (!query || query.trim().length < 2) {
       setSuggestions([]);
@@ -91,8 +181,24 @@ export default function LocationSelector({
     const handler = setTimeout(async () => {
       setIsLoading(true);
       const q = query.trim().toLowerCase();
+      const normQ = q.replace(/[^a-z0-9]/g, '');
       let fetchedMatches = [];
 
+      // 1. Check instant client-side lookup dictionary first
+      const localMatches = [];
+      for (const [key, info] of Object.entries(CLIENT_LOCATION_LOOKUP)) {
+        const normKey = key.replace(/[^a-z0-9]/g, '');
+        if (normKey.includes(normQ) || normQ.includes(normKey)) {
+          const formattedLocality = key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          localMatches.push({
+            locality: formattedLocality,
+            district: info.district,
+            state: info.state
+          });
+        }
+      }
+
+      // 2. Query backend API if available
       try {
         const token = localStorage.getItem('hp_auth_token') || localStorage.getItem('auth_token');
         const res = await fetch(`${API_BASE_URL}/locations/search?q=${encodeURIComponent(q)}`, {
@@ -107,65 +213,62 @@ export default function LocationSelector({
           }
         }
       } catch (err) {
-        console.warn('API location search error, using client-side lookup:', err.message);
+        // API fallback
       }
 
-      // If backend search returned empty, perform live Nominatim Kerala search from client
-      if (fetchedMatches.length === 0 && q.length >= 2) {
+      // Combine matches (prioritizing API and local matches)
+      const combinedMap = new Map();
+      [...fetchedMatches, ...localMatches].forEach(item => {
+        const key = `${(item.locality || '').toLowerCase()}_${(item.district || '').toLowerCase()}`;
+        if (!combinedMap.has(key)) {
+          combinedMap.set(key, item);
+        }
+      });
+      let results = Array.from(combinedMap.values());
+
+      // 3. Fallback to OpenStreetMap Nominatim search if no results found yet
+      if (results.length === 0 && q.length >= 2) {
         try {
-          const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ', Kerala, India')}&countrycodes=in&format=json&addressdetails=1&limit=6`);
+          const targetState = stateValue || 'Kerala';
+          const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ', ' + targetState + ', India')}&countrycodes=in&format=json&addressdetails=1&limit=6`);
           if (nomRes.ok) {
             const nomData = await nomRes.json();
             if (Array.isArray(nomData)) {
               for (const item of nomData) {
                 const addr = item.address || {};
-                const rawState = addr.state || '';
+                const rawState = addr.state || targetState;
                 const displayName = item.display_name || '';
 
-                if (rawState.toLowerCase().includes('kerala') || displayName.toLowerCase().includes('kerala')) {
-                  const rawDistrict = addr.state_district || addr.county || addr.city || addr.district || addr.town || addr.suburb || '';
-                  const name = item.name || (displayName ? displayName.split(',')[0].trim() : query.trim());
-                  const districtName = rawDistrict.replace(/district/i, '').trim() || 'Kozhikode';
+                const rawDistrict = addr.state_district || addr.county || addr.city || addr.district || addr.town || addr.suburb || '';
+                const name = item.name || (displayName ? displayName.split(',')[0].trim() : query.trim());
+                const districtName = rawDistrict.replace(/district/i, '').trim() || districtValue || 'Kozhikode';
 
-                  fetchedMatches.push({
-                    locality: name,
-                    district: districtName,
-                    state: 'Kerala'
-                  });
-                }
+                results.push({
+                  locality: name,
+                  district: districtName,
+                  state: rawState || targetState
+                });
               }
             }
           }
         } catch (nomClientErr) {
-          // Client fallback to dictionary
-          const normQ = q.replace(/[^a-z0-9]/g, '');
-          for (const [key, info] of Object.entries(CLIENT_LOCATION_LOOKUP)) {
-            const normKey = key.replace(/[^a-z0-9]/g, '');
-            if (normKey.includes(normQ) || normQ.includes(normKey)) {
-              fetchedMatches.push({
-                locality: query.trim(),
-                district: info.district,
-                state: info.state
-              });
-              break;
-            }
-          }
+          // OpenStreetMap search fallback error handling
         }
       }
 
-      setSuggestions(fetchedMatches);
+      setSuggestions(results);
       setIsLoading(false);
       setIsOpen(true);
-    }, 250);
+    }, 200);
 
     return () => clearTimeout(handler);
-  }, [query]);
+  }, [query, stateValue, districtValue]);
 
   // Select a suggestion -> Auto-fill Locality, District & State
   const handleSelectSuggestion = (item) => {
     const selectedLocality = item.locality || query;
     const selectedDistrict = item.district || districtValue;
-    const selectedState = item.state || stateValue;
+    const selectedState = item.state || stateValue || 'Kerala';
 
     setQuery(selectedLocality);
     setIsOpen(false);
@@ -183,7 +286,7 @@ export default function LocationSelector({
     const qNorm = customText.toLowerCase().replace(/[^a-z0-9]/g, '');
 
     let detectedDistrict = districtValue;
-    let detectedState = stateValue;
+    let detectedState = stateValue || 'Kerala';
 
     // Smart auto-detect
     for (const [key, info] of Object.entries(CLIENT_LOCATION_LOOKUP)) {
@@ -204,7 +307,7 @@ export default function LocationSelector({
     });
   };
 
-  // State Change handler -> Update districts list
+  // State Change handler -> Update districts list & reset district if invalid
   const handleStateChange = (e) => {
     const newState = e.target.value;
     const districts = getDistrictsForState(newState);
@@ -279,6 +382,71 @@ export default function LocationSelector({
         <div className="flex-1 h-px bg-slate-100" />
       </div>
 
+      {/* State & District — two columns, State FIRST then District */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Column 1: State */}
+        <div className="flex flex-col gap-1">
+          <div className="relative">
+            <select
+              id="state-select"
+              value={stateValue}
+              onChange={handleStateChange}
+              className={`w-full px-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b appearance-none pr-9 focus:outline-none transition-colors duration-150 cursor-pointer ${
+                stateError ? "border-red-400" : "border-transparent focus:border-slate-300"
+              }`}
+            >
+              <option value=""></option>
+              {ALL_INDIAN_STATES.map((st) => (
+                <option key={st} value={st}>{st}</option>
+              ))}
+            </select>
+            <label
+              htmlFor="state-select"
+              className={`absolute left-4 pointer-events-none transition-all duration-200 ${
+                stateValue
+                  ? "top-2 text-[10.5px] text-slate-400 font-semibold"
+                  : "top-4 text-[13px] text-slate-400"
+              }`}
+            >
+              State / UT<span className="text-[#B0004F] ml-0.5">*</span>
+            </label>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          {stateError && <span className="text-[11px] text-red-500 px-1">{stateError}</span>}
+        </div>
+
+        {/* Column 2: District */}
+        <div className="flex flex-col gap-1">
+          <div className="relative">
+            <select
+              id="district-select"
+              value={districtValue}
+              onChange={handleDistrictChange}
+              className={`w-full px-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b appearance-none pr-9 focus:outline-none transition-colors duration-150 cursor-pointer ${
+                districtError ? "border-red-400" : "border-transparent focus:border-slate-300"
+              }`}
+            >
+              <option value=""></option>
+              {availableDistricts.map((dst) => (
+                <option key={dst} value={dst}>{dst}</option>
+              ))}
+            </select>
+            <label
+              htmlFor="district-select"
+              className={`absolute left-4 pointer-events-none transition-all duration-200 ${
+                districtValue
+                  ? "top-2 text-[10.5px] text-slate-400 font-semibold"
+                  : "top-4 text-[13px] text-slate-400"
+              }`}
+            >
+              District<span className="text-[#B0004F] ml-0.5">*</span>
+            </label>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          {districtError && <span className="text-[11px] text-red-500 px-1">{districtError}</span>}
+        </div>
+      </div>
+
       {/* Locality autocomplete — floating label */}
       <div className="relative" ref={wrapperRef}>
         <div className="relative">
@@ -345,7 +513,7 @@ export default function LocationSelector({
               ))
             ) : !isLoading ? (
               <div className="px-4 py-3 text-[12px] text-slate-400 text-center">
-                No suggestions. Select district &amp; state below.
+                No automatic suggestions. Select State &amp; District above.
               </div>
             ) : null}
             <button
@@ -361,69 +529,6 @@ export default function LocationSelector({
             </button>
           </div>
         )}
-      </div>
-
-      {/* District & State — two columns, filled style */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="relative">
-            <select
-              id="district-select"
-              value={districtValue}
-              onChange={handleDistrictChange}
-              className={`w-full px-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b appearance-none pr-9 focus:outline-none transition-colors duration-150 cursor-pointer ${
-                districtError ? "border-red-400" : "border-transparent focus:border-slate-300"
-              }`}
-            >
-              <option value=""></option>
-              {availableDistricts.map((dst) => (
-                <option key={dst} value={dst}>{dst}</option>
-              ))}
-            </select>
-            <label
-              htmlFor="district-select"
-              className={`absolute left-4 pointer-events-none transition-all duration-200 ${
-                districtValue
-                  ? "top-2 text-[10.5px] text-slate-400 font-semibold"
-                  : "top-4 text-[13px] text-slate-400"
-              }`}
-            >
-              District<span className="text-[#B0004F] ml-0.5">*</span>
-            </label>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-          {districtError && <span className="text-[11px] text-red-500 px-1">{districtError}</span>}
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="relative">
-            <select
-              id="state-select"
-              value={stateValue}
-              onChange={handleStateChange}
-              className={`w-full px-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b appearance-none pr-9 focus:outline-none transition-colors duration-150 cursor-pointer ${
-                stateError ? "border-red-400" : "border-transparent focus:border-slate-300"
-              }`}
-            >
-              <option value=""></option>
-              {ALL_INDIAN_STATES.map((st) => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </select>
-            <label
-              htmlFor="state-select"
-              className={`absolute left-4 pointer-events-none transition-all duration-200 ${
-                stateValue
-                  ? "top-2 text-[10.5px] text-slate-400 font-semibold"
-                  : "top-4 text-[13px] text-slate-400"
-              }`}
-            >
-              State / UT<span className="text-[#B0004F] ml-0.5">*</span>
-            </label>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-          {stateError && <span className="text-[11px] text-red-500 px-1">{stateError}</span>}
-        </div>
       </div>
     </div>
   );

@@ -1,6 +1,42 @@
 import React, { useState } from 'react';
 import { Share2, X, Check, MessageCircle, ExternalLink } from 'lucide-react';
 
+function formatDisplayArea(areaStr) {
+  if (!areaStr) return '—';
+  const s = String(areaStr).trim();
+  if (s === '—' || s === 'Any Area') return s;
+
+  const numMatch = s.match(/^([\d.,]+)/);
+  if (!numMatch) return s;
+
+  const num = numMatch[1];
+  const rest = s.slice(numMatch[0].length).trim();
+  if (!rest) return num;
+
+  const recognizedUnits = [
+    '5+ BHK', '4+ BHK', '4 BHK', '3 BHK', '2 BHK', '1 BHK',
+    'Sq. Meter', 'Sq. Yard', 'Sq. Ft.', 'House', 'Month',
+    'Cent', 'Acre', 'BHK'
+  ];
+
+  let lastMatchUnit = null;
+  let maxIdx = -1;
+
+  for (const u of recognizedUnits) {
+    const idx = rest.toLowerCase().lastIndexOf(u.toLowerCase());
+    if (idx > maxIdx) {
+      maxIdx = idx;
+      lastMatchUnit = u;
+    }
+  }
+
+  if (lastMatchUnit) {
+    return `${num} ${lastMatchUnit}`;
+  }
+
+  return `${num} ${rest}`;
+}
+
 export function buildCleanWhatsAppText(property) {
   const isRent = property?.listingType === 'Rent';
   const priceLines = [];
@@ -18,8 +54,9 @@ export function buildCleanWhatsAppText(property) {
       maximumFractionDigits: 0
     }).format(property.securityDeposit || 0);
 
-    priceLines.push(`💰 Monthly Rent: ${formattedRent}`);
-    priceLines.push(`🔐 Security Deposit: ${formattedDeposit}`);
+    priceLines.push(`💰 Rent: ${formattedRent}`);
+    // Temporarily hidden security deposit from WhatsApp share
+    // priceLines.push(`🔐 Security Deposit: ${formattedDeposit}`);
   } else {
     const formattedPrice = new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -34,6 +71,9 @@ export function buildCleanWhatsAppText(property) {
     ? property.imageUrl.trim()
     : null;
 
+  const propId = property.id || property.propertyId || property._id;
+  const publicShareUrl = `${window.location.origin}/p/${propId}`;
+
   const messageLines = [
     `Hello! 👋`,
     ``,
@@ -41,8 +81,11 @@ export function buildCleanWhatsAppText(property) {
     ``,
     `🏡 Property Type: ${property.propertyType || 'Plot/Land'}`,
     `📍 District: ${property.district || '—'}`,
-    `📐 Area: ${property.area || '—'}`,
-    ...priceLines
+    `📐 Area: ${formatDisplayArea(property.area)}`,
+    ...priceLines,
+    ``,
+    `🔗 View Full Product Details Online:`,
+    `${publicShareUrl}`
   ];
 
   if (validImageUrl) {
@@ -180,17 +223,13 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
             </div>
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-semibold">Total Area</span>
-              <span className="font-bold text-slate-900">{property.area || '—'}</span>
+              <span className="font-bold text-slate-900">{formatDisplayArea(property.area)}</span>
             </div>
             {isRent ? (
               <>
                 <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Monthly Rent</span>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Rent</span>
                   <span className="font-extrabold text-[#C4005A]">{formattedRent}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Security Deposit</span>
-                  <span className="font-bold text-slate-800">{formattedDeposit}</span>
                 </div>
               </>
             ) : (
@@ -209,16 +248,30 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
           )}
         </div>
 
-        {/* Target Buyer Info */}
-        {buyer && (
-          <div className="text-xs text-slate-500 flex items-center justify-between px-1 border-t border-slate-100 pt-3">
-            <span>Recipient Buyer: <strong className="text-slate-800">{buyer.buyerName || 'Customer'}</strong></span>
-            <span className="font-mono text-slate-600">{buyer.phoneNumber || buyer.buyerPhone}</span>
+        {/* Public Share Link Card Box */}
+        <div className="pt-2 border-t border-slate-100 space-y-1.5">
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Public Shareable Product Link</span>
+          <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+            <span className="text-xs font-mono text-slate-700 truncate flex-1 select-all font-medium">
+              {`${window.location.origin}/p/${property.id || property.propertyId || property._id}`}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const link = `${window.location.origin}/p/${property.id || property.propertyId || property._id}`;
+                navigator.clipboard.writeText(link);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 3000);
+              }}
+              className="px-2.5 py-1 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-[11px] rounded-lg transition-colors cursor-pointer shrink-0"
+            >
+              {copied ? 'Copied!' : 'Copy Link'}
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+        <div className="flex flex-col sm:flex-row gap-2 pt-1">
           <button
             onClick={handleOpenWhatsApp}
             className="flex-1 inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
@@ -232,7 +285,7 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
             className="inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
           >
             {copied ? <Check className="w-4 h-4 text-emerald-600" /> : null}
-            <span>{copied ? 'Copied!' : 'Copy Text'}</span>
+            <span>{copied ? 'Copied!' : 'Copy Message'}</span>
           </button>
         </div>
       </div>

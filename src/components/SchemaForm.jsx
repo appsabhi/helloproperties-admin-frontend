@@ -17,6 +17,12 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       defaultData[field.id] = initialValues[field.id] !== undefined
         ? initialValues[field.id]
         : (field.defaultValue !== undefined ? field.defaultValue : "");
+
+      if (field.hasUnit && field.unitId) {
+        defaultData[field.unitId] = initialValues[field.unitId] !== undefined
+          ? initialValues[field.unitId]
+          : field.defaultUnit;
+      }
     });
     if (initialValues.location) defaultData.location = initialValues.location;
     if (initialValues.preferredLocation) defaultData.preferredLocation = initialValues.preferredLocation;
@@ -55,6 +61,12 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       } else if (fieldId === "requirementType") {
         if (value === "Buy") { next.maximumMonthlyRent = ""; }
         else if (value === "Rent") { next.budget = ""; }
+      } else if (fieldId === "areaUnit") {
+        let cleanUnit = String(value).replace(/^\/\s*/, '').trim();
+        next.expectedPriceUnit = `/ ${cleanUnit}`;
+      } else if (fieldId === "requiredAreaUnit") {
+        let cleanUnit = String(value).replace(/^\/\s*/, '').trim();
+        next.budgetUnit = `/ ${cleanUnit}`;
       }
       return next;
     });
@@ -265,6 +277,75 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                       )}
                     </div>
                   </div>
+
+                ) : field.hasUnit ? (
+                  /* Input with integrated right-aligned unit selector */
+                  (() => {
+                    const rawAreaUnit = formData.areaUnit || formData.requiredAreaUnit || 'Cent';
+                    let cleanAreaUnit = String(rawAreaUnit).replace(/^\/\s*/, '').trim();
+
+                    let unitOptionsList = field.unitOptions || [];
+
+                    if (field.isPricePerArea) {
+                      const allAreaUnits = ['Cent', 'Sq. Ft.', 'Acre', 'Month', 'BHK', 'House', 'Sq. Meter', 'Sq. Yard'];
+                      const perAreaOpts = allAreaUnits.map(u => `/ ${u}`);
+                      let autoOpt = `/ ${cleanAreaUnit}`;
+                      if (field.id === 'monthlyRent' || field.id === 'maximumMonthlyRent') {
+                        autoOpt = '/ Month';
+                      }
+
+                      const uniqueOpts = new Set([autoOpt, ...perAreaOpts, 'All Properties']);
+                      unitOptionsList = Array.from(uniqueOpts);
+                    }
+
+                    const defaultVal = field.isPricePerArea
+                      ? (field.id.toLowerCase().includes('rent') ? '/ Month' : `/ ${cleanAreaUnit}`)
+                      : field.defaultUnit;
+                    const selectedValue = formData[field.unitId] || defaultVal;
+
+                    return (
+                      <div className="relative">
+                        <div className={`relative flex items-center bg-[#F4F4F6] rounded-xl border-b transition-colors duration-150 ${
+                          hasError ? 'border-red-400' : 'border-transparent focus-within:border-slate-300'
+                        }`}>
+                          <div className="relative flex-1 min-w-0">
+                            <input
+                              id={`input-${field.id}`}
+                              type={field.type === "number" ? "number" : "text"}
+                              step={field.type === "number" ? "any" : undefined}
+                              value={formData[field.id] || ""}
+                              onChange={(e) => handleChange(e, field.id)}
+                              placeholder=" "
+                              className="w-full px-4 pt-6 pb-2 rounded-l-xl text-[13.5px] text-slate-800 bg-transparent focus:outline-none peer pr-2"
+                            />
+                            <label htmlFor={`input-${field.id}`} className={floatLabel}>
+                              {field.label}{field.required && <span className="text-[#B0004F] ml-0.5">*</span>}
+                            </label>
+                          </div>
+
+                          {/* Subtle Vertical Divider */}
+                          <div className="h-7 w-px bg-slate-200/80 shrink-0" />
+
+                          {/* Unit Selector Dropdown */}
+                          <div className="relative shrink-0 h-full flex items-center w-[115px] sm:w-[130px]">
+                            <select
+                              id={`input-${field.unitId}`}
+                              value={selectedValue}
+                              onChange={(e) => handleChange(e, field.unitId)}
+                              className="w-full h-full pl-3 pr-7 py-3 text-[12.5px] font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer truncate"
+                            >
+                              {unitOptionsList.map((unit) => (
+                                <option key={unit} value={unit}>
+                                  {unit}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
 
                 ) : (
                   /* Text / number / tel — floating label */

@@ -28,8 +28,13 @@ import {
   ChevronUp,
   Eye,
   Building2,
-  Calendar
+  Calendar,
+  FileSpreadsheet,
+  SlidersHorizontal,
+  RotateCcw,
+  Filter
 } from 'lucide-react';
+import ExcelImportModal from '../components/ExcelImportModal';
 
 export default function Properties() {
   const { user } = useContext(AuthContext);
@@ -47,6 +52,7 @@ export default function Properties() {
     isPropertySharingEnabled,
     getPropertyMatches,
     getRequirementMatches,
+    computeMatchScore,
     computePropertyMatchesLocally,
     computeRequirementMatchesLocally
   } = useContext(PropertyContext);
@@ -168,6 +174,17 @@ export default function Properties() {
   const [isLoadingMatches, setIsLoadingMatches] = useState(false);
   const [expandedBreakdowns, setExpandedBreakdowns] = useState({});
   const [matchFilter, setMatchFilter] = useState('all'); // 'all' | 'top'
+  const [isManualFilterOpen, setIsManualFilterOpen] = useState(false);
+  const [manualFilterForm, setManualFilterForm] = useState({
+    listingType: 'Sale',
+    district: '',
+    location: '',
+    propertyType: '',
+    price: '',
+    area: '',
+    minScore: 60
+  });
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Property Sharing State ({ property: object, buyer: object })
   const [sharingTarget, setSharingTarget] = useState(null);
@@ -179,18 +196,185 @@ export default function Properties() {
     }, 4000);
   };
 
+  const parsePriceWithUnit = (val, unit, areaStr = '1') => {
+    const num = Number(val || 0);
+    if (isNaN(num) || num <= 0) return 0;
+    
+    const unitLower = String(unit || '').toLowerCase();
+
+    if (unitLower.includes('/') || unitLower.includes('per ')) {
+      const areaVal = parseFloat(String(areaStr).replace(/[^\d.]/g, '')) || 1;
+      if (unitLower.includes('lakh')) return num * 100000 * areaVal;
+      if (unitLower.includes('crore')) return num * 10000000 * areaVal;
+      if (unitLower.includes('thousand')) return num * 1000 * areaVal;
+      return num * areaVal;
+    }
+
+    if (unit === 'Crore') return num * 10000000;
+    if (unit === 'Lakh') return num * 100000;
+    if (unit === 'Thousand') return num * 1000;
+    return num;
+  };
+
+  const parseDepositVal = (val, unit, rentVal = 0) => {
+    const num = Number(val || 0);
+    if (isNaN(num) || num <= 0) return 0;
+    if (unit === 'Months') {
+      const rent = Number(rentVal || 0);
+      return rent > 0 ? num * rent : num;
+    }
+    return num;
+  };
+
+  const parseAreaWithUnit = (val, unit) => {
+    if (!val) return '';
+    const strVal = String(val).trim();
+    const numMatch = strVal.match(/^([\d.,\s]+)/);
+    const numPart = numMatch ? numMatch[1].trim() : strVal;
+    if (unit && unit !== '—' && unit !== 'Any Area') {
+      const cleanUnit = unit.replace(/^\/\s*/, '');
+      return `${numPart} ${cleanUnit}`;
+    }
+    return strVal;
+  };
+
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(price || 0);
+    if (!price && price !== 0) return '—';
+    const num = Number(price);
+    if (isNaN(num)) return price;
+    if (num >= 10000000) {
+      const v = num / 10000000;
+      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Crore`;
+    }
+    if (num >= 100000) {
+      const v = num / 100000;
+      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Lakh`;
+    }
+    if (num >= 1000) {
+      const v = num / 1000;
+      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Thousand`;
+    }
+    return `₹${num}`;
+  };
+
+  const formatDisplayArea = (areaStr, areaUnitStr) => {
+    if (!areaStr) return '—';
+    let s = String(areaStr).trim();
+    if (s === '—' || s === 'Any Area') return s;
+
+    if (areaUnitStr && areaUnitStr !== '—' && areaUnitStr !== 'Any Area') {
+      const cleanUnit = String(areaUnitStr).trim().replace(/^\/\s*/, '');
+      if (!s.toLowerCase().includes(cleanUnit.toLowerCase())) {
+        s = `${s} ${cleanUnit}`;
+      }
+    }
+
+    const numMatch = s.match(/^([\d.,]+)/);
+    if (!numMatch) return s;
+
+    const num = numMatch[1];
+    const rest = s.slice(numMatch[0].length).trim();
+    if (!rest) return num;
+
+    const recognizedUnits = [
+      '5+ BHK', '4+ BHK', '4 BHK', '3 BHK', '2 BHK', '1 BHK',
+      'Sq. Meter', 'Sq. Yard', 'Sq. Ft.', 'House', 'Month',
+      'Cent', 'Acre', 'BHK'
+    ];
+
+    let lastMatchUnit = null;
+    let maxIdx = -1;
+
+    for (const u of recognizedUnits) {
+      const idx = rest.toLowerCase().lastIndexOf(u.toLowerCase());
+      if (idx > maxIdx) {
+        maxIdx = idx;
+        lastMatchUnit = u;
+      }
+    }
+
+    if (lastMatchUnit) {
+      return `${num} ${lastMatchUnit}`;
+    }
+
+    return `${num} ${rest}`;
+  };
+
+  const cleanUnitName = (str) => {
+    if (!str) return '';
+    let s = String(str).trim().replace(/^\/\s*/, '');
+    if (s.toLowerCase() === 'all properties') return 'All Properties';
+
+    const recognizedUnits = [
+      '5+ BHK', '4+ BHK', '4 BHK', '3 BHK', '2 BHK', '1 BHK',
+      'Sq. Meter', 'Sq. Yard', 'Sq. Ft.', 'House', 'Month',
+      'Cent', 'Acre', 'BHK'
+    ];
+
+    let lastMatchUnit = null;
+    let maxIdx = -1;
+
+    for (const u of recognizedUnits) {
+      const idx = s.toLowerCase().lastIndexOf(u.toLowerCase());
+      if (idx > maxIdx) {
+        maxIdx = idx;
+        lastMatchUnit = u;
+      }
+    }
+
+    if (lastMatchUnit) {
+      return lastMatchUnit;
+    }
+
+    return s;
+  };
+
+  const getItemUnitText = (item, type) => {
+    if (!item) return '';
+    const isProp = type === 'property';
+    const isRent = isProp ? item.listingType === 'Rent' : item.requirementType === 'Rent';
+
+    let unit = isProp
+      ? (isRent ? item.monthlyRentUnit : item.expectedPriceUnit)
+      : (isRent ? item.maximumMonthlyRentUnit : item.budgetUnit);
+
+    if (!unit) {
+      if (isRent) {
+        unit = '/ Month';
+      } else {
+        let areaUnitStr = isProp ? item.areaUnit : item.requiredAreaUnit;
+        if (!areaUnitStr) {
+          const areaVal = String((isProp ? item.area : item.requiredArea) || '').trim();
+          const match = areaVal.match(/^[0-9.,\s]*(.+)$/);
+          if (match && match[1]) {
+            const extracted = match[1].trim();
+            if (extracted && extracted !== '—' && extracted !== 'Any Area') {
+              areaUnitStr = extracted;
+            }
+          }
+        }
+        if (areaUnitStr && areaUnitStr !== '—' && areaUnitStr !== 'Any Area') {
+          unit = `/ ${areaUnitStr.replace(/^\/\s*/, '')}`;
+        } else {
+          unit = 'All Properties';
+        }
+      }
+    }
+
+    if (unit === 'All Properties') {
+      return 'All Properties';
+    }
+
+    const cleaned = cleanUnitName(unit);
+    if (!cleaned) return '';
+    if (cleaned === 'All Properties') return 'All Properties';
+    return `/ ${cleaned}`;
   };
 
   // Statuses list
   const propertyStatuses = ['Available', 'Under Negotiation', 'Sold', 'Inactive'];
   const requirementStatuses = ['Active', 'Fulfilled', 'Suspended'];
-  const propertyTypes = ['Plot/Land', 'Agricultural Land', 'Commercial Plot', 'Residential Plot', 'House/Villa', 'Industrial Plot'];
+  const propertyTypes = ['Plot/Land', 'House/Villa', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'];
 
   // Filtering listings
   const filteredProperties = properties.filter(prop => {
@@ -218,7 +402,10 @@ export default function Properties() {
     setIsSubmittingAddProp(true);
     const formattedData = {
       ...formData,
-      expectedPrice: Number(formData.expectedPrice),
+      area: parseAreaWithUnit(formData.area, formData.areaUnit || 'Cent'),
+      expectedPrice: parsePriceWithUnit(formData.expectedPrice, formData.expectedPriceUnit || '/ Cent', formData.area),
+      monthlyRent: parsePriceWithUnit(formData.monthlyRent, formData.monthlyRentUnit || '/ Month', formData.area),
+      securityDeposit: parseDepositVal(formData.securityDeposit, formData.securityDepositUnit, formData.monthlyRent),
       imageUrl: formData.imageUrl || ''
     };
     const res = await addProperty(formattedData);
@@ -235,7 +422,9 @@ export default function Properties() {
     setIsSubmittingAddReq(true);
     const formattedData = {
       ...formData,
-      budget: Number(formData.budget)
+      requiredArea: parseAreaWithUnit(formData.requiredArea, formData.requiredAreaUnit || 'Cent'),
+      budget: parsePriceWithUnit(formData.budget, formData.budgetUnit || '/ Cent', formData.requiredArea),
+      maximumMonthlyRent: parsePriceWithUnit(formData.maximumMonthlyRent, formData.maximumMonthlyRentUnit || '/ Month', formData.requiredArea)
     };
     const res = await addRequirement(formattedData);
     setIsSubmittingAddReq(false);
@@ -248,21 +437,49 @@ export default function Properties() {
 
   // Open Edit Property Modal
   const handleOpenEditProperty = (prop) => {
+    if (user?.role !== 'Admin') {
+      showToast('Access denied. Staff members cannot edit property details.', 'error');
+      return;
+    }
     setEditingProperty(prop);
+
+    let areaVal = prop.area || '';
+    let areaUnitVal = 'Cent';
+    if (areaVal) {
+      const match = String(areaVal).match(/^([\d.]+)\s*(.*)$/);
+      if (match) {
+        areaVal = match[1];
+        if (match[2]) areaUnitVal = match[2].trim();
+      }
+    }
+
+    let priceVal = prop.expectedPrice !== undefined ? prop.expectedPrice : '';
+    let priceUnitVal = prop.expectedPriceUnit || `/${areaUnitVal}`;
+
+    let rentVal = prop.monthlyRent !== undefined ? prop.monthlyRent : '';
+    let rentUnitVal = prop.monthlyRentUnit || '/ Month';
+
     setEditPropForm({
       title: prop.title || '',
       propertyType: prop.propertyType || 'Plot/Land',
       location: prop.location || '',
       district: prop.district || '',
       state: prop.state || '',
-      area: prop.area || '',
-      expectedPrice: prop.expectedPrice !== undefined ? prop.expectedPrice : '',
+      area: areaVal,
+      areaUnit: areaUnitVal,
+      expectedPrice: priceVal,
+      expectedPriceUnit: priceUnitVal,
+      monthlyRent: rentVal,
+      monthlyRentUnit: rentUnitVal,
+      securityDeposit: prop.securityDeposit || '',
+      securityDepositUnit: 'Thousand',
       description: prop.description || '',
       ownerName: prop.ownerName || '',
       phoneNumber: prop.phoneNumber || prop.ownerPhone || '',
       ownerAddress: prop.ownerAddress || '',
       status: prop.status || 'Available',
-      imageUrl: prop.imageUrl || ''
+      imageUrl: prop.imageUrl || '',
+      listingType: prop.listingType || 'Sale'
     });
     setEditPropError(null);
   };
@@ -270,12 +487,24 @@ export default function Properties() {
   // Save Edit Property
   const handleSaveEditProperty = async (e) => {
     e.preventDefault();
+    if (user?.role !== 'Admin') {
+      setEditPropError('Access denied. Staff members cannot edit property details.');
+      return;
+    }
     if (!editingProperty) return;
 
     setIsSubmittingEditProp(true);
     setEditPropError(null);
 
-    const res = await updateProperty(editingProperty.id, editPropForm);
+    const formattedPayload = {
+      ...editPropForm,
+      area: parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
+      expectedPrice: parsePriceWithUnit(editPropForm.expectedPrice, editPropForm.expectedPriceUnit || '/ Cent'),
+      monthlyRent: parsePriceWithUnit(editPropForm.monthlyRent, editPropForm.monthlyRentUnit || '/ Month'),
+      securityDeposit: parseDepositVal(editPropForm.securityDeposit, editPropForm.securityDepositUnit, editPropForm.monthlyRent)
+    };
+
+    const res = await updateProperty(editingProperty.id, formattedPayload);
     setIsSubmittingEditProp(false);
 
     if (res && res.success) {
@@ -288,20 +517,44 @@ export default function Properties() {
 
   // Open Edit Requirement Modal
   const handleOpenEditRequirement = (req) => {
+    if (user?.role !== 'Admin') {
+      showToast('Access denied. Staff members cannot edit requirement details.', 'error');
+      return;
+    }
     setEditingRequirement(req);
+
+    let reqAreaVal = req.requiredArea || '';
+    let reqAreaUnitVal = 'Cent';
+    if (reqAreaVal) {
+      const match = String(reqAreaVal).match(/^([\d.]+)\s*(.*)$/);
+      if (match) {
+        reqAreaVal = match[1];
+        if (match[2]) reqAreaUnitVal = match[2].trim();
+      }
+    }
+
+    let budgetVal = req.budget !== undefined ? req.budget : '';
+    let budgetUnitVal = req.budgetUnit || `/${reqAreaUnitVal}`;
+    let maxRentUnitVal = req.maximumMonthlyRentUnit || '/ Month';
+
     setEditReqForm({
       requirementTitle: req.requirementTitle || '',
       propertyType: req.propertyType || 'Plot/Land',
       preferredLocation: req.preferredLocation || '',
       district: req.district || '',
       state: req.state || '',
-      requiredArea: req.requiredArea || '',
-      budget: req.budget !== undefined ? req.budget : '',
+      requiredArea: reqAreaVal,
+      requiredAreaUnit: reqAreaUnitVal,
+      budget: budgetVal,
+      budgetUnit: budgetUnitVal,
+      maximumMonthlyRent: req.maximumMonthlyRent || '',
+      maximumMonthlyRentUnit: maxRentUnitVal,
       description: req.description || '',
       buyerName: req.buyerName || '',
       phoneNumber: req.phoneNumber || req.buyerPhone || '',
       buyerAddress: req.buyerAddress || '',
-      status: req.status || 'Active'
+      status: req.status || 'Active',
+      requirementType: req.requirementType || 'Buy'
     });
     setEditReqError(null);
   };
@@ -309,12 +562,23 @@ export default function Properties() {
   // Save Edit Requirement
   const handleSaveEditRequirement = async (e) => {
     e.preventDefault();
+    if (user?.role !== 'Admin') {
+      setEditReqError('Access denied. Staff members cannot edit requirement details.');
+      return;
+    }
     if (!editingRequirement) return;
 
     setIsSubmittingEditReq(true);
     setEditReqError(null);
 
-    const res = await updateRequirement(editingRequirement.id, editReqForm);
+    const formattedPayload = {
+      ...editReqForm,
+      requiredArea: parseAreaWithUnit(editReqForm.requiredArea, editReqForm.requiredAreaUnit || 'Cent'),
+      budget: parsePriceWithUnit(editReqForm.budget, editReqForm.budgetUnit || '/ Cent'),
+      maximumMonthlyRent: parsePriceWithUnit(editReqForm.maximumMonthlyRent, editReqForm.maximumMonthlyRentUnit || '/ Month')
+    };
+
+    const res = await updateRequirement(editingRequirement.id, formattedPayload);
     setIsSubmittingEditReq(false);
 
     if (res && res.success) {
@@ -328,6 +592,10 @@ export default function Properties() {
   // Confirm Delete Action
   const handleConfirmDelete = async () => {
     if (!deletingTarget) return;
+    if (user?.role !== 'Admin') {
+      setDeleteError('Access denied. Staff members cannot delete records.');
+      return;
+    }
 
     setIsSubmittingDelete(true);
     setDeleteError(null);
@@ -348,12 +616,143 @@ export default function Properties() {
     }
   };
 
+  // Apply manual criteria filter to find matching buyers / properties with high accuracy
+  const handleApplyManualFilter = (customForm) => {
+    if (!activeMatchTarget) return;
+    const isPropTarget = activeMatchTarget.type === 'property';
+    const isRent = customForm.listingType === 'Rent';
+
+    const areaCombined = customForm.area ? `${customForm.area} ${customForm.areaUnit || 'Cent'}` : '';
+
+    if (isPropTarget) {
+      // Searching for matching requirements (buyers)
+      const mockProp = {
+        listingType: customForm.listingType,
+        district: customForm.district,
+        location: customForm.location,
+        propertyType: customForm.propertyType,
+        expectedPrice: isRent ? 0 : Number(customForm.price || 0),
+        monthlyRent: isRent ? Number(customForm.price || 0) : 0,
+        area: areaCombined,
+        state: activeMatchTarget.data?.state || 'Kerala'
+      };
+
+      const matches = requirements.map(req => {
+        const result = computeMatchScore ? computeMatchScore(mockProp, req) : null;
+        if (!result) return null;
+        return {
+          ...req,
+          matchScore: result.matchScore,
+          matchQuality: result.matchQuality,
+          matchReasons: result.matchReasons
+        };
+      }).filter(item => item !== null && item.matchScore >= Number(customForm.minScore || 50))
+        .sort((a, b) => b.matchScore - a.matchScore);
+
+      setMatchResults(matches);
+    } else {
+      // Searching for matching properties
+      const mockReq = {
+        requirementType: customForm.listingType,
+        district: customForm.district,
+        preferredLocation: customForm.location,
+        propertyType: customForm.propertyType,
+        budget: isRent ? 0 : Number(customForm.price || 0),
+        maximumMonthlyRent: isRent ? Number(customForm.price || 0) : 0,
+        requiredArea: areaCombined,
+        state: activeMatchTarget.data?.state || 'Kerala'
+      };
+
+      const matches = properties.map(prop => {
+        const result = computeMatchScore ? computeMatchScore(prop, mockReq) : null;
+        if (!result) return null;
+        return {
+          ...prop,
+          matchScore: result.matchScore,
+          matchQuality: result.matchQuality,
+          matchReasons: result.matchReasons
+        };
+      }).filter(item => item !== null && item.matchScore >= Number(customForm.minScore || 50))
+        .sort((a, b) => b.matchScore - a.matchScore);
+
+      setMatchResults(matches);
+    }
+  };
+
+  const handleOpenSmartMatchSearch = () => {
+    const defaultProp = {
+      title: 'Custom Criteria Search',
+      listingType: 'Sale',
+      district: 'Palakkad',
+      location: '',
+      propertyType: 'Plot/Land',
+      expectedPrice: '',
+      area: ''
+    };
+    const defaultForm = {
+      listingType: 'Sale',
+      district: 'Palakkad',
+      location: '',
+      propertyType: 'Plot/Land',
+      price: '',
+      area: '',
+      areaUnit: 'Cent',
+      minScore: 50
+    };
+    setActiveMatchTarget({ type: 'property', data: defaultProp, isManualSearch: true });
+    setExpandedBreakdowns({});
+    setMatchFilter('all');
+    setIsManualFilterOpen(true);
+    setManualFilterForm(defaultForm);
+
+    const isRent = defaultForm.listingType === 'Rent';
+    const mockProp = {
+      listingType: defaultForm.listingType,
+      district: defaultForm.district,
+      location: defaultForm.location,
+      propertyType: defaultForm.propertyType,
+      expectedPrice: 0,
+      monthlyRent: 0,
+      area: '',
+      state: 'Kerala'
+    };
+    const matches = requirements.map(req => {
+      const result = computeMatchScore ? computeMatchScore(mockProp, req) : null;
+      if (!result) return null;
+      return {
+        ...req,
+        matchScore: result.matchScore,
+        matchQuality: result.matchQuality,
+        matchReasons: result.matchReasons
+      };
+    }).filter(item => item !== null && item.matchScore >= Number(defaultForm.minScore || 50))
+      .sort((a, b) => b.matchScore - a.matchScore);
+
+    setMatchResults(matches);
+    setIsLoadingMatches(false);
+  };
+
   // Open Matches Modal
   const handleOpenMatches = async (type, item) => {
     setActiveMatchTarget({ type, data: item });
     setExpandedBreakdowns({});
     setMatchFilter('all');
-    
+    setIsManualFilterOpen(false);
+
+    const isRent = ((item?.listingType || item?.requirementType) || '').toLowerCase() === 'rent';
+    const priceVal = item?.expectedPrice || item?.monthlyRent || item?.budget || item?.maximumMonthlyRent || '';
+    const initFilter = {
+      listingType: isRent ? 'Rent' : 'Sale',
+      district: item?.district || '',
+      location: item?.location || item?.preferredLocation || '',
+      propertyType: item?.propertyType || '',
+      price: priceVal || '',
+      area: item?.area || item?.requiredArea || '',
+      areaUnit: 'Cent',
+      minScore: 50
+    };
+    setManualFilterForm(initFilter);
+
     // 1. Instantly calculate and display matches with 0ms delay directly from item
     const instantMatches = type === 'property'
       ? (computePropertyMatchesLocally ? computePropertyMatchesLocally(item) : [])
@@ -425,23 +824,41 @@ export default function Properties() {
         </div>
 
         {/* Primary Action Button */}
-        {view === 'list' && (activeTab === 'listings' ? (
-          <button
-            onClick={() => { setView('addProperty'); setAddPropertyResult(null); }}
-            className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] active:bg-[#80003C] text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-colors cursor-pointer"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Add New Property</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => { setView('addRequirement'); setAddRequirementResult(null); }}
-            className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] active:bg-[#80003C] text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-colors cursor-pointer"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Add Buyer Requirement</span>
-          </button>
-        ))}
+        {view === 'list' && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleOpenSmartMatchSearch}
+              className="inline-flex items-center justify-center space-x-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Smart Match Finder</span>
+            </button>
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="inline-flex items-center justify-center space-x-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Import Excel / CSV</span>
+            </button>
+            {activeTab === 'listings' ? (
+              <button
+                onClick={() => { setView('addProperty'); setAddPropertyResult(null); }}
+                className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] active:bg-[#80003C] text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-colors cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Add New Property</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => { setView('addRequirement'); setAddRequirementResult(null); }}
+                className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] active:bg-[#80003C] text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-colors cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>Add Buyer Requirement</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Filters Panel — only on list view */}
@@ -733,7 +1150,7 @@ export default function Properties() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 justify-start sm:justify-end">
+                    <div className="flex items-center gap-1.5 justify-start sm:justify-end flex-wrap">
                       <button
                         onClick={() => setViewingDetailTarget({ type: 'property', item: prop })}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-all cursor-pointer"
@@ -741,6 +1158,15 @@ export default function Properties() {
                       >
                         <Eye className="w-3.5 h-3.5 text-slate-500" />
                         <span>View Details</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSharingTarget({ property: prop, buyer: null })}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200/60 transition-all cursor-pointer"
+                        title="Get & Share Public Link via WhatsApp or Copy"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Share Link</span>
                       </button>
                       
                       <button
@@ -942,23 +1368,29 @@ export default function Properties() {
                 <div className="bg-slate-50 border border-slate-100 px-4 py-2.5 rounded-xl text-left sm:text-right shrink-0">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
                     {viewingDetailTarget.item.listingType === 'Rent' || viewingDetailTarget.item.requirementType === 'Rent'
-                      ? 'Monthly Rent'
+                      ? 'Rent'
                       : 'Price / Budget'}
                   </span>
                   <span className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight block">
                     {viewingDetailTarget.type === 'property'
                       ? (viewingDetailTarget.item.listingType === 'Rent'
-                          ? `${formatPrice(viewingDetailTarget.item.monthlyRent)}/mo`
+                          ? formatPrice(viewingDetailTarget.item.monthlyRent)
                           : formatPrice(viewingDetailTarget.item.expectedPrice))
                       : (viewingDetailTarget.item.requirementType === 'Rent'
-                          ? `${formatPrice(viewingDetailTarget.item.maximumMonthlyRent)}/mo`
+                          ? formatPrice(viewingDetailTarget.item.maximumMonthlyRent)
                           : formatPrice(viewingDetailTarget.item.budget))}
                   </span>
-                  {Number(viewingDetailTarget.item.securityDeposit) > 0 && (
-                    <span className="text-[11px] text-slate-500 font-medium block mt-0.5">
-                      Deposit: {formatPrice(viewingDetailTarget.item.securityDeposit)}
+                  {getItemUnitText(viewingDetailTarget.item, viewingDetailTarget.type) && (
+                    <span className="text-[11px] font-bold text-[#B0004F] bg-[#B0004F]/10 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                      {getItemUnitText(viewingDetailTarget.item, viewingDetailTarget.type)}
                     </span>
                   )}
+                  {/* Temporarily hidden security deposit */}
+                  {/* {Number(viewingDetailTarget.item.securityDeposit) > 0 && (
+                    <span className="text-[11px] text-slate-500 font-medium block mt-1">
+                      Deposit: {formatPrice(viewingDetailTarget.item.securityDeposit)}
+                    </span>
+                  )} */}
                 </div>
               </div>
 
@@ -974,8 +1406,8 @@ export default function Properties() {
                   </span>
                   <span className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5 block">
                     {viewingDetailTarget.type === 'property' 
-                      ? (viewingDetailTarget.item.area || '—') 
-                      : (viewingDetailTarget.item.requiredArea || 'Any Area')}
+                      ? formatDisplayArea(viewingDetailTarget.item.area) 
+                      : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
                   </span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -1012,50 +1444,46 @@ export default function Properties() {
                 </div>
               )}
 
-              {/* Owner / Buyer Contact Box */}
+              {/* Hello Properties Contact Details Box */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3">
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  {viewingDetailTarget.type === 'property' ? 'Property Owner Details' : 'Buyer Contact Details'}
+                  Hello Properties Contact Details
                 </h4>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white text-slate-800 flex items-center justify-center font-bold text-sm shadow-xs border border-slate-200 shrink-0">
-                      {(viewingDetailTarget.type === 'property' ? viewingDetailTarget.item.ownerName : viewingDetailTarget.item.buyerName)?.[0]?.toUpperCase() || 'C'}
+                    <div className="w-10 h-10 rounded-full bg-[#B0004F] text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                      HP
                     </div>
                     <div>
                       <p className="text-xs sm:text-sm font-bold text-slate-900">
-                        {viewingDetailTarget.type === 'property' ? viewingDetailTarget.item.ownerName : viewingDetailTarget.item.buyerName}
+                        Hello Properties Support
                       </p>
-                      <p className="text-xs text-slate-500">
-                        {viewingDetailTarget.item.phoneNumber}
+                      <p className="text-xs text-slate-500 font-medium">
+                        +91 98765 43210
                       </p>
-                      {(viewingDetailTarget.item.ownerAddress || viewingDetailTarget.item.buyerAddress) && (
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Address: {viewingDetailTarget.item.ownerAddress || viewingDetailTarget.item.buyerAddress}
-                        </p>
-                      )}
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Official Support & Helpdesk
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <a 
-                      href={`tel:${viewingDetailTarget.item.phoneNumber}`}
+                      href="tel:9876543210"
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold transition-colors"
                     >
                       <Phone className="w-3.5 h-3.5 text-slate-500" />
                       <span>Call</span>
                     </a>
-                    {viewingDetailTarget.item.phoneNumber && (
-                      <a 
-                        href={`https://wa.me/${viewingDetailTarget.item.phoneNumber.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-all"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>WhatsApp</span>
-                      </a>
-                    )}
+                    <a 
+                      href="https://wa.me/919876543210"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-all"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>WhatsApp</span>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -1063,45 +1491,65 @@ export default function Properties() {
 
             {/* Modal Actions Footer */}
             <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
-              <button
-                onClick={() => {
-                  const target = viewingDetailTarget;
-                  setViewingDetailTarget(null);
-                  handleOpenMatches(target.type, target.item);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-rose-50 text-[#B0004F] hover:bg-[#B0004F] hover:text-white transition-all cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{viewingDetailTarget.type === 'property' ? 'View Matching Buyers' : 'View Matching Properties'}</span>
-              </button>
-
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
                     const target = viewingDetailTarget;
                     setViewingDetailTarget(null);
-                    if (target.type === 'property') {
-                      handleOpenEditProperty(target.item);
-                    } else {
-                      handleOpenEditRequirement(target.item);
-                    }
+                    handleOpenMatches(target.type, target.item);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-rose-50 text-[#B0004F] hover:bg-[#B0004F] hover:text-white transition-all cursor-pointer"
                 >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Edit</span>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{viewingDetailTarget.type === 'property' ? 'View Matching Buyers' : 'View Matching Properties'}</span>
                 </button>
-                <button
-                  onClick={() => {
-                    const target = viewingDetailTarget;
-                    setViewingDetailTarget(null);
-                    setDeletingTarget({ type: target.type, item: target.item });
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete</span>
-                </button>
+
+                {viewingDetailTarget.type === 'property' && (
+                  <button
+                    onClick={() => {
+                      const propObj = viewingDetailTarget.item;
+                      setViewingDetailTarget(null);
+                      setSharingTarget({ property: propObj, buyer: null });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200/80 transition-all cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share Public Link</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {user?.role === 'Admin' && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const target = viewingDetailTarget;
+                        setViewingDetailTarget(null);
+                        if (target.type === 'property') {
+                          handleOpenEditProperty(target.item);
+                        } else {
+                          handleOpenEditRequirement(target.item);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const target = viewingDetailTarget;
+                        setViewingDetailTarget(null);
+                        setDeletingTarget({ type: target.type, item: target.item });
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setViewingDetailTarget(null)}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
@@ -1208,31 +1656,79 @@ export default function Properties() {
                   <label className="text-[14px] font-medium text-slate-800 flex items-center">
                     Area <span className="text-[#B0004F] ml-1 font-bold">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={editPropForm.area}
-                    onChange={(e) => setEditPropForm({ ...editPropForm, area: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
+                  <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                    <input
+                      type="text"
+                      required
+                      value={editPropForm.area}
+                      onChange={(e) => setEditPropForm({ ...editPropForm, area: e.target.value })}
+                      placeholder="e.g. 45"
+                      className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                    />
+                    <div className="h-6 w-px bg-slate-200 shrink-0" />
+                    <div className="relative w-[105px] shrink-0 h-full flex items-center">
+                      <select
+                        value={editPropForm.areaUnit || 'Cent'}
+                        onChange={(e) => setEditPropForm({ ...editPropForm, areaUnit: e.target.value })}
+                        className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                      >
+                        <option value="Cent">Cent</option>
+                        <option value="Sq. Ft.">Sq. Ft.</option>
+                        <option value="Acre">Acre</option>
+                        <option value="BHK">BHK</option>
+                        <option value="1 BHK">1 BHK</option>
+                        <option value="2 BHK">2 BHK</option>
+                        <option value="3 BHK">3 BHK</option>
+                        <option value="4 BHK">4 BHK</option>
+                        <option value="5+ BHK">5+ BHK</option>
+                        <option value="Sq. Meter">Sq. Meter</option>
+                        <option value="Sq. Yard">Sq. Yard</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
                 </div>
 
                 {editPropForm.listingType === 'Rent' ? (
                   <>
                     <div className="flex flex-col space-y-1.5">
                       <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                        Monthly Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                        Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
                       </label>
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        value={editPropForm.monthlyRent}
-                        onChange={(e) => setEditPropForm({ ...editPropForm, monthlyRent: e.target.value })}
-                        className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                      />
+                      <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          step="any"
+                          value={editPropForm.monthlyRent}
+                          onChange={(e) => setEditPropForm({ ...editPropForm, monthlyRent: e.target.value })}
+                          placeholder="e.g. 18000"
+                          className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                        />
+                        <div className="h-6 w-px bg-slate-200 shrink-0" />
+                        <div className="relative w-[115px] shrink-0 h-full flex items-center">
+                          <select
+                            value={editPropForm.monthlyRentUnit || '/ Month'}
+                            onChange={(e) => setEditPropForm({ ...editPropForm, monthlyRentUnit: e.target.value })}
+                            className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                          >
+                            <option value="/ Month">/ Month</option>
+                            <option value="All Properties">All Properties</option>
+                            <option value="/ Sq. Ft.">/ Sq. Ft.</option>
+                            <option value="/ Cent">/ Cent</option>
+                            <option value="/ Acre">/ Acre</option>
+                            <option value="/ BHK">/ BHK</option>
+                            <option value="/ House">/ House</option>
+                            <option value="/ Sq. Meter">/ Sq. Meter</option>
+                            <option value="/ Sq. Yard">/ Sq. Yard</option>
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-col space-y-1.5">
+                    {/* Temporarily hidden security deposit input */}
+                    {/* <div className="flex flex-col space-y-1.5">
                       <label className="text-[14px] font-medium text-slate-800 flex items-center">
                         Security Deposit (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
                       </label>
@@ -1244,21 +1740,44 @@ export default function Properties() {
                         onChange={(e) => setEditPropForm({ ...editPropForm, securityDeposit: e.target.value })}
                         className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
                       />
-                    </div>
+                    </div> */}
                   </>
                 ) : (
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[14px] font-medium text-slate-800 flex items-center">
                       Expected Price (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
                     </label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      value={editPropForm.expectedPrice}
-                      onChange={(e) => setEditPropForm({ ...editPropForm, expectedPrice: e.target.value })}
-                      className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                    />
+                    <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="any"
+                        value={editPropForm.expectedPrice}
+                        onChange={(e) => setEditPropForm({ ...editPropForm, expectedPrice: e.target.value })}
+                        placeholder="e.g. 50"
+                        className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                      />
+                      <div className="h-6 w-px bg-slate-200 shrink-0" />
+                      <div className="relative w-[115px] shrink-0 h-full flex items-center">
+                        <select
+                          value={editPropForm.expectedPriceUnit || `/ ${editPropForm.areaUnit || 'Cent'}`}
+                          onChange={(e) => setEditPropForm({ ...editPropForm, expectedPriceUnit: e.target.value })}
+                          className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                        >
+                          <option value="/ Cent">/ Cent</option>
+                          <option value="/ Sq. Ft.">/ Sq. Ft.</option>
+                          <option value="/ Acre">/ Acre</option>
+                          <option value="All Properties">All Properties</option>
+                          <option value="/ Month">/ Month</option>
+                          <option value="/ BHK">/ BHK</option>
+                          <option value="/ House">/ House</option>
+                          <option value="/ Sq. Meter">/ Sq. Meter</option>
+                          <option value="/ Sq. Yard">/ Sq. Yard</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1450,42 +1969,112 @@ export default function Properties() {
                   <label className="text-[14px] font-medium text-slate-800 flex items-center">
                     Required Area <span className="text-[#B0004F] ml-1 font-bold">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={editReqForm.requiredArea}
-                    onChange={(e) => setEditReqForm({ ...editReqForm, requiredArea: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
+                  <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                    <input
+                      type="text"
+                      required
+                      value={editReqForm.requiredArea}
+                      onChange={(e) => setEditReqForm({ ...editReqForm, requiredArea: e.target.value })}
+                      placeholder="e.g. 50"
+                      className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                    />
+                    <div className="h-6 w-px bg-slate-200 shrink-0" />
+                    <div className="relative w-[105px] shrink-0 h-full flex items-center">
+                      <select
+                        value={editReqForm.requiredAreaUnit || 'Cent'}
+                        onChange={(e) => setEditReqForm({ ...editReqForm, requiredAreaUnit: e.target.value })}
+                        className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                      >
+                        <option value="Cent">Cent</option>
+                        <option value="Sq. Ft.">Sq. Ft.</option>
+                        <option value="Acre">Acre</option>
+                        <option value="BHK">BHK</option>
+                        <option value="1 BHK">1 BHK</option>
+                        <option value="2 BHK">2 BHK</option>
+                        <option value="3 BHK">3 BHK</option>
+                        <option value="4 BHK">4 BHK</option>
+                        <option value="5+ BHK">5+ BHK</option>
+                        <option value="Sq. Meter">Sq. Meter</option>
+                        <option value="Sq. Yard">Sq. Yard</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
                 </div>
 
                 {editReqForm.requirementType === 'Rent' ? (
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                      Maximum Monthly Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                      Max Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
                     </label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      value={editReqForm.maximumMonthlyRent}
-                      onChange={(e) => setEditReqForm({ ...editReqForm, maximumMonthlyRent: e.target.value })}
-                      className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                    />
+                    <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="any"
+                        value={editReqForm.maximumMonthlyRent}
+                        onChange={(e) => setEditReqForm({ ...editReqForm, maximumMonthlyRent: e.target.value })}
+                        placeholder="e.g. 20000"
+                        className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                      />
+                      <div className="h-6 w-px bg-slate-200 shrink-0" />
+                      <div className="relative w-[115px] shrink-0 h-full flex items-center">
+                        <select
+                          value={editReqForm.maximumMonthlyRentUnit || '/ Month'}
+                          onChange={(e) => setEditReqForm({ ...editReqForm, maximumMonthlyRentUnit: e.target.value })}
+                          className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                        >
+                          <option value="/ Month">/ Month</option>
+                          <option value="All Properties">All Properties</option>
+                          <option value="/ Sq. Ft.">/ Sq. Ft.</option>
+                          <option value="/ Cent">/ Cent</option>
+                          <option value="/ Acre">/ Acre</option>
+                          <option value="/ BHK">/ BHK</option>
+                          <option value="/ House">/ House</option>
+                          <option value="/ Sq. Meter">/ Sq. Meter</option>
+                          <option value="/ Sq. Yard">/ Sq. Yard</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-col space-y-1.5">
                     <label className="text-[14px] font-medium text-slate-800 flex items-center">
                       Max Purchase Budget (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
                     </label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      value={editReqForm.budget}
-                      onChange={(e) => setEditReqForm({ ...editReqForm, budget: e.target.value })}
-                      className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                    />
+                    <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="any"
+                        value={editReqForm.budget}
+                        onChange={(e) => setEditReqForm({ ...editReqForm, budget: e.target.value })}
+                        placeholder="e.g. 75"
+                        className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                      />
+                      <div className="h-6 w-px bg-slate-200 shrink-0" />
+                      <div className="relative w-[115px] shrink-0 h-full flex items-center">
+                        <select
+                          value={editReqForm.budgetUnit || `/ ${editReqForm.requiredAreaUnit || 'Cent'}`}
+                          onChange={(e) => setEditReqForm({ ...editReqForm, budgetUnit: e.target.value })}
+                          className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                        >
+                          <option value="/ Cent">/ Cent</option>
+                          <option value="/ Sq. Ft.">/ Sq. Ft.</option>
+                          <option value="/ Acre">/ Acre</option>
+                          <option value="All Properties">All Properties</option>
+                          <option value="/ Month">/ Month</option>
+                          <option value="/ BHK">/ BHK</option>
+                          <option value="/ House">/ House</option>
+                          <option value="/ Sq. Meter">/ Sq. Meter</option>
+                          <option value="/ Sq. Yard">/ Sq. Yard</option>
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -1593,7 +2182,7 @@ export default function Properties() {
                 <p className="text-xs text-slate-500 mt-0.5">
                   {activeMatchTarget.type === 'property' 
                     ? `Customers looking for properties like "${activeMatchTarget.data.title}"`
-                    : `Available properties matching criteria for "${activeMatchTarget.data.buyerName}"`
+                    : `Available properties matching requirement criteria`
                   }
                 </p>
               </div>
@@ -1606,10 +2195,10 @@ export default function Properties() {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4 flex-1">
-              {/* Top Matches Filter Bar */}
-              {!isLoadingMatches && matchResults.length > 0 && (
-                <div className="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/70">
-                  <div className="flex items-center gap-1.5">
+              {/* Top Matches & Manual Filter Toggle Bar */}
+              {!isLoadingMatches && (
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setMatchFilter('all')}
@@ -1638,9 +2227,242 @@ export default function Properties() {
                       </span>
                     </button>
                   </div>
-                  <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
-                    {matchFilter === 'top' ? 'Showing high-accuracy 90%+ matches' : 'Minimum score threshold: 60%'}
-                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsManualFilterOpen(!isManualFilterOpen)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      isManualFilterOpen
+                        ? 'bg-[#B0004F] text-white shadow-sm'
+                        : 'text-slate-700 bg-slate-200/70 hover:bg-slate-200'
+                    }`}
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>{isManualFilterOpen ? 'Hide Custom Filter' : 'Adjust Criteria / Manual Filter'}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Manual Criteria Filter Form Box */}
+              {isManualFilterOpen && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 animate-fade-in shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <SlidersHorizontal className="w-4 h-4 text-[#B0004F]" />
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        Filter Matches by Property Details
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyManualFilter(manualFilterForm)}
+                        className="px-3.5 py-1.5 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>Apply Filter</span>
+                      </button>
+                      {!activeMatchTarget.isManualSearch && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isRent = ((activeMatchTarget.data?.listingType || activeMatchTarget.data?.requirementType) || '').toLowerCase() === 'rent';
+                            const priceVal = activeMatchTarget.data?.expectedPrice || activeMatchTarget.data?.monthlyRent || activeMatchTarget.data?.budget || activeMatchTarget.data?.maximumMonthlyRent || '';
+                            const resetForm = {
+                              listingType: isRent ? 'Rent' : 'Sale',
+                              district: activeMatchTarget.data?.district || '',
+                              location: activeMatchTarget.data?.location || activeMatchTarget.data?.preferredLocation || '',
+                              propertyType: activeMatchTarget.data?.propertyType || '',
+                              price: priceVal || '',
+                              area: activeMatchTarget.data?.area || activeMatchTarget.data?.requiredArea || '',
+                              areaUnit: 'Cent',
+                              minScore: 50
+                            };
+                            setManualFilterForm(resetForm);
+                            handleApplyManualFilter(resetForm);
+                          }}
+                          className="text-[11px] font-semibold text-slate-500 hover:text-[#B0004F] cursor-pointer flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-slate-200/50 transition-colors"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Reset Details</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* Transaction Type */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">
+                        Listing Type
+                      </label>
+                      <select
+                        value={manualFilterForm.listingType}
+                        onChange={(e) => {
+                          const updated = { ...manualFilterForm, listingType: e.target.value };
+                          setManualFilterForm(updated);
+                          handleApplyManualFilter(updated);
+                        }}
+                        className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                      >
+                        <option value="Sale">Sale / Buy</option>
+                        <option value="Rent">Rent</option>
+                      </select>
+                    </div>
+
+                    {/* District */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">District</label>
+                      <select
+                        value={manualFilterForm.district}
+                        onChange={(e) => {
+                          const updated = { ...manualFilterForm, district: e.target.value };
+                          setManualFilterForm(updated);
+                          handleApplyManualFilter(updated);
+                        }}
+                        className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                      >
+                        <option value="">All / Select District</option>
+                        <option value="Palakkad">Palakkad</option>
+                        <option value="Malappuram">Malappuram</option>
+                        <option value="Ernakulam">Ernakulam</option>
+                        <option value="Thrissur">Thrissur</option>
+                        <option value="Kozhikode">Kozhikode</option>
+                        <option value="Kannur">Kannur</option>
+                        <option value="Thiruvananthapuram">Thiruvananthapuram</option>
+                        <option value="Kottayam">Kottayam</option>
+                        <option value="Wayanad">Wayanad</option>
+                        <option value="Idukki">Idukki</option>
+                        <option value="Alappuzha">Alappuzha</option>
+                        <option value="Kollam">Kollam</option>
+                        <option value="Pathanamthitta">Pathanamthitta</option>
+                        <option value="Kasaragod">Kasaragod</option>
+                      </select>
+                    </div>
+
+                    {/* Property Type */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Property Type</label>
+                      <select
+                        value={manualFilterForm.propertyType}
+                        onChange={(e) => {
+                          const updated = { ...manualFilterForm, propertyType: e.target.value };
+                          setManualFilterForm(updated);
+                          handleApplyManualFilter(updated);
+                        }}
+                        className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                      >
+                        <option value="">All Property Types</option>
+                        <option value="Plot/Land">Plot/Land</option>
+                        <option value="House/Villa">House/Villa</option>
+                        <option value="Residential Plot">Residential Plot</option>
+                        <option value="Commercial Plot">Commercial Plot</option>
+                        <option value="Agricultural Land">Agricultural Land</option>
+                        <option value="Industrial Plot">Industrial Plot</option>
+                      </select>
+                    </div>
+
+                    {/* Location / Locality */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Location / Locality</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Kanjikode, Stadium Bye Pass"
+                        value={manualFilterForm.location}
+                        onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
+                        onChange={(e) => {
+                          const updated = { ...manualFilterForm, location: e.target.value };
+                          setManualFilterForm(updated);
+                        }}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                      />
+                    </div>
+
+                    {/* Price / Budget */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">
+                        {manualFilterForm.listingType === 'Rent' ? 'Rent (₹/mo)' : 'Price / Budget (₹)'}
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 5000000"
+                        value={manualFilterForm.price}
+                        onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
+                        onChange={(e) => {
+                          const updated = { ...manualFilterForm, price: e.target.value };
+                          setManualFilterForm(updated);
+                        }}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                      />
+                    </div>
+
+                    {/* Area / Size */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Area / Size</label>
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="e.g. 10 or 2000"
+                          value={manualFilterForm.area}
+                          onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
+                          onChange={(e) => {
+                            const updated = { ...manualFilterForm, area: e.target.value };
+                            setManualFilterForm(updated);
+                          }}
+                          className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                        />
+                        <select
+                          value={manualFilterForm.areaUnit}
+                          onChange={(e) => {
+                            const updated = { ...manualFilterForm, areaUnit: e.target.value };
+                            setManualFilterForm(updated);
+                            handleApplyManualFilter(updated);
+                          }}
+                          className="w-[90px] text-xs font-semibold bg-white border border-slate-200 rounded-lg px-1.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                        >
+                          <option value="Cent">Cent</option>
+                          <option value="Sq. Ft.">Sq. Ft.</option>
+                          <option value="Acre">Acre</option>
+                          <option value="Sq. Meter">Sq. Meter</option>
+                          <option value="Sq. Yard">Sq. Yard</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between pt-2.5 border-t border-slate-200/60 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[11px] font-semibold text-slate-500">Min Accuracy Score:</span>
+                      <select
+                        value={manualFilterForm.minScore}
+                        onChange={(e) => {
+                          const updated = { ...manualFilterForm, minScore: Number(e.target.value) };
+                          setManualFilterForm(updated);
+                          handleApplyManualFilter(updated);
+                        }}
+                        className="text-xs font-bold bg-white border border-slate-200 rounded-md px-2 py-1 text-slate-700 focus:outline-none focus:border-[#B0004F]"
+                      >
+                        <option value={50}>50% (Recommended)</option>
+                        <option value={60}>60% (Strict Matches)</option>
+                        <option value={40}>40% (Broad Search)</option>
+                        <option value={0}>0% (All Items)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center space-x-3">
+                      <span className="text-[11px] font-bold text-[#B0004F]">
+                        {matchResults.length} {activeMatchTarget.type === 'property' ? 'matching buyers' : 'matching properties'} found
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyManualFilter(manualFilterForm)}
+                        className="px-4 py-1.5 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                        <span>Apply Filter</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1651,9 +2473,19 @@ export default function Properties() {
                   <p className="text-xs text-slate-400">Comparing district, locality, type, budget & area</p>
                 </div>
               ) : matchResults.length === 0 ? (
-                <div className="py-12 text-center border border-slate-200 border-dashed rounded-xl bg-slate-50 space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">No matches found above the 60% threshold.</p>
-                  <p className="text-xs text-slate-500">As new {activeMatchTarget.type === 'property' ? 'requirements' : 'properties'} are added, matching results update automatically.</p>
+                <div className="py-10 text-center border border-slate-200 border-dashed rounded-xl bg-slate-50 space-y-3 px-4">
+                  <p className="text-sm font-semibold text-slate-700">No matches found above the {manualFilterForm.minScore || 60}% threshold.</p>
+                  <p className="text-xs text-slate-500">Adjust the location, property type, budget, or accuracy threshold manually to find matching {activeMatchTarget.type === 'property' ? 'customers' : 'properties'}.</p>
+                  {!isManualFilterOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setIsManualFilterOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                      <span>Adjust Match Criteria & Search</span>
+                    </button>
+                  )}
                 </div>
               ) : matchFilter === 'top' && matchResults.filter(m => m.matchScore >= 90).length === 0 ? (
                 <div className="py-10 text-center border border-emerald-100 rounded-xl bg-emerald-50/50 space-y-2">
@@ -1779,20 +2611,9 @@ export default function Properties() {
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between border-t border-slate-100 pt-3 text-xs">
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1.5 font-medium text-slate-700">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{activeMatchTarget.type === 'property' ? matchItem.buyerName : matchItem.ownerName}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-slate-500">
-                            <Phone className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{matchItem.phoneNumber}</span>
-                          </div>
-                        </div>
-
-                        {/* Optional Property Sharing Action */}
-                        {isPropertySharingEnabled && (
+                      {/* Customer contact details hidden */}
+                      {isPropertySharingEnabled && (
+                        <div className="flex items-center justify-end border-t border-slate-100 pt-3 text-xs">
                           <button
                             type="button"
                             onClick={() => {
@@ -1806,8 +2627,8 @@ export default function Properties() {
                             <Share2 className="w-3.5 h-3.5" />
                             <span>Share Property</span>
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1834,6 +2655,13 @@ export default function Properties() {
           onClose={() => setSharingTarget(null)}
         />
       )}
+
+      {/* EXCEL / CSV BULK IMPORT MODAL */}
+      <ExcelImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={(batch) => showToast(`Successfully imported ${batch.totalItems} records from ${batch.fileName}`, 'success')}
+      />
     </div>
   );
 }

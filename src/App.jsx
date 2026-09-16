@@ -11,6 +11,7 @@ import SellProperties from './pages/SellProperties';
 import BuyRequirements from './pages/BuyRequirements';
 import Settings from './pages/Settings';
 import UserManagement from './pages/UserManagement';
+import PublicPropertyDetail from './pages/PublicPropertyDetail';
 
 // Protected Route Component consuming real AuthContext
 function ProtectedRoute({ children }) {
@@ -63,8 +64,11 @@ export default function App() {
       <PropertyProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public Route */}
+          {/* Public Routes */}
           <Route path="/login" element={<Login />} />
+          <Route path="/property/:id" element={<PublicPropertyDetail />} />
+          <Route path="/p/:id" element={<PublicPropertyDetail />} />
+          <Route path="/share/:id" element={<PublicPropertyDetail />} />
 
           {/* Root Redirects to /dashboard */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

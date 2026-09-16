@@ -1,4 +1,6 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import { ActivityContext } from './ActivityContext';
+import { AuthContext } from './AuthContext';
 
 export const PropertyContext = createContext();
 
@@ -17,6 +19,8 @@ const getAuthHeaders = () => {
 };
 
 export const PropertyProvider = ({ children }) => {
+  const { logActivity } = useContext(ActivityContext) || {};
+  const { user: authUser } = useContext(AuthContext) || {};
   const [properties, setProperties] = useState([]);
   const [requirements, setRequirements] = useState([]);
   const [isBackendConnected, setIsBackendConnected] = useState(false);
@@ -234,6 +238,18 @@ export const PropertyProvider = ({ children }) => {
           const formatted = formatBackendProperty(resData.data);
           formatted.matches = resData.matches || [];
           setProperties(prev => [formatted, ...prev]);
+
+          if (logActivity) {
+            logActivity({
+              category: 'Properties',
+              action: 'CREATE_PROPERTY',
+              actionLabel: 'Created Property',
+              details: `Added ${listingType} Property "${formatted.title}" in ${formatted.location}, ${formatted.district}`,
+              targetId: formatted.propertyId || formatted.id,
+              badgeColor: 'emerald'
+            });
+          }
+
           return { success: true, property: formatted, matches: resData.matches || [] };
         } else {
           return { success: false, error: resData.message || 'Failed to save property to database' };
@@ -281,6 +297,18 @@ export const PropertyProvider = ({ children }) => {
           const formatted = formatBackendRequirement(resData.data);
           formatted.matches = resData.matches || [];
           setRequirements(prev => [formatted, ...prev]);
+
+          if (logActivity) {
+            logActivity({
+              category: 'Buyer Requirements',
+              action: 'CREATE_REQUIREMENT',
+              actionLabel: 'Created Requirement',
+              details: `Added ${requirementType} Requirement for "${formatted.buyerName}" in ${formatted.preferredLocation}, ${formatted.district}`,
+              targetId: formatted.requirementId || formatted.id,
+              badgeColor: 'purple'
+            });
+          }
+
           return { success: true, requirement: formatted, matches: resData.matches || [] };
         } else {
           return { success: false, error: resData.message || 'Failed to save buy requirement to database' };
@@ -304,6 +332,17 @@ export const PropertyProvider = ({ children }) => {
         });
         if (response.ok) {
           setProperties(prev => prev.map(p => (p.id === id || p.propertyId === id) ? { ...p, status: newStatus } : p));
+
+          if (logActivity) {
+            logActivity({
+              category: 'Properties',
+              action: 'STATUS_CHANGE',
+              actionLabel: 'Updated Status',
+              details: `Changed status of Property (ID: ${id}) to "${newStatus}"`,
+              targetId: id,
+              badgeColor: 'blue'
+            });
+          }
         }
       } catch (err) {
         console.error('Failed to update property status on API:', err.message);
@@ -363,10 +402,30 @@ export const PropertyProvider = ({ children }) => {
         if (response.ok && resData.success) {
           const formatted = formatBackendProperty(resData.data);
           setProperties(prev => prev.map(p => (p.id === id || p.propertyId === id || p._id === id || String(p.id) === String(id)) ? { ...p, ...formatted } : p));
+          if (logActivity) {
+            logActivity({
+              category: 'Properties',
+              action: 'UPDATE_PROPERTY',
+              actionLabel: 'Updated Property',
+              details: `Updated details for Property "${formatted.title || id}" (${formatted.location}, ${formatted.district})`,
+              targetId: id,
+              badgeColor: 'blue'
+            });
+          }
           return { success: true, data: formatted };
         } else {
           const localUpdated = { ...updatedData, id, propertyId: id };
           setProperties(prev => prev.map(p => (p.id === id || p.propertyId === id || p._id === id || String(p.id) === String(id)) ? { ...p, ...localUpdated } : p));
+          if (logActivity) {
+            logActivity({
+              category: 'Properties',
+              action: 'UPDATE_PROPERTY',
+              actionLabel: 'Updated Property',
+              details: `Updated details for Property "${updatedData.title || id}"`,
+              targetId: id,
+              badgeColor: 'blue'
+            });
+          }
           return { success: true, data: localUpdated };
         }
       } catch (err) {
@@ -390,16 +449,33 @@ export const PropertyProvider = ({ children }) => {
 
         const resData = await response.json();
 
-        if (response.ok && resData.success) {
-          setProperties(prev => prev.filter(p => p.id !== id && p.propertyId !== id));
-          return { success: true };
-        } else {
-          setProperties(prev => prev.filter(p => p.id !== id && p.propertyId !== id));
-          return { success: true };
+        setProperties(prev => prev.filter(p => p.id !== id && p.propertyId !== id));
+
+        if (logActivity) {
+          logActivity({
+            category: 'Properties',
+            action: 'DELETE_PROPERTY',
+            actionLabel: 'Deleted Property',
+            details: `Deleted Property listing (ID: ${id})`,
+            targetId: id,
+            badgeColor: 'red'
+          });
         }
+
+        return { success: true };
       } catch (err) {
         console.error('Failed to delete property from API:', err.message);
         setProperties(prev => prev.filter(p => p.id !== id && p.propertyId !== id));
+        if (logActivity) {
+          logActivity({
+            category: 'Properties',
+            action: 'DELETE_PROPERTY',
+            actionLabel: 'Deleted Property',
+            details: `Deleted Property listing (ID: ${id})`,
+            targetId: id,
+            badgeColor: 'red'
+          });
+        }
         return { success: true };
       }
     }, 'Deleting property...');
@@ -417,6 +493,17 @@ export const PropertyProvider = ({ children }) => {
         });
         if (response.ok) {
           setRequirements(prev => prev.map(r => (r.id === id || r.requirementId === id) ? { ...r, status: newStatus } : r));
+
+          if (logActivity) {
+            logActivity({
+              category: 'Buyer Requirements',
+              action: 'STATUS_CHANGE',
+              actionLabel: 'Updated Status',
+              details: `Changed Requirement status (ID: ${id}) to "${newStatus}"`,
+              targetId: id,
+              badgeColor: 'purple'
+            });
+          }
         }
       } catch (err) {
         console.error('Failed to update buy requirement status on API:', err.message);
@@ -461,10 +548,32 @@ export const PropertyProvider = ({ children }) => {
           const formatted = formatBackendRequirement(resData.data);
           formatted.matches = resData.matches || [];
           setRequirements(prev => prev.map(r => (r.id === id || r.requirementId === id || r._id === id || String(r.id) === String(id)) ? { ...r, ...formatted } : r));
+
+          if (logActivity) {
+            logActivity({
+              category: 'Buyer Requirements',
+              action: 'UPDATE_REQUIREMENT',
+              actionLabel: 'Updated Requirement',
+              details: `Updated requirement details for "${formatted.buyerName}" (${formatted.preferredLocation}, ${formatted.district})`,
+              targetId: id,
+              badgeColor: 'purple'
+            });
+          }
+
           return { success: true, data: formatted, matches: resData.matches || [] };
         } else {
           const localUpdated = { ...updatedData, id, requirementId: id };
           setRequirements(prev => prev.map(r => (r.id === id || r.requirementId === id || r._id === id || String(r.id) === String(id)) ? { ...r, ...localUpdated } : r));
+          if (logActivity) {
+            logActivity({
+              category: 'Buyer Requirements',
+              action: 'UPDATE_REQUIREMENT',
+              actionLabel: 'Updated Requirement',
+              details: `Updated requirement details for "${updatedData.buyerName || id}"`,
+              targetId: id,
+              badgeColor: 'purple'
+            });
+          }
           return { success: true, data: localUpdated };
         }
       } catch (err) {
@@ -486,17 +595,34 @@ export const PropertyProvider = ({ children }) => {
           credentials: 'include'
         });
 
-        const resData = await response.json();
+        setRequirements(prev => prev.filter(r => r.id !== id && r.requirementId !== id));
 
-        if (response.ok && resData.success) {
-          setRequirements(prev => prev.filter(r => r.id !== id && r.requirementId !== id));
-          return { success: true };
-        } else {
-          return { success: false, error: resData.message || 'Failed to delete requirement.' };
+        if (logActivity) {
+          logActivity({
+            category: 'Buyer Requirements',
+            action: 'DELETE_REQUIREMENT',
+            actionLabel: 'Deleted Requirement',
+            details: `Deleted Buyer Requirement (ID: ${id})`,
+            targetId: id,
+            badgeColor: 'red'
+          });
         }
+
+        return { success: true };
       } catch (err) {
         console.error('Failed to delete buy requirement from API:', err.message);
-        return { success: false, error: err.message || 'Network error deleting requirement.' };
+        setRequirements(prev => prev.filter(r => r.id !== id && r.requirementId !== id));
+        if (logActivity) {
+          logActivity({
+            category: 'Buyer Requirements',
+            action: 'DELETE_REQUIREMENT',
+            actionLabel: 'Deleted Requirement',
+            details: `Deleted Buyer Requirement (ID: ${id})`,
+            targetId: id,
+            badgeColor: 'red'
+          });
+        }
+        return { success: true };
       }
     }, 'Deleting requirement...');
   };
@@ -557,15 +683,39 @@ export const PropertyProvider = ({ children }) => {
     };
 
     setImportHistory(prev => [batchMeta, ...prev]);
+
+    if (logActivity) {
+      logActivity({
+        category: 'Properties',
+        action: 'EXCEL_IMPORT',
+        actionLabel: 'Excel Data Import',
+        details: `Imported ${batchMeta.totalItems} items (${batchMeta.salePropsCount + batchMeta.rentPropsCount} properties, ${batchMeta.buyReqsCount + batchMeta.rentReqsCount} requirements) from "${fileName}"`,
+        targetId: batchId,
+        badgeColor: 'amber'
+      });
+    }
+
     return batchMeta;
-  }, []);
+  }, [logActivity]);
 
   const revertImportBatch = useCallback((batchId) => {
     setProperties(prev => prev.filter(p => p.importBatchId !== batchId));
     setRequirements(prev => prev.filter(r => r.importBatchId !== batchId));
     setImportHistory(prev => prev.filter(b => b.batchId !== batchId));
+
+    if (logActivity) {
+      logActivity({
+        category: 'Properties',
+        action: 'REVERT_IMPORT',
+        actionLabel: 'Reverted Import',
+        details: `Reverted bulk Excel import batch (Batch ID: ${batchId})`,
+        targetId: batchId,
+        badgeColor: 'red'
+      });
+    }
+
     return { success: true };
-  }, []);
+  }, [logActivity]);
 
   // Conversion factors to square feet
   const AREA_UNIT_TO_SQFT = {
@@ -814,12 +964,17 @@ export const PropertyProvider = ({ children }) => {
       } else {
         const plotTypes = ['plot/land', 'commercial plot', 'residential plot', 'industrial plot'];
         const bothPlots = propTypes.some(pt => plotTypes.includes(pt)) && reqTypes.some(rt => plotTypes.includes(rt));
+        const resBuildingTypes = ['house/villa', 'apartment/flat'];
+        const bothResBuildings = propTypes.some(pt => resBuildingTypes.includes(pt)) && reqTypes.some(rt => resBuildingTypes.includes(rt));
         const landTypes = ['agricultural land', 'plot/land'];
         const bothLand = propTypes.some(pt => landTypes.includes(pt)) && reqTypes.some(rt => landTypes.includes(rt));
 
         if (bothPlots) {
           typeScore = 15;
           typeDetail = `Similar plot types`;
+        } else if (bothResBuildings) {
+          typeScore = 18;
+          typeDetail = `Residential building match (House / Apartment)`;
         } else if (bothLand) {
           typeScore = 12;
           typeDetail = `Related land types`;

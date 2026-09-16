@@ -36,15 +36,37 @@ export function AuthProvider({ children }) {
       if (res.ok && data.success && data.user) {
         setUser(data.user);
         setIsAuthenticated(true);
+        localStorage.setItem('hp_auth_user', JSON.stringify(data.user));
+
+        // Log active session if not already logged for this tab session
+        const sessionRestoreKey = `hp_session_restored_${data.user.username}`;
+        if (!sessionStorage.getItem(sessionRestoreKey)) {
+          sessionStorage.setItem(sessionRestoreKey, 'true');
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('hp_log_activity', {
+              detail: {
+                category: 'Authentication',
+                action: 'USER_LOGIN',
+                actionLabel: 'User Logged In',
+                details: `Active user session for ${data.user.fullName || data.user.username} (${data.user.role || 'Staff'})`,
+                targetId: 'session-auth',
+                badgeColor: 'blue',
+                userOverride: data.user
+              }
+            }));
+          }, 200);
+        }
       } else {
         setUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem('hp_auth_token');
+        localStorage.removeItem('hp_auth_user');
       }
     } catch (err) {
       console.warn('Session verification notice:', err.message);
       setUser(null);
       setIsAuthenticated(false);
+      localStorage.removeItem('hp_auth_user');
     } finally {
       setIsLoadingAuth(false);
     }
@@ -70,8 +92,25 @@ export function AuthProvider({ children }) {
         if (data.token) {
           localStorage.setItem('hp_auth_token', data.token);
         }
+        localStorage.setItem('hp_auth_user', JSON.stringify(data.user));
         setUser(data.user);
         setIsAuthenticated(true);
+
+        // Dispatch activity event for login
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('hp_log_activity', {
+            detail: {
+              category: 'Authentication',
+              action: 'USER_LOGIN',
+              actionLabel: 'User Logged In',
+              details: `User @${data.user.username} (${data.user.fullName || data.user.username}) logged into portal`,
+              targetId: 'session-login',
+              badgeColor: 'blue',
+              userOverride: data.user
+            }
+          }));
+        }, 100);
+
         return { success: true, user: data.user };
       } else {
         return {
@@ -89,6 +128,7 @@ export function AuthProvider({ children }) {
 
   // Logout handler
   const logout = async () => {
+    const activeUser = user;
     try {
       await fetch(`${API_BASE_URL}/auth/logout`, {
         method: 'POST',
@@ -98,9 +138,24 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn('Logout API warning:', err.message);
     } finally {
+      if (activeUser) {
+        window.dispatchEvent(new CustomEvent('hp_log_activity', {
+          detail: {
+            category: 'Authentication',
+            action: 'USER_LOGOUT',
+            actionLabel: 'User Logged Out',
+            details: `User @${activeUser.username} (${activeUser.fullName || activeUser.username}) logged out`,
+            targetId: 'session-logout',
+            badgeColor: 'slate',
+            userOverride: activeUser
+          }
+        }));
+      }
+
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem('hp_auth_token');
+      localStorage.removeItem('hp_auth_user');
       localStorage.removeItem('hp_logged_in');
       localStorage.removeItem('hp_user_role');
     }

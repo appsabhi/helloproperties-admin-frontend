@@ -10,7 +10,9 @@ import {
   Share2, 
   Check, 
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  Video,
+  Play
 } from 'lucide-react';
 
 function formatPrice(value, listingType = 'Sale', unit = '') {
@@ -118,10 +120,10 @@ export default function PublicPropertyDetail() {
           <h2 className="text-xl font-bold text-slate-900">Property Listing Not Found</h2>
           <p className="text-xs text-slate-500">This property listing may have been removed or updated by HelloProperties.</p>
           <button
-            onClick={() => window.location.href = '/login'}
+            onClick={() => window.location.href = '/'}
             className="px-5 py-2.5 bg-[#B0004F] text-white font-bold text-xs rounded-xl hover:bg-[#8A003E] transition-all cursor-pointer"
           >
-            Go to Portal Login
+            Go to HelloProperties Home
           </button>
         </div>
       </div>
@@ -248,6 +250,33 @@ export default function PublicPropertyDetail() {
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Property Description & Details</h4>
                 <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 text-xs sm:text-sm text-slate-700 leading-relaxed whitespace-pre-line">
                   {property.description}
+                </div>
+              </div>
+            )}
+
+            {/* Property Video Tour Section */}
+            {(property.video || property.videoUrl) && (
+              <div className="space-y-2 pt-2">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Video className="w-4 h-4 text-[#B0004F]" />
+                  <span>Property Video Tour</span>
+                </h4>
+                <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 shadow-md overflow-hidden">
+                  {typeof (property.video || property.videoUrl) === 'string' && (property.video || property.videoUrl).includes('youtu') ? (
+                    <iframe
+                      src={(property.video || property.videoUrl).replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                      title="Property Video"
+                      className="w-full h-64 sm:h-80 rounded-xl border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      src={typeof (property.video || property.videoUrl) === 'string' ? (property.video || property.videoUrl) : URL.createObjectURL(property.video || property.videoUrl)}
+                      controls
+                      className="w-full h-64 sm:h-80 rounded-xl object-cover"
+                    />
+                  )}
                 </div>
               </div>
             )}

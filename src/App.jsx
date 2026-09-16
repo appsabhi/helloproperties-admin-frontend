@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { PropertyProvider } from './context/PropertyContext';
+import { ActivityProvider } from './context/ActivityContext';
 import { Loader2 } from 'lucide-react';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -11,7 +12,9 @@ import SellProperties from './pages/SellProperties';
 import BuyRequirements from './pages/BuyRequirements';
 import Settings from './pages/Settings';
 import UserManagement from './pages/UserManagement';
+import Activities from './pages/Activities';
 import PublicPropertyDetail from './pages/PublicPropertyDetail';
+import PublicNotice from './pages/PublicNotice';
 
 // Protected Route Component consuming real AuthContext
 function ProtectedRoute({ children }) {
@@ -58,92 +61,127 @@ function AdminRoute({ children }) {
   return <Layout>{children}</Layout>;
 }
 
+// Guard for Root & Public entry points: Authenticated -> /dashboard, Unauthenticated -> PublicNotice
+function RootOrPublicRoute() {
+  const { isAuthenticated, isLoadingAuth } = useContext(AuthContext);
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-[#F7F7F7] flex flex-col items-center justify-center space-y-3 font-sans text-slate-600">
+        <Loader2 className="w-8 h-8 animate-spin text-[#B0004F]" />
+        <p className="text-xs font-semibold">Loading HelloProperties...</p>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <PublicNotice />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <PropertyProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/property/:id" element={<PublicPropertyDetail />} />
-          <Route path="/p/:id" element={<PublicPropertyDetail />} />
-          <Route path="/share/:id" element={<PublicPropertyDetail />} />
+        <ActivityProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/admin" element={<Login />} />
+              <Route path="/property/:id" element={<PublicPropertyDetail />} />
+              <Route path="/p/:id" element={<PublicPropertyDetail />} />
+              <Route path="/share/:id" element={<PublicPropertyDetail />} />
 
-          {/* Root Redirects to /dashboard */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              {/* Root Domain & Non-ID Public Routes */}
+              <Route path="/" element={<RootOrPublicRoute />} />
+              <Route path="/p" element={<RootOrPublicRoute />} />
+              <Route path="/property" element={<RootOrPublicRoute />} />
+              <Route path="/share" element={<RootOrPublicRoute />} />
 
-          {/* Protected Internal Routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/properties"
-            element={
-              <ProtectedRoute>
-                <Properties />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/properties/listings"
-            element={
-              <ProtectedRoute>
-                <Properties />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/properties/requirements"
-            element={
-              <ProtectedRoute>
-                <Properties />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/properties/buy"
-            element={
-              <ProtectedRoute>
-                <Properties />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/properties/sell"
-            element={
-              <ProtectedRoute>
-                <Properties />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              <AdminRoute>
-                <UserManagement />
-              </AdminRoute>
-            }
-          />
+              {/* Protected Internal Routes */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties"
+                element={
+                  <ProtectedRoute>
+                    <Properties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties/listings"
+                element={
+                  <ProtectedRoute>
+                    <Properties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties/requirements"
+                element={
+                  <ProtectedRoute>
+                    <Properties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties/buy"
+                element={
+                  <ProtectedRoute>
+                    <Properties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties/sell"
+                element={
+                  <ProtectedRoute>
+                    <Properties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <AdminRoute>
+                    <UserManagement />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/activities"
+                element={
+                  <AdminRoute>
+                    <Activities />
+                  </AdminRoute>
+                }
+              />
 
-          {/* Fallback Catch-All */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </PropertyProvider>
-  </AuthProvider>
+              {/* Fallback Catch-All */}
+              <Route path="*" element={<RootOrPublicRoute />} />
+            </Routes>
+          </BrowserRouter>
+        </ActivityProvider>
+      </PropertyProvider>
+    </AuthProvider>
   );
 }
+

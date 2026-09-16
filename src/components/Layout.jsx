@@ -5,6 +5,7 @@ import {
   Building2, 
   Home,
   Shield,
+  Activity,
   Settings as SettingsIcon, 
   LogOut, 
   Menu, 
@@ -91,6 +92,7 @@ export default function Layout({ children }) {
       ]
     },
     ...(user?.role === 'Admin' ? [{ to: '/users', label: 'User Management', icon: Shield }] : []),
+    ...(user?.role === 'Admin' ? [{ to: '/activities', label: 'Activity Logs', icon: Activity }] : []),
     { to: '/settings', label: 'Settings', icon: SettingsIcon }
   ];
 

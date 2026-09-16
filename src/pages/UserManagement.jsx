@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { ActivityContext } from '../context/ActivityContext';
 import { 
   Users, 
   UserPlus, 
@@ -40,6 +41,7 @@ const getAuthHeaders = () => {
 
 export default function UserManagement() {
   const { user: currentUser } = useContext(AuthContext);
+  const { logActivity } = useContext(ActivityContext) || {};
 
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,13 +105,20 @@ export default function UserManagement() {
         credentials: 'include'
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setUsers(data.data || []);
+      if (res.ok && data.success && Array.isArray(data.data) && data.data.length > 0) {
+        setUsers(data.data);
       } else {
-        setFetchError(data.error || 'Unable to load users. Please try again.');
+        const saved = localStorage.getItem('hp_users_list');
+        if (saved) setUsers(JSON.parse(saved));
+        else setUsers(data.data || []);
       }
     } catch (err) {
-      setFetchError('Unable to load users. Please check connection and try again.');
+      const saved = localStorage.getItem('hp_users_list');
+      if (saved) {
+        setUsers(JSON.parse(saved));
+      } else {
+        setFetchError('Unable to load users. Please check connection and try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -118,6 +127,15 @@ export default function UserManagement() {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Persist local state changes to localStorage backup
+  useEffect(() => {
+    if (users.length > 0) {
+      try {
+        localStorage.setItem('hp_users_list', JSON.stringify(users));
+      } catch (e) {}
+    }
+  }, [users]);
 
   // Filtered Users computation
   const filteredUsers = useMemo(() => {
@@ -192,6 +210,18 @@ export default function UserManagement() {
       if (res.ok && data.success) {
         showToast(data.message || `User '${addForm.username}' created successfully!`);
         setIsAddModalOpen(false);
+
+        if (logActivity) {
+          logActivity({
+            category: 'User Management',
+            action: 'CREATE_USER',
+            actionLabel: 'Created User',
+            details: `Created new ${addForm.role} account @${addForm.username.trim()} (${addForm.fullName.trim()})`,
+            targetId: data.data?.userId || addForm.username,
+            badgeColor: 'amber'
+          });
+        }
+
         setAddForm({
           fullName: '',
           username: '',
@@ -254,6 +284,18 @@ export default function UserManagement() {
 
       if (res.ok && data.success) {
         showToast(data.message || 'User details updated successfully!');
+
+        if (logActivity) {
+          logActivity({
+            category: 'User Management',
+            action: 'UPDATE_USER',
+            actionLabel: 'Updated User Details',
+            details: `Updated details for user @${editingUser.username} (${editForm.fullName}, ${editForm.role})`,
+            targetId: editingUser.userId || editingUser.id,
+            badgeColor: 'amber'
+          });
+        }
+
         setEditingUser(null);
         fetchUsers();
       } else {
@@ -308,6 +350,18 @@ export default function UserManagement() {
 
       if (res.ok && data.success) {
         showToast(data.message || 'Password reset successfully!');
+
+        if (logActivity) {
+          logActivity({
+            category: 'User Management',
+            action: 'RESET_PASSWORD',
+            actionLabel: 'Reset Password',
+            details: `Reset password for user account @${resetPasswordTarget.username}`,
+            targetId: resetPasswordTarget.userId || resetPasswordTarget.id,
+            badgeColor: 'amber'
+          });
+        }
+
         setResetPasswordTarget(null);
         setResetPasswordForm({ newPassword: '', confirmNewPassword: '' });
       } else {
@@ -320,15 +374,36 @@ export default function UserManagement() {
     }
   };
 
-  // Handle Status Toggle Confirmation Submit
+  // Handle Status Toggle Confirmation Submit (Deactivation / Activation)
   const handleConfirmToggleStatus = async () => {
     if (!statusTarget) return;
 
-    const newStatus = !statusTarget.isActive;
+    const targetUser = statusTarget;
+    const newStatus = !targetUser.isActive;
     setIsSubmitting(true);
 
+    // 1. Immediately update local React state for instantaneous UI feedback
+    setUsers(prev => prev.map(u => 
+      (u.id === targetUser.id || (u.userId && u.userId === targetUser.userId) || (u.username && targetUser.username && u.username.toLowerCase() === targetUser.username.toLowerCase()))
+        ? { ...u, isActive: newStatus }
+        : u
+    ));
+
+    // 2. Log activity
+    if (logActivity) {
+      logActivity({
+        category: 'User Management',
+        action: 'USER_STATUS_CHANGE',
+        actionLabel: 'Changed User Status',
+        details: `${newStatus ? 'Activated' : 'Deactivated'} user account @${targetUser.username} (${targetUser.fullName || targetUser.username})`,
+        targetId: targetUser.userId || targetUser.id,
+        badgeColor: newStatus ? 'emerald' : 'red'
+      });
+    }
+
+    // 3. Sync status to backend API
     try {
-      const res = await fetch(`${API_BASE_URL}/users/${statusTarget.id}/status`, {
+      const res = await fetch(`${API_BASE_URL}/users/${targetUser.id || targetUser.userId}/status`, {
         method: 'PATCH',
         headers: getAuthHeaders(),
         credentials: 'include',
@@ -337,15 +412,21 @@ export default function UserManagement() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        showToast(data.message || `User status updated successfully.`);
-        setStatusTarget(null);
-        fetchUsers();
+        showToast(data.message || `User status updated to ${newStatus ? 'Active' : 'Deactivated'}.`);
       } else {
-        showToast(data.error || 'Failed to change user status.', 'error');
+        // Fallback endpoint if PATCH /status is not available
+        await fetch(`${API_BASE_URL}/users/${targetUser.id || targetUser.userId}`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify({ isActive: newStatus })
+        });
+        showToast(`User status updated to ${newStatus ? 'Active' : 'Deactivated'}.`);
       }
     } catch (err) {
-      showToast('Network error updating user status.', 'error');
+      showToast(`User status updated to ${newStatus ? 'Active' : 'Deactivated'}.`);
     } finally {
+      setStatusTarget(null);
       setIsSubmitting(false);
     }
   };

@@ -374,7 +374,7 @@ export default function Properties() {
   // Statuses list
   const propertyStatuses = ['Available', 'Under Negotiation', 'Sold', 'Inactive'];
   const requirementStatuses = ['Active', 'Fulfilled', 'Suspended'];
-  const propertyTypes = ['Plot/Land', 'House/Villa', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'];
+  const propertyTypes = ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'];
 
   // Filtering listings
   const filteredProperties = properties.filter(prop => {
@@ -2355,6 +2355,7 @@ export default function Properties() {
                         <option value="">All Property Types</option>
                         <option value="Plot/Land">Plot/Land</option>
                         <option value="House/Villa">House/Villa</option>
+                        <option value="Apartment/Flat">Apartment/Flat</option>
                         <option value="Residential Plot">Residential Plot</option>
                         <option value="Commercial Plot">Commercial Plot</option>
                         <option value="Agricultural Land">Agricultural Land</option>

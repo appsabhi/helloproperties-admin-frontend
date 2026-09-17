@@ -194,7 +194,7 @@ export default function ActivityLogView({ compact = false, limit = null }) {
   return (
     <div className="space-y-6 font-sans text-[#171717]">
       {/* Top Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Activities</span>
@@ -216,18 +216,6 @@ export default function ActivityLogView({ compact = false, limit = null }) {
           </div>
           <div className="p-2.5 rounded-xl bg-[#FFF1F6] text-[#C4005A]">
             <Clock className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Active Users</span>
-            <p className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">
-              {activeUsersCount !== null && activeUsersCount !== undefined ? activeUsersCount : '...'}
-            </p>
-          </div>
-          <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700">
-            <UsersIcon className="w-5 h-5" />
           </div>
         </div>
       </div>

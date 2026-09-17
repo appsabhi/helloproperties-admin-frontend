@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { ActivityContext } from '../context/ActivityContext';
+import Modal from '../components/Modal';
 import { 
   Users, 
   UserPlus, 
@@ -830,382 +831,338 @@ export default function UserManagement() {
 
       {/* ADD USER MODAL */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] flex flex-col border border-slate-200 shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-900 flex items-center space-x-2">
-                <UserPlus className="w-5 h-5 text-[#B0004F]" />
-                <span>Add User</span>
-              </h3>
-              <button 
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <Modal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          title="Add User"
+          subtitle="Create a new staff or admin portal user"
+          icon={UserPlus}
+          size="lg"
+        >
+          <form onSubmit={handleCreateUser} className="space-y-4">
+            {formError && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            {/* Full Name */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Full Name *</label>
+              <input
+                type="text"
+                required
+                value={addForm.fullName}
+                onChange={(e) => setAddForm({ ...addForm, fullName: e.target.value })}
+                placeholder="e.g. Rahul Sharma"
+                className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+              />
             </div>
 
-            {/* Modal Form Body */}
-            <form onSubmit={handleCreateUser} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {formError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              {/* Full Name */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Full Name *</label>
+            {/* Username */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Username *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-xs text-slate-400">@</span>
                 <input
                   type="text"
                   required
-                  value={addForm.fullName}
-                  onChange={(e) => setAddForm({ ...addForm, fullName: e.target.value })}
-                  placeholder="e.g. Rahul Sharma"
-                  className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                  value={addForm.username}
+                  onChange={(e) => setAddForm({ ...addForm, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
+                  placeholder="rahulsharma"
+                  className="w-full pl-7 pr-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
                 />
               </div>
+            </div>
 
-              {/* Username */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Username *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-xs text-slate-400">@</span>
-                  <input
-                    type="text"
-                    required
-                    value={addForm.username}
-                    onChange={(e) => setAddForm({ ...addForm, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
-                    placeholder="rahulsharma"
-                    className="w-full pl-7 pr-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                </div>
-              </div>
+            {/* Email */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Email Address</label>
+              <input
+                type="email"
+                value={addForm.email}
+                onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
+                placeholder="rahul@helloproperties.com"
+                className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+              />
+            </div>
 
-              {/* Email */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Email Address</label>
+            {/* Password */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Password *</label>
+              <div className="relative">
                 <input
-                  type="email"
-                  value={addForm.email}
-                  onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
-                  placeholder="rahul@helloproperties.com"
-                  className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                  type={showAddPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={addForm.password}
+                  onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
+                  placeholder="•••••••• (Min 6 characters)"
+                  className="w-full pl-3.5 pr-10 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
                 />
-              </div>
-
-              {/* Password */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Password *</label>
-                <div className="relative">
-                  <input
-                    type={showAddPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={addForm.password}
-                    onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
-                    placeholder="•••••••• (Min 6 characters)"
-                    className="w-full pl-3.5 pr-10 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAddPassword(!showAddPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    {showAddPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Confirm Password *</label>
-                <div className="relative">
-                  <input
-                    type={showAddConfirmPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={addForm.confirmPassword}
-                    onChange={(e) => setAddForm({ ...addForm, confirmPassword: e.target.value })}
-                    placeholder="Re-enter password"
-                    className="w-full pl-3.5 pr-10 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAddConfirmPassword(!showAddConfirmPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    {showAddConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Role */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">System Role *</label>
-                <select
-                  value={addForm.role}
-                  onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
-                >
-                  <option value="Staff">Staff (Properties, Requirements & Matching)</option>
-                  <option value="Admin">Admin (Full System Access & User Management)</option>
-                </select>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                  onClick={() => setShowAddPassword(!showAddPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center space-x-1.5"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Creating...</span>
-                    </>
-                  ) : (
-                    <span>Create User</span>
-                  )}
+                  {showAddPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Confirm Password *</label>
+              <div className="relative">
+                <input
+                  type={showAddConfirmPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={addForm.confirmPassword}
+                  onChange={(e) => setAddForm({ ...addForm, confirmPassword: e.target.value })}
+                  placeholder="Re-enter password"
+                  className="w-full pl-3.5 pr-10 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowAddConfirmPassword(!showAddConfirmPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showAddConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Role */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">System Role *</label>
+              <select
+                value={addForm.role}
+                onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}
+                className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+              >
+                <option value="Staff">Staff (Properties, Requirements & Matching)</option>
+                <option value="Admin">Admin (Full System Access & User Management)</option>
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                disabled={isSubmitting}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center space-x-1.5"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Creating...</span>
+                  </>
+                ) : (
+                  <span>Create User</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* EDIT USER MODAL */}
       {editingUser && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] flex flex-col border border-slate-200 shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-900 flex items-center space-x-2">
-                <Edit3 className="w-5 h-5 text-[#B0004F]" />
-                <span>Edit User: @{editingUser.username}</span>
-              </h3>
-              <button 
-                onClick={() => setEditingUser(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <Modal
+          isOpen={!!editingUser}
+          onClose={() => setEditingUser(null)}
+          title={`Edit User: @${editingUser.username}`}
+          subtitle={`Update profile and system access role for ${editingUser.fullName}`}
+          icon={Edit3}
+          size="lg"
+        >
+          <form onSubmit={handleSaveEdit} className="space-y-4">
+            {formError && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            {/* Full Name */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Full Name *</label>
+              <input
+                type="text"
+                required
+                value={editForm.fullName}
+                onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
+                className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+              />
             </div>
 
-            {/* Form Body */}
-            <form onSubmit={handleSaveEdit} className="p-6 space-y-4 overflow-y-auto flex-1">
-              {formError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
+            {/* Email */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Email Address</label>
+              <input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+              />
+            </div>
 
-              {/* Full Name */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.fullName}
-                  onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                />
-              </div>
+            {/* System Role */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">System Role *</label>
+              <select
+                value={editForm.role}
+                onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+                className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+              >
+                <option value="Staff">Staff (Properties, Requirements & Matching)</option>
+                <option value="Admin">Admin (Full System Access & User Management)</option>
+              </select>
+            </div>
 
-              {/* Email */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Email Address</label>
-                <input
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                />
-              </div>
-
-              {/* System Role */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">System Role *</label>
-                <select
-                  value={editForm.role}
-                  onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
-                >
-                  <option value="Staff">Staff (Properties, Requirements & Matching)</option>
-                  <option value="Admin">Admin (Full System Access & User Management)</option>
-                </select>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setEditingUser(null)}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center space-x-1.5"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <span>Save Changes</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            {/* Actions */}
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditingUser(null)}
+                disabled={isSubmitting}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center space-x-1.5"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>Save Changes</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* RESET PASSWORD MODAL */}
       {resetPasswordTarget && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] flex flex-col border border-slate-200 shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50 flex-shrink-0">
-              <h3 className="font-bold text-lg text-slate-900 flex items-center space-x-2">
-                <KeyRound className="w-5 h-5 text-amber-600" />
-                <span>Reset Password</span>
-              </h3>
-              <button 
-                onClick={() => setResetPasswordTarget(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Form Body */}
-            <form onSubmit={handleResetPasswordSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
-              <p className="text-xs text-slate-600">
-                Set a new password for <strong className="text-slate-900">{resetPasswordTarget.fullName}</strong> (@{resetPasswordTarget.username}).
-              </p>
-
-              {formError && (
-                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              {/* New Password */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">New Password *</label>
-                <div className="relative">
-                  <input
-                    type={showResetPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={resetPasswordForm.newPassword}
-                    onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, newPassword: e.target.value })}
-                    placeholder="•••••••• (Min 6 characters)"
-                    className="w-full pl-3.5 pr-10 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowResetPassword(!showResetPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    {showResetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+        <Modal
+          isOpen={!!resetPasswordTarget}
+          onClose={() => setResetPasswordTarget(null)}
+          title="Reset Password"
+          subtitle={`Set a new password for ${resetPasswordTarget.fullName} (@${resetPasswordTarget.username})`}
+          icon={KeyRound}
+          size="md"
+        >
+          <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+            {formError && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{formError}</span>
               </div>
+            )}
 
-              {/* Confirm New Password */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700">Confirm New Password *</label>
-                <div className="relative">
-                  <input
-                    type={showResetConfirmPassword ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={resetPasswordForm.confirmNewPassword}
-                    onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, confirmNewPassword: e.target.value })}
-                    placeholder="Re-enter new password"
-                    className="w-full pl-3.5 pr-10 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    {showResetConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+            {/* New Password */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">New Password *</label>
+              <div className="relative">
+                <input
+                  type={showResetPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={resetPasswordForm.newPassword}
+                  onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, newPassword: e.target.value })}
+                  placeholder="•••••••• (Min 6 characters)"
+                  className="w-full pl-3.5 pr-10 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
                 <button
                   type="button"
-                  onClick={() => setResetPasswordTarget(null)}
-                  disabled={isSubmitting}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                  onClick={() => setShowResetPassword(!showResetPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center space-x-1.5"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Resetting...</span>
-                    </>
-                  ) : (
-                    <span>Reset Password</span>
-                  )}
+                  {showResetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+
+            {/* Confirm New Password */}
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Confirm New Password *</label>
+              <div className="relative">
+                <input
+                  type={showResetConfirmPassword ? 'text' : 'password'}
+                  required
+                  minLength={6}
+                  value={resetPasswordForm.confirmNewPassword}
+                  onChange={(e) => setResetPasswordForm({ ...resetPasswordForm, confirmNewPassword: e.target.value })}
+                  placeholder="Re-enter new password"
+                  className="w-full pl-3.5 pr-10 py-2 border border-[#E8E8E8] rounded-lg text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showResetConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setResetPasswordTarget(null)}
+                disabled={isSubmitting}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center space-x-1.5"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <span>Reset Password</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* ACTIVATE / DEACTIVATE CONFIRMATION MODAL */}
       {statusTarget && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-5 border border-slate-200 shadow-2xl">
-            <div className="flex items-start space-x-3">
-              <div className={`p-2.5 rounded-full flex-shrink-0 ${statusTarget.isActive ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="font-bold text-base text-slate-900">
-                  {statusTarget.isActive ? `Deactivate ${statusTarget.fullName}?` : `Activate ${statusTarget.fullName}?`}
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {statusTarget.isActive
-                    ? `Deactivate ${statusTarget.fullName}? They will no longer be able to sign in.`
-                    : `Activate ${statusTarget.fullName}? They will regain access to sign in to HelloProperties.`}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+        <Modal
+          isOpen={!!statusTarget}
+          onClose={() => setStatusTarget(null)}
+          title={statusTarget.isActive ? `Deactivate ${statusTarget.fullName}?` : `Activate ${statusTarget.fullName}?`}
+          subtitle={statusTarget.isActive ? 'They will no longer be able to sign in' : 'They will regain portal access'}
+          icon={AlertTriangle}
+          size="sm"
+          footer={
+            <div className="flex items-center justify-end space-x-3 w-full">
               <button
                 type="button"
                 onClick={() => setStatusTarget(null)}
@@ -1232,8 +1189,8 @@ export default function UserManagement() {
                 )}
               </button>
             </div>
-          </div>
-        </div>
+          }
+        />
       )}
     </div>
   );

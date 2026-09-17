@@ -1,5 +1,6 @@
 import React, { useState, useContext, useMemo } from 'react';
 import { ActivityContext } from '../context/ActivityContext';
+import Modal from './Modal';
 import { 
   Activity, 
   Search, 
@@ -454,21 +455,18 @@ export default function ActivityLogView({ compact = false, limit = null }) {
 
       {/* Confirm Clear Modal */}
       {showClearConfirm && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-sm w-full p-6 space-y-4 border border-slate-200 shadow-2xl text-center">
-            <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center mx-auto">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="font-bold text-slate-900 text-base">Clear Activity History?</h3>
-              <p className="text-xs text-slate-500">
-                Are you sure you want to wipe all logged user activity records? This action cannot be undone.
-              </p>
-            </div>
-            <div className="flex items-center space-x-3 pt-2">
+        <Modal
+          isOpen={showClearConfirm}
+          onClose={() => setShowClearConfirm(false)}
+          title="Clear Activity History?"
+          subtitle="Are you sure you want to wipe all logged user activity records? This action cannot be undone."
+          icon={AlertTriangle}
+          size="sm"
+          footer={
+            <div className="flex items-center space-x-2.5 w-full">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -477,13 +475,13 @@ export default function ActivityLogView({ compact = false, limit = null }) {
                   clearActivities();
                   setShowClearConfirm(false);
                 }}
-                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer shadow-sm"
+                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-sm"
               >
                 Clear History
               </button>
             </div>
-          </div>
-        </div>
+          }
+        />
       )}
     </div>
   );

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { usePropertyContext } from '../context/PropertyContext';
+import Modal from './Modal';
 
 export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) {
   const { bulkAddItems, importHistory, revertImportBatch } = usePropertyContext();
@@ -272,29 +273,44 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-100">
-        
-        {/* Modal Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
-              <FileSpreadsheet className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-lg font-extrabold text-slate-900">Excel / CSV Bulk Importer</h2>
-              <p className="text-xs text-slate-500">Import properties & buyer requirements with 1-click batch revert</p>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Excel / CSV Bulk Importer"
+      subtitle="Import properties & buyer requirements with 1-click batch revert"
+      icon={FileSpreadsheet}
+      size="2xl"
+      footer={
+        activeTab === 'upload' && !isSuccess ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 w-full">
+            <span className="text-xs text-slate-400">
+              {parsedData ? `Ready to import ${parsedData.totalRows} records` : 'Upload an Excel or CSV file to continue'}
+            </span>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/60 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              {parsedData && (
+                <button
+                  type="button"
+                  onClick={handleConfirmImport}
+                  disabled={isProcessing}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#B0004F] text-white hover:bg-[#800039] shadow-md shadow-pink-900/10 transition-all cursor-pointer flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirm & Import All ({parsedData.totalRows})</span>
+                </button>
+              )}
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Modal Navigation Tabs */}
+        ) : null
+      }
+    >
+      {/* Modal Navigation Tabs */}
         <div className="px-6 border-b border-slate-100 flex items-center gap-4 bg-white">
           <button
             type="button"
@@ -551,7 +567,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
                             onClick={() => handleConfirmRevert(batch.batchId)}
                             className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700 transition-all cursor-pointer shadow-sm"
                           >
-                            Confirm Delete Batch
+                            Confirm Revert
                           </button>
                           <button
                             type="button"
@@ -565,10 +581,10 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
                         <button
                           type="button"
                           onClick={() => setRevertConfirmBatchId(batch.batchId)}
-                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white border border-rose-200/80 transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
+                          className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-rose-200 text-rose-700 hover:bg-rose-50 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Revert Import</span>
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>Revert Batch</span>
                         </button>
                       )}
                     </div>
@@ -577,39 +593,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
               )}
             </div>
           )}
-
         </div>
-
-        {/* Modal Footer */}
-        {activeTab === 'upload' && !isSuccess && (
-          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <span className="text-xs text-slate-400">
-              {parsedData ? `Ready to import ${parsedData.totalRows} records` : 'Upload an Excel or CSV file to continue'}
-            </span>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200/60 transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              {parsedData && (
-                <button
-                  type="button"
-                  onClick={handleConfirmImport}
-                  disabled={isProcessing}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#B0004F] text-white hover:bg-[#800039] shadow-md shadow-pink-900/10 transition-all cursor-pointer flex items-center gap-2"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirm & Import All ({parsedData.totalRows})</span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
+    </Modal>
   );
 }

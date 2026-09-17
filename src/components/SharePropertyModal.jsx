@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Share2, X, Check, MessageCircle, ExternalLink } from 'lucide-react';
+import { Share2, Check, MessageCircle, ExternalLink } from 'lucide-react';
+import Modal from './Modal';
 
 function formatDisplayArea(areaStr) {
   if (!areaStr) return '—';
@@ -48,15 +49,7 @@ export function buildCleanWhatsAppText(property) {
       maximumFractionDigits: 0
     }).format(property.monthlyRent || 0);
 
-    const formattedDeposit = new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(property.securityDeposit || 0);
-
     priceLines.push(`💰 Rent: ${formattedRent}`);
-    // Temporarily hidden security deposit from WhatsApp share
-    // priceLines.push(`🔐 Security Deposit: ${formattedDeposit}`);
   } else {
     const formattedPrice = new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -119,11 +112,6 @@ let globalWhatsAppWindowRef = null;
 
 export function openWhatsAppShareWindow(url) {
   const windowName = 'helloproperties-whatsapp';
-
-  // Always invoke window.open with the fixed named target 'helloproperties-whatsapp'.
-  // In HTML5 standard, window.open(url, windowName) natively locates any open tab/window
-  // assigned windowName, navigates that tab to url, and brings it into focus.
-  // This avoids cross-origin SecurityErrors when mutating location.href across domains.
   try {
     globalWhatsAppWindowRef = window.open(url, windowName);
     if (globalWhatsAppWindowRef && globalWhatsAppWindowRef.focus) {
@@ -154,12 +142,6 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
     maximumFractionDigits: 0
   }).format(property.monthlyRent || 0);
 
-  const formattedDeposit = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(property.securityDeposit || 0);
-
   const whatsappUrl = buildWhatsAppShareUrl(property, buyer?.phoneNumber || buyer?.buyerPhone);
   const validImageUrl = (property?.imageUrl && typeof property.imageUrl === 'string' && !property.imageUrl.startsWith('blob:'))
     ? property.imageUrl.trim()
@@ -177,101 +159,15 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[60] flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-fade-in space-y-4 p-6 my-6">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center space-x-2 text-[#C4005A]">
-            <Share2 className="w-5 h-5" />
-            <h3 className="font-bold text-lg text-slate-900">Share Property</h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Customer-Facing Shared Details Preview */}
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-            Customer-Facing Details Preview
-          </span>
-
-          {validImageUrl && (
-            <div className="h-44 w-full rounded-lg overflow-hidden border border-slate-200 bg-white">
-              <img
-                src={validImageUrl}
-                alt={property.title || 'Property Image'}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
-                }}
-              />
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 pt-1">
-            <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Property Type</span>
-              <span className="font-bold text-slate-900">{property.propertyType || 'Plot/Land'}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-semibold">District</span>
-              <span className="font-bold text-slate-900">{property.district || '—'}</span>
-            </div>
-            <div>
-              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Total Area</span>
-              <span className="font-bold text-slate-900">{formatDisplayArea(property.area)}</span>
-            </div>
-            {isRent ? (
-              <>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">Rent</span>
-                  <span className="font-extrabold text-[#C4005A]">{formattedRent}</span>
-                </div>
-              </>
-            ) : (
-              <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Price</span>
-                <span className="font-extrabold text-[#C4005A]">{formattedPrice}</span>
-              </div>
-            )}
-          </div>
-
-          {validImageUrl && (
-            <div className="pt-2 border-t border-slate-200/60 text-2xs text-slate-500">
-              <span className="font-semibold text-slate-600 block mb-0.5">Public Image Link:</span>
-              <span className="text-slate-700 font-mono select-all truncate block">{validImageUrl}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Public Share Link Card Box */}
-        <div className="pt-2 border-t border-slate-100 space-y-1.5">
-          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Public Shareable Product Link</span>
-          <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-            <span className="text-xs font-mono text-slate-700 truncate flex-1 select-all font-medium">
-              {`${window.location.origin}/p/${property.id || property.propertyId || property._id}`}
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                const link = `${window.location.origin}/p/${property.id || property.propertyId || property._id}`;
-                navigator.clipboard.writeText(link);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 3000);
-              }}
-              className="px-2.5 py-1 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-[11px] rounded-lg transition-colors cursor-pointer shrink-0"
-            >
-              {copied ? 'Copied!' : 'Copy Link'}
-            </button>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-2 pt-1">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Share Property"
+      subtitle="Share customer-facing property details via WhatsApp or public link"
+      icon={Share2}
+      size="md"
+      footer={
+        <div className="flex flex-col sm:flex-row gap-2 w-full">
           <button
             onClick={handleOpenWhatsApp}
             className="flex-1 inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
@@ -288,7 +184,82 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
             <span>{copied ? 'Copied!' : 'Copy Message'}</span>
           </button>
         </div>
+      }
+    >
+      {/* Customer-Facing Shared Details Preview */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+          Customer-Facing Details Preview
+        </span>
+
+        {validImageUrl && (
+          <div className="h-44 w-full rounded-lg overflow-hidden border border-slate-200 bg-white">
+            <img
+              src={validImageUrl}
+              alt={property.title || 'Property Image'}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
+              }}
+            />
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 pt-1">
+          <div>
+            <span className="text-slate-400 block text-[10px] uppercase font-semibold">Property Type</span>
+            <span className="font-bold text-slate-900">{property.propertyType || 'Plot/Land'}</span>
+          </div>
+          <div>
+            <span className="text-slate-400 block text-[10px] uppercase font-semibold">District</span>
+            <span className="font-bold text-slate-900">{property.district || '—'}</span>
+          </div>
+          <div>
+            <span className="text-slate-400 block text-[10px] uppercase font-semibold">Total Area</span>
+            <span className="font-bold text-slate-900">{formatDisplayArea(property.area)}</span>
+          </div>
+          {isRent ? (
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Rent</span>
+              <span className="font-extrabold text-[#C4005A]">{formattedRent}</span>
+            </div>
+          ) : (
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Price</span>
+              <span className="font-extrabold text-[#C4005A]">{formattedPrice}</span>
+            </div>
+          )}
+        </div>
+
+        {validImageUrl && (
+          <div className="pt-2 border-t border-slate-200/60 text-2xs text-slate-500">
+            <span className="font-semibold text-slate-600 block mb-0.5">Public Image Link:</span>
+            <span className="text-slate-700 font-mono select-all truncate block">{validImageUrl}</span>
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* Public Share Link Card Box */}
+      <div className="pt-2 border-t border-slate-100 space-y-1.5">
+        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Public Shareable Product Link</span>
+        <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+          <span className="text-xs font-mono text-slate-700 truncate flex-1 select-all font-medium">
+            {`${window.location.origin}/p/${property.id || property.propertyId || property._id}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              const link = `${window.location.origin}/p/${property.id || property.propertyId || property._id}`;
+              navigator.clipboard.writeText(link);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 3000);
+            }}
+            className="px-2.5 py-1 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-[11px] rounded-lg transition-colors cursor-pointer shrink-0"
+          >
+            {copied ? 'Copied!' : 'Copy Link'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

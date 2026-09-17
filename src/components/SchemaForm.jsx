@@ -63,6 +63,10 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     const initKeywords = Array.isArray(initialValues.keywords) ? initialValues.keywords : [];
     defaultData.keywords = initKeywords;
 
+    if (initKeywords.length > 0 && (!defaultData.description || defaultData.description.trim() === '')) {
+      defaultData.description = initKeywords.join(", ");
+    }
+
     if (initVideo && typeof initVideo === 'string') {
       defaultData.videoUrl = initVideo;
       defaultData.video = initVideo;
@@ -226,10 +230,17 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       nextKeywords = [...currentKeywords, trimmed];
     }
 
+    const nextDescription = nextKeywords.join(", ");
+
     setFormData(prev => ({
       ...prev,
-      keywords: nextKeywords
+      keywords: nextKeywords,
+      description: nextDescription
     }));
+
+    if (errors.description) {
+      setErrors(prev => ({ ...prev, description: null }));
+    }
   };
 
   const handleAddCustomKeyword = () => {
@@ -240,7 +251,11 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       setCustomKeywords(prev => [...prev, trimmed]);
     }
 
-    toggleKeyword(trimmed);
+    const currentKeywords = Array.isArray(formData.keywords) ? formData.keywords : [];
+    if (!currentKeywords.some(k => k.toLowerCase() === trimmed.toLowerCase())) {
+      toggleKeyword(trimmed);
+    }
+
     setNewKeywordInput("");
   };
 
@@ -428,7 +443,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                           {Array.isArray(formData.keywords) && formData.keywords.length > 0 && (
                             <button
                               type="button"
-                              onClick={() => setFormData(prev => ({ ...prev, keywords: [] }))}
+                              onClick={() => setFormData(prev => ({ ...prev, keywords: [], description: "" }))}
                               className="text-[10.5px] font-semibold text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
                             >
                               Clear Keywords ({formData.keywords.length})

@@ -6,6 +6,7 @@ import { sellPropertySchema, buyRequirementSchema } from '../schemas/formSchemas
 import SchemaForm from '../components/SchemaForm';
 import LocationSelector from '../components/LocationSelector';
 import SharePropertyModal from '../components/SharePropertyModal';
+import Modal from '../components/Modal';
 import { 
   MapPin, 
   Ruler, 
@@ -142,6 +143,8 @@ export default function Properties() {
   });
   const [editPropError, setEditPropError] = useState(null);
   const [isSubmittingEditProp, setIsSubmittingEditProp] = useState(false);
+  const [imageLoadError, setImageLoadError] = useState(false);
+  const [videoLoadError, setVideoLoadError] = useState(false);
 
   // Edit Requirement Modal State
   const [editingRequirement, setEditingRequirement] = useState(null);
@@ -451,6 +454,7 @@ export default function Properties() {
     }
   };
 
+
   // Open Edit Property Modal
   const handleOpenEditProperty = (prop) => {
     if (user?.role !== 'Admin') {
@@ -518,6 +522,8 @@ export default function Properties() {
     try {
       const formattedPayload = {
         ...editPropForm,
+        videoUrl: editPropForm.videoUrl || editPropForm.video || '',
+        video: editPropForm.videoUrl || editPropForm.video || '',
         area: parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
         expectedPrice: parsePriceWithUnit(editPropForm.expectedPrice, editPropForm.expectedPriceUnit || '/ Cent'),
         monthlyRent: parsePriceWithUnit(editPropForm.monthlyRent, editPropForm.monthlyRentUnit || '/ Month'),
@@ -807,6 +813,14 @@ export default function Properties() {
     if (file) {
       const previewUrl = URL.createObjectURL(file);
       setEditPropForm(prev => ({ ...prev, imageUrl: previewUrl, imageFile: file }));
+    }
+  };
+
+  const handleVideoFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      const previewUrl = URL.createObjectURL(file);
+      setEditPropForm(prev => ({ ...prev, videoUrl: previewUrl, video: previewUrl, videoFile: file }));
     }
   };
 
@@ -1321,230 +1335,41 @@ export default function Properties() {
 
       {/* FULL DETAILS POPUP MODAL */}
       {viewingDetailTarget && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200/80 shadow-2xl overflow-hidden my-auto max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="px-5 py-3.5 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-              <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                  (viewingDetailTarget.item.requirementType === 'Rent' || viewingDetailTarget.item.listingType === 'Rent')
-                    ? 'bg-violet-50 text-violet-700 border border-violet-100'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                }`}>
-                  {viewingDetailTarget.type === 'property'
-                    ? (viewingDetailTarget.item.listingType || 'Sale')
-                    : (viewingDetailTarget.item.requirementType === 'Rent' ? 'Rent Requirement' : 'Buy Requirement')}
-                </span>
-                <span className="text-xs text-slate-300">/</span>
-                <span className="text-xs font-semibold text-slate-700">{viewingDetailTarget.item.propertyType}</span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${
-                  viewingDetailTarget.item.status === 'Available' || viewingDetailTarget.item.status === 'Active'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : viewingDetailTarget.item.status === 'Under Negotiation'
-                    ? 'bg-amber-50 text-amber-700 border-amber-200'
-                    : 'bg-slate-100 text-slate-600 border-slate-200'
-                }`}>
-                  {viewingDetailTarget.item.status}
-                </span>
-              </div>
-              <button 
-                onClick={() => setViewingDetailTarget(null)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <Modal
+          isOpen={!!viewingDetailTarget}
+          onClose={() => setViewingDetailTarget(null)}
+          title={viewingDetailTarget.type === 'property'
+            ? viewingDetailTarget.item.title
+            : (viewingDetailTarget.item.requirementTitle || `${viewingDetailTarget.item.propertyType} Requirement`)}
+          subtitle={viewingDetailTarget.type === 'property'
+            ? `${viewingDetailTarget.item.location}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`
+            : `${viewingDetailTarget.item.preferredLocation}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`}
+          icon={Building2}
+          badge={
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                (viewingDetailTarget.item.requirementType === 'Rent' || viewingDetailTarget.item.listingType === 'Rent')
+                  ? 'bg-violet-50 text-violet-700 border border-violet-100'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+              }`}>
+                {viewingDetailTarget.type === 'property'
+                  ? (viewingDetailTarget.item.listingType || 'Sale')
+                  : (viewingDetailTarget.item.requirementType === 'Rent' ? 'Rent Requirement' : 'Buy Requirement')}
+              </span>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${
+                viewingDetailTarget.item.status === 'Available' || viewingDetailTarget.item.status === 'Active'
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : viewingDetailTarget.item.status === 'Under Negotiation'
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}>
+                {viewingDetailTarget.item.status}
+              </span>
             </div>
-
-            {/* Modal Scrollable Body */}
-            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 font-sans">
-              {/* Media Container: Image or Video */}
-              {viewingDetailTarget.type === 'property' && (
-                <div className="space-y-3">
-                  {viewingDetailTarget.item.imageUrl && (
-                    <div className="h-40 sm:h-48 max-h-[28vh] w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
-                      <img 
-                        src={viewingDetailTarget.item.imageUrl} 
-                        alt={viewingDetailTarget.item.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
-                        }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Video Player in Popup */}
-                  {viewingDetailTarget.item.videoUrl && (
-                    <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
-                      {viewingDetailTarget.item.videoUrl.includes('youtu') || viewingDetailTarget.item.videoUrl.includes('embed') ? (
-                        <iframe
-                          src={viewingDetailTarget.item.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                          title="Property Video"
-                          className="w-full h-44 rounded-xl border-0"
-                          allowFullScreen
-                        />
-                      ) : (
-                        <video
-                          src={viewingDetailTarget.item.videoUrl}
-                          controls
-                          className="w-full max-h-44 object-cover rounded-xl"
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Title & Financials */}
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
-                <div className="min-w-0 flex-1">
-                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-                    {viewingDetailTarget.type === 'property' 
-                      ? viewingDetailTarget.item.title
-                      : (viewingDetailTarget.item.requirementTitle || `${viewingDetailTarget.item.propertyType} Requirement`)}
-                  </h3>
-                  <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>
-                      {viewingDetailTarget.type === 'property'
-                        ? `${viewingDetailTarget.item.location}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`
-                        : `${viewingDetailTarget.item.preferredLocation}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-xl text-left sm:text-right shrink-0">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                    {viewingDetailTarget.item.listingType === 'Rent' || viewingDetailTarget.item.requirementType === 'Rent'
-                      ? 'Rent'
-                      : 'Price / Budget'}
-                  </span>
-                  <span className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight block">
-                    {viewingDetailTarget.type === 'property'
-                      ? (viewingDetailTarget.item.listingType === 'Rent'
-                          ? formatPrice(viewingDetailTarget.item.monthlyRent)
-                          : formatPrice(viewingDetailTarget.item.expectedPrice))
-                      : (viewingDetailTarget.item.requirementType === 'Rent'
-                          ? formatPrice(viewingDetailTarget.item.maximumMonthlyRent)
-                          : formatPrice(viewingDetailTarget.item.budget))}
-                  </span>
-                  {getItemUnitText(viewingDetailTarget.item, viewingDetailTarget.type) && (
-                    <span className="text-[10.5px] font-bold text-[#B0004F] bg-[#B0004F]/10 px-2 py-0.5 rounded-md inline-block mt-0.5">
-                      {getItemUnitText(viewingDetailTarget.item, viewingDetailTarget.type)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Specifications Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
-                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.propertyType}</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                    {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
-                  </span>
-                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                    {viewingDetailTarget.type === 'property' 
-                      ? formatDisplayArea(viewingDetailTarget.item.area) 
-                      : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Location / City</span>
-                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                    {viewingDetailTarget.type === 'property' ? viewingDetailTarget.item.location : viewingDetailTarget.item.preferredLocation}
-                  </span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">District</span>
-                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.district || '—'}</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">State</span>
-                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.state || '—'}</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Registered Date</span>
-                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                    {viewingDetailTarget.item.createdAt 
-                      ? new Date(viewingDetailTarget.item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                      : 'Recently'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Keywords Section */}
-              {Array.isArray(viewingDetailTarget.item.keywords) && viewingDetailTarget.item.keywords.length > 0 && (
-                <div className="space-y-1.5">
-                  <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Property Keywords</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {viewingDetailTarget.item.keywords.map((kw, kIdx) => (
-                      <span key={kIdx} className="px-2.5 py-1 rounded-lg bg-rose-50 text-[#B0004F] border border-rose-100/80 text-xs font-semibold">
-                        {kw}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Description & Remarks */}
-              {viewingDetailTarget.item.description && (
-                <div className="space-y-1.5">
-                  <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Description & Remarks</h4>
-                  <p className="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
-                    {viewingDetailTarget.item.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Hello Properties Contact Details Box */}
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2.5">
-                <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
-                  Hello Properties Contact Details
-                </h4>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-full bg-[#B0004F] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-                      HP
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">
-                        Hello Properties Support
-                      </p>
-                      <p className="text-xs text-slate-500 font-medium">
-                        +91 98765 43210
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <a 
-                      href="tel:9876543210"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold transition-colors"
-                    >
-                      <Phone className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Call</span>
-                    </a>
-                    <a 
-                      href="https://wa.me/919876543210"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-all"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                      <span>WhatsApp</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Actions Footer */}
-            <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-2 shrink-0">
+          }
+          size="xl"
+          footer={
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -1612,591 +1437,857 @@ export default function Properties() {
                 </button>
               </div>
             </div>
+          }
+        >
+          {/* Media Container: Image or Video */}
+          {viewingDetailTarget.type === 'property' && (
+            <div className="space-y-3">
+              {viewingDetailTarget.item.imageUrl && (
+                <div className="h-48 sm:h-56 max-h-[30vh] w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
+                  <img 
+                    src={viewingDetailTarget.item.imageUrl} 
+                    alt={viewingDetailTarget.item.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Video Player in Popup */}
+              {viewingDetailTarget.item.videoUrl && (
+                <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
+                  {viewingDetailTarget.item.videoUrl.includes('youtu') || viewingDetailTarget.item.videoUrl.includes('embed') ? (
+                    <iframe
+                      src={viewingDetailTarget.item.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                      title="Property Video"
+                      className="w-full h-44 rounded-xl border-0"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      src={viewingDetailTarget.item.videoUrl}
+                      controls
+                      className="w-full max-h-44 object-cover rounded-xl"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Title & Financials */}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+                {viewingDetailTarget.type === 'property' 
+                  ? viewingDetailTarget.item.title
+                  : (viewingDetailTarget.item.requirementTitle || `${viewingDetailTarget.item.propertyType} Requirement`)}
+              </h3>
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>
+                  {viewingDetailTarget.type === 'property'
+                    ? `${viewingDetailTarget.item.location}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`
+                    : `${viewingDetailTarget.item.preferredLocation}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-xl text-left sm:text-right shrink-0">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                {viewingDetailTarget.item.listingType === 'Rent' || viewingDetailTarget.item.requirementType === 'Rent'
+                  ? 'Rent'
+                  : 'Price / Budget'}
+              </span>
+              <span className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight block">
+                {viewingDetailTarget.type === 'property'
+                  ? (viewingDetailTarget.item.listingType === 'Rent'
+                      ? formatPrice(viewingDetailTarget.item.monthlyRent)
+                      : formatPrice(viewingDetailTarget.item.expectedPrice))
+                  : (viewingDetailTarget.item.requirementType === 'Rent'
+                      ? formatPrice(viewingDetailTarget.item.maximumMonthlyRent)
+                      : formatPrice(viewingDetailTarget.item.budget))}
+              </span>
+              {getItemUnitText(viewingDetailTarget.item, viewingDetailTarget.type) && (
+                <span className="text-[10.5px] font-bold text-[#B0004F] bg-[#B0004F]/10 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                  {getItemUnitText(viewingDetailTarget.item, viewingDetailTarget.type)}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+
+          {/* Specifications Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
+              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.propertyType}</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
+              </span>
+              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                {viewingDetailTarget.type === 'property' 
+                  ? formatDisplayArea(viewingDetailTarget.item.area) 
+                  : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Location / City</span>
+              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                {viewingDetailTarget.type === 'property' ? viewingDetailTarget.item.location : viewingDetailTarget.item.preferredLocation}
+              </span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">District</span>
+              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.district || '—'}</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">State</span>
+              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.state || '—'}</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Registered Date</span>
+              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                {viewingDetailTarget.item.createdAt 
+                  ? new Date(viewingDetailTarget.item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                  : 'Recently'}
+              </span>
+            </div>
+          </div>
+
+          {/* Keywords Section */}
+          {Array.isArray(viewingDetailTarget.item.keywords) && viewingDetailTarget.item.keywords.length > 0 && (
+            <div className="space-y-1.5">
+              <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Property Keywords</h4>
+              <div className="flex flex-wrap gap-1.5">
+                {viewingDetailTarget.item.keywords.map((kw, kIdx) => (
+                  <span key={kIdx} className="px-2.5 py-1 rounded-lg bg-rose-50 text-[#B0004F] border border-rose-100/80 text-xs font-semibold">
+                    {kw}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Description & Remarks */}
+          {viewingDetailTarget.item.description && (
+            <div className="space-y-1.5">
+              <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Description & Remarks</h4>
+              <p className="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
+                {viewingDetailTarget.item.description}
+              </p>
+            </div>
+          )}
+
+
+          {/* Hello Properties Contact Details Box */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2.5">
+            <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
+              Hello Properties Support
+            </h4>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-[#B0004F] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+                  HP
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-900">
+                    Hello Properties Support
+                  </p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    +91 98765 43210
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a 
+                  href="tel:9876543210"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Call</span>
+                </a>
+                <a 
+                  href="https://wa.me/919876543210"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-all"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>WhatsApp</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* EDIT PROPERTY MODAL */}
       {editingProperty && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-4xl w-full border border-slate-200/80 shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-5 sm:px-8 border-b border-slate-100 flex items-center justify-between bg-white">
-              <div>
-                <h3 className="font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Edit Property</h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Update listing details, pricing, location, or contact information.</p>
+        <Modal
+          isOpen={!!editingProperty}
+          onClose={() => setEditingProperty(null)}
+          title="Edit Property"
+          subtitle="Update listing details, pricing, location, or contact information."
+          icon={Edit3}
+          size="2xl"
+        >
+          <form onSubmit={handleSaveEditProperty} className="space-y-6 font-sans">
+            {editPropError && (
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-medium flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{editPropError}</span>
               </div>
-              <button 
-                onClick={() => setEditingProperty(null)}
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Close modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            )}
 
-            <form onSubmit={handleSaveEditProperty} className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 font-sans">
-              {editPropError && (
-                <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-medium flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  <span>{editPropError}</span>
-                </div>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Listing Type <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <select
+                  value={editPropForm.listingType}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditPropForm(prev => ({
+                      ...prev,
+                      listingType: val,
+                      ...(val === 'Sale' ? { monthlyRent: '', securityDeposit: '' } : { expectedPrice: '' })
+                    }));
+                  }}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+                >
+                  <option value="Sale">Sale</option>
+                  <option value="Rent">Rent</option>
+                </select>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Listing Type <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
-                  <select
-                    value={editPropForm.listingType}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEditPropForm(prev => ({
-                        ...prev,
-                        listingType: val,
-                        ...(val === 'Sale' ? { monthlyRent: '', securityDeposit: '' } : { expectedPrice: '' })
-                      }));
-                    }}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
-                  >
-                    <option value="Sale">Sale</option>
-                    <option value="Rent">Rent</option>
-                  </select>
-                </div>
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Property Type <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <select
+                  value={editPropForm.propertyType}
+                  onChange={(e) => setEditPropForm({ ...editPropForm, propertyType: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+                >
+                  {propertyTypes.map(pt => (
+                    <option key={pt} value={pt}>{pt}</option>
+                  ))}
+                </select>
+              </div>
 
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Property Type <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
-                  <select
-                    value={editPropForm.propertyType}
-                    onChange={(e) => setEditPropForm({ ...editPropForm, propertyType: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
-                  >
-                    {propertyTypes.map(pt => (
-                      <option key={pt} value={pt}>{pt}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="md:col-span-2 flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Property Title <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editPropForm.title}
+                  onChange={(e) => setEditPropForm({ ...editPropForm, title: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+              </div>
 
-                <div className="md:col-span-2 flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Property Title <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
+              <LocationSelector
+                formData={editPropForm}
+                onChange={(fieldOrObj, val) => {
+                  setEditPropForm(prev => {
+                    if (typeof fieldOrObj === 'object' && fieldOrObj !== null) {
+                      return { ...prev, ...fieldOrObj };
+                    }
+                    return { ...prev, [fieldOrObj]: val };
+                  });
+                }}
+                locationFieldName="location"
+                isEdit={true}
+              />
+
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Area <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
                   <input
                     type="text"
                     required
-                    value={editPropForm.title}
-                    onChange={(e) => setEditPropForm({ ...editPropForm, title: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                    value={editPropForm.area}
+                    onChange={(e) => setEditPropForm({ ...editPropForm, area: e.target.value })}
+                    placeholder="e.g. 45"
+                    className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
                   />
+                  <div className="h-6 w-px bg-slate-200 shrink-0" />
+                  <div className="relative w-[105px] shrink-0 h-full flex items-center">
+                    <select
+                      value={editPropForm.areaUnit || 'Cent'}
+                      onChange={(e) => setEditPropForm({ ...editPropForm, areaUnit: e.target.value })}
+                      className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                    >
+                      <option value="Cent">Cent</option>
+                      <option value="Sq. Ft.">Sq. Ft.</option>
+                      <option value="Acre">Acre</option>
+                      <option value="BHK">BHK</option>
+                      <option value="1 BHK">1 BHK</option>
+                      <option value="2 BHK">2 BHK</option>
+                      <option value="3 BHK">3 BHK</option>
+                      <option value="4 BHK">4 BHK</option>
+                      <option value="5+ BHK">5+ BHK</option>
+                      <option value="Sq. Meter">Sq. Meter</option>
+                      <option value="Sq. Yard">Sq. Yard</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
+              </div>
 
-                <LocationSelector
-                  formData={editPropForm}
-                  onChange={(fieldOrObj, val) => {
-                    setEditPropForm(prev => {
-                      if (typeof fieldOrObj === 'object' && fieldOrObj !== null) {
-                        return { ...prev, ...fieldOrObj };
-                      }
-                      return { ...prev, [fieldOrObj]: val };
-                    });
-                  }}
-                  locationFieldName="location"
-                  isEdit={true}
-                />
-
+              {editPropForm.listingType === 'Rent' ? (
                 <div className="flex flex-col space-y-1.5">
                   <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Area <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                    Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
                   </label>
                   <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
                     <input
-                      type="text"
+                      type="number"
                       required
-                      value={editPropForm.area}
-                      onChange={(e) => setEditPropForm({ ...editPropForm, area: e.target.value })}
-                      placeholder="e.g. 45"
+                      min="0"
+                      step="any"
+                      value={editPropForm.monthlyRent}
+                      onChange={(e) => setEditPropForm({ ...editPropForm, monthlyRent: e.target.value })}
+                      placeholder="e.g. 18000"
                       className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
                     />
                     <div className="h-6 w-px bg-slate-200 shrink-0" />
-                    <div className="relative w-[105px] shrink-0 h-full flex items-center">
+                    <div className="relative w-[115px] shrink-0 h-full flex items-center">
                       <select
-                        value={editPropForm.areaUnit || 'Cent'}
-                        onChange={(e) => setEditPropForm({ ...editPropForm, areaUnit: e.target.value })}
+                        value={editPropForm.monthlyRentUnit || '/ Month'}
+                        onChange={(e) => setEditPropForm({ ...editPropForm, monthlyRentUnit: e.target.value })}
                         className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
                       >
-                        <option value="Cent">Cent</option>
-                        <option value="Sq. Ft.">Sq. Ft.</option>
-                        <option value="Acre">Acre</option>
-                        <option value="BHK">BHK</option>
-                        <option value="1 BHK">1 BHK</option>
-                        <option value="2 BHK">2 BHK</option>
-                        <option value="3 BHK">3 BHK</option>
-                        <option value="4 BHK">4 BHK</option>
-                        <option value="5+ BHK">5+ BHK</option>
-                        <option value="Sq. Meter">Sq. Meter</option>
-                        <option value="Sq. Yard">Sq. Yard</option>
+                        <option value="/ Month">/ Month</option>
+                        <option value="All Properties">All Properties</option>
+                        <option value="/ Sq. Ft.">/ Sq. Ft.</option>
+                        <option value="/ Cent">/ Cent</option>
+                        <option value="/ Acre">/ Acre</option>
+                        <option value="/ BHK">/ BHK</option>
+                        <option value="/ House">/ House</option>
+                        <option value="/ Sq. Meter">/ Sq. Meter</option>
+                        <option value="/ Sq. Yard">/ Sq. Yard</option>
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
                 </div>
-
-                {editPropForm.listingType === 'Rent' ? (
-                  <>
-                    <div className="flex flex-col space-y-1.5">
-                      <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                        Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                      </label>
-                      <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          step="any"
-                          value={editPropForm.monthlyRent}
-                          onChange={(e) => setEditPropForm({ ...editPropForm, monthlyRent: e.target.value })}
-                          placeholder="e.g. 18000"
-                          className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
-                        />
-                        <div className="h-6 w-px bg-slate-200 shrink-0" />
-                        <div className="relative w-[115px] shrink-0 h-full flex items-center">
-                          <select
-                            value={editPropForm.monthlyRentUnit || '/ Month'}
-                            onChange={(e) => setEditPropForm({ ...editPropForm, monthlyRentUnit: e.target.value })}
-                            className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
-                          >
-                            <option value="/ Month">/ Month</option>
-                            <option value="All Properties">All Properties</option>
-                            <option value="/ Sq. Ft.">/ Sq. Ft.</option>
-                            <option value="/ Cent">/ Cent</option>
-                            <option value="/ Acre">/ Acre</option>
-                            <option value="/ BHK">/ BHK</option>
-                            <option value="/ House">/ House</option>
-                            <option value="/ Sq. Meter">/ Sq. Meter</option>
-                            <option value="/ Sq. Yard">/ Sq. Yard</option>
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
-                      </div>
+              ) : (
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                    Expected Price (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                  </label>
+                  <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="any"
+                      value={editPropForm.expectedPrice}
+                      onChange={(e) => setEditPropForm({ ...editPropForm, expectedPrice: e.target.value })}
+                      placeholder="e.g. 5000000"
+                      className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                    />
+                    <div className="h-6 w-px bg-slate-200 shrink-0" />
+                    <div className="relative w-[105px] shrink-0 h-full flex items-center">
+                      <select
+                        value={editPropForm.expectedPriceUnit || 'Lakh'}
+                        onChange={(e) => setEditPropForm({ ...editPropForm, expectedPriceUnit: e.target.value })}
+                        className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                      >
+                        <option value="Lakh">Lakh</option>
+                        <option value="Crore">Crore</option>
+                        <option value="Thousand">Thousand</option>
+                        <option value="Total Price">Total Price</option>
+                        <option value="/ Cent">/ Cent</option>
+                        <option value="/ Sq. Ft.">/ Sq. Ft.</option>
+                        <option value="/ Acre">/ Acre</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
-                    {/* Temporarily hidden security deposit input */}
-                    {/* <div className="flex flex-col space-y-1.5">
-                      <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                        Security Deposit (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                      </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Image URL / Upload Image */}
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[13.5px] font-semibold text-slate-800 flex items-center">
+                    Image URL / Upload Image
+                  </label>
+                  {editPropForm.imageUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setEditPropForm(prev => ({ ...prev, imageUrl: '', imageFile: null }))}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove Image</span>
+                    </button>
+                  )}
+                </div>
+
+                {editPropForm.imageUrl ? (
+                  <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center gap-3 p-3">
+                    <div className="relative w-full sm:w-36 h-28 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200/80 shadow-xs">
+                      {imageLoadError ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-slate-100 text-slate-400">
+                          <ImagePlus className="w-6 h-6 mb-1 text-slate-300" />
+                          <span className="text-[11px] font-medium text-slate-500">Preview unavailable</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={editPropForm.imageUrl}
+                          alt="Property Preview"
+                          className="w-full h-full object-cover"
+                          onError={() => setImageLoadError(true)}
+                          onLoad={() => setImageLoadError(false)}
+                        />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
                       <input
-                        type="number"
-                        required
-                        min="0"
-                        value={editPropForm.securityDeposit}
-                        onChange={(e) => setEditPropForm({ ...editPropForm, securityDeposit: e.target.value })}
-                        className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                        type="text"
+                        value={editPropForm.imageUrl}
+                        onChange={(e) => {
+                          setImageLoadError(false);
+                          setEditPropForm({ ...editPropForm, imageUrl: e.target.value });
+                        }}
+                        placeholder="https://..."
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#B0004F]"
                       />
-                    </div> */}
-                  </>
-                ) : (
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                      Expected Price (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                    </label>
-                    <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        step="any"
-                        value={editPropForm.expectedPrice}
-                        onChange={(e) => setEditPropForm({ ...editPropForm, expectedPrice: e.target.value })}
-                        placeholder="e.g. 50"
-                        className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
-                      />
-                      <div className="h-6 w-px bg-slate-200 shrink-0" />
-                      <div className="relative w-[115px] shrink-0 h-full flex items-center">
-                        <select
-                          value={editPropForm.expectedPriceUnit || `/ ${editPropForm.areaUnit || 'Cent'}`}
-                          onChange={(e) => setEditPropForm({ ...editPropForm, expectedPriceUnit: e.target.value })}
-                          className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
-                        >
-                          <option value="/ Cent">/ Cent</option>
-                          <option value="/ Sq. Ft.">/ Sq. Ft.</option>
-                          <option value="/ Acre">/ Acre</option>
-                          <option value="All Properties">All Properties</option>
-                          <option value="/ Month">/ Month</option>
-                          <option value="/ BHK">/ BHK</option>
-                          <option value="/ House">/ House</option>
-                          <option value="/ Sq. Meter">/ Sq. Meter</option>
-                          <option value="/ Sq. Yard">/ Sq. Yard</option>
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-slate-400 truncate">
+                          {editPropForm.imageFile ? editPropForm.imageFile.name : 'Image URL linked'}
+                        </span>
+                        <label className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0">
+                          <Upload className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Replace</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageFileChange}
+                            className="hidden"
+                          />
+                        </label>
                       </div>
                     </div>
                   </div>
-                )}
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Owner Name <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editPropForm.ownerName}
-                    onChange={(e) => setEditPropForm({ ...editPropForm, ownerName: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Owner Phone <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={editPropForm.phoneNumber}
-                    onChange={(e) => setEditPropForm({ ...editPropForm, phoneNumber: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                </div>
-
-                <div className="md:col-span-2 flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800">Description</label>
-                  <textarea
-                    rows={3}
-                    value={editPropForm.description}
-                    onChange={(e) => setEditPropForm({ ...editPropForm, description: e.target.value })}
-                    className="w-full p-3.5 border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                </div>
-
-                <div className="md:col-span-2 flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800">Property Image URL</label>
+                ) : (
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <input
                       type="text"
-                      value={editPropForm.imageUrl}
-                      onChange={(e) => setEditPropForm({ ...editPropForm, imageUrl: e.target.value })}
-                      className="flex-1 px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                      value={editPropForm.imageUrl || ''}
+                      onChange={(e) => {
+                        setImageLoadError(false);
+                        setEditPropForm({ ...editPropForm, imageUrl: e.target.value });
+                      }}
+                      placeholder="Paste Image URL (https://...)"
+                      className="flex-1 px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
                     />
-                    <label className="h-[52px] px-5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-[10px] text-sm font-semibold text-slate-700 flex items-center justify-center space-x-2 cursor-pointer transition-colors whitespace-nowrap">
+                    <label className="h-[52px] px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-[10px] text-xs font-semibold text-slate-700 flex items-center justify-center space-x-2 cursor-pointer transition-colors whitespace-nowrap shrink-0">
                       <Upload className="w-4 h-4 text-slate-600" />
-                      <span>Upload File</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleImageFileChange} 
-                        className="hidden" 
+                      <span>Upload Image</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageFileChange}
+                        className="hidden"
                       />
                     </label>
                   </div>
-                </div>
+                )}
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setEditingProperty(null)}
-                  disabled={isSubmittingEditProp}
-                  className="w-full sm:w-auto h-[52px] px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-[10px] transition-all cursor-pointer flex items-center justify-center"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingEditProp}
-                  className="w-full sm:w-auto h-[52px] px-7 bg-[#B0004F] hover:bg-[#C4005A] text-white text-sm font-semibold rounded-[10px] shadow-sm transition-all cursor-pointer flex items-center justify-center"
-                >
-                  {isSubmittingEditProp ? "Saving..." : "Save Changes"}
-                </button>
+              {/* Video URL / Upload Video */}
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[13.5px] font-semibold text-slate-800 flex items-center">
+                    Video URL / Upload Video
+                  </label>
+                  {(editPropForm.videoUrl || editPropForm.video) && (
+                    <button
+                      type="button"
+                      onClick={() => setEditPropForm(prev => ({ ...prev, videoUrl: '', video: '', videoFile: null }))}
+                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Remove Video</span>
+                    </button>
+                  )}
+                </div>
+
+                {(editPropForm.videoUrl || editPropForm.video) ? (
+                  <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center gap-3 p-3">
+                    <div className="relative w-full sm:w-44 h-32 shrink-0 rounded-lg overflow-hidden bg-slate-950 border border-slate-800 shadow-xs flex items-center justify-center">
+                      {videoLoadError ? (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-slate-900 text-slate-400">
+                          <Film className="w-6 h-6 mb-1 text-slate-500" />
+                          <span className="text-[11px] font-medium text-slate-400">Preview unavailable</span>
+                        </div>
+                      ) : (() => {
+                        const vUrl = editPropForm.videoUrl || editPropForm.video || '';
+                        if (vUrl.includes('youtu') || vUrl.includes('embed')) {
+                          return (
+                            <iframe
+                              src={vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                              title="Video Preview"
+                              className="w-full h-full rounded-lg border-0"
+                              allowFullScreen
+                              onError={() => setVideoLoadError(true)}
+                            />
+                          );
+                        }
+                        return (
+                          <video
+                            src={vUrl}
+                            controls
+                            className="w-full h-full object-cover rounded-lg"
+                            onError={() => setVideoLoadError(true)}
+                            onLoadedData={() => setVideoLoadError(false)}
+                          />
+                        );
+                      })()}
+                    </div>
+
+                    <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={editPropForm.videoUrl || editPropForm.video || ''}
+                        onChange={(e) => {
+                          setVideoLoadError(false);
+                          setEditPropForm({ ...editPropForm, videoUrl: e.target.value, video: e.target.value });
+                        }}
+                        placeholder="YouTube link or video URL..."
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#B0004F]"
+                      />
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-slate-400 truncate">
+                          {editPropForm.videoFile ? editPropForm.videoFile.name : 'Video URL linked'}
+                        </span>
+                        <label className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0">
+                          <Upload className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Replace</span>
+                          <input
+                            type="file"
+                            accept="video/*"
+                            onChange={handleVideoFileChange}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input
+                      type="text"
+                      value={editPropForm.videoUrl || editPropForm.video || ''}
+                      onChange={(e) => {
+                        setVideoLoadError(false);
+                        setEditPropForm({ ...editPropForm, videoUrl: e.target.value, video: e.target.value });
+                      }}
+                      placeholder="YouTube link or Video URL (https://...)"
+                      className="flex-1 px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                    />
+                    <label className="h-[52px] px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-[10px] text-xs font-semibold text-slate-700 flex items-center justify-center space-x-2 cursor-pointer transition-colors whitespace-nowrap shrink-0">
+                      <Upload className="w-4 h-4 text-slate-600" />
+                      <span>Upload Video</span>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditingProperty(null)}
+                disabled={isSubmittingEditProp}
+                className="w-full sm:w-auto h-[52px] px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-[10px] transition-all cursor-pointer flex items-center justify-center"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingEditProp}
+                className="w-full sm:w-auto h-[52px] px-7 bg-[#B0004F] hover:bg-[#C4005A] text-white text-sm font-semibold rounded-[10px] shadow-sm transition-all cursor-pointer flex items-center justify-center"
+              >
+                {isSubmittingEditProp ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* EDIT REQUIREMENT MODAL */}
       {editingRequirement && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-4xl w-full border border-slate-200/80 shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-6 py-5 sm:px-8 border-b border-slate-100 flex items-center justify-between bg-white">
-              <div>
-                <h3 className="font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Edit Buyer Requirement</h3>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Update buyer criteria, budget, location preferences, or contact information.</p>
+        <Modal
+          isOpen={!!editingRequirement}
+          onClose={() => setEditingRequirement(null)}
+          title="Edit Buyer Requirement"
+          subtitle="Update buyer criteria, budget, location preferences, or contact information."
+          icon={Edit3}
+          size="2xl"
+        >
+          <form onSubmit={handleSaveEditRequirement} className="space-y-6 font-sans">
+            {editReqError && (
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-medium flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <span>{editReqError}</span>
               </div>
-              <button 
-                onClick={() => setEditingRequirement(null)}
-                className="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Close modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            )}
 
-            <form onSubmit={handleSaveEditRequirement} className="p-6 sm:p-8 overflow-y-auto space-y-6 flex-1 font-sans">
-              {editReqError && (
-                <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm font-medium flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                  <span>{editReqError}</span>
-                </div>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Requirement Type <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <select
+                  value={editReqForm.requirementType}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setEditReqForm(prev => ({
+                      ...prev,
+                      requirementType: val,
+                      ...(val === 'Buy' ? { maximumMonthlyRent: '' } : { budget: '' })
+                    }));
+                  }}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+                >
+                  <option value="Buy">Buy</option>
+                  <option value="Rent">Rent</option>
+                </select>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Requirement Type <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
-                  <select
-                    value={editReqForm.requirementType}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setEditReqForm(prev => ({
-                        ...prev,
-                        requirementType: val,
-                        ...(val === 'Buy' ? { maximumMonthlyRent: '' } : { budget: '' })
-                      }));
-                    }}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
-                  >
-                    <option value="Buy">Buy</option>
-                    <option value="Rent">Rent</option>
-                  </select>
-                </div>
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Buyer Name <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editReqForm.buyerName}
+                  onChange={(e) => setEditReqForm({ ...editReqForm, buyerName: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+              </div>
 
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Buyer Name <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Buyer Phone <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={editReqForm.phoneNumber}
+                  onChange={(e) => setEditReqForm({ ...editReqForm, phoneNumber: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+              </div>
+
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Property Type <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <select
+                  value={editReqForm.propertyType}
+                  onChange={(e) => setEditReqForm({ ...editReqForm, propertyType: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+                >
+                  {propertyTypes.map(pt => (
+                    <option key={pt} value={pt}>{pt}</option>
+                  ))}
+                </select>
+              </div>
+
+              <LocationSelector
+                formData={editReqForm}
+                onChange={(fieldOrObj, val) => {
+                  setEditReqForm(prev => {
+                    if (typeof fieldOrObj === 'object' && fieldOrObj !== null) {
+                      return { ...prev, ...fieldOrObj };
+                    }
+                    return { ...prev, [fieldOrObj]: val };
+                  });
+                }}
+                locationFieldName="preferredLocation"
+                isEdit={true}
+              />
+
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Required Area <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
                   <input
                     type="text"
                     required
-                    value={editReqForm.buyerName}
-                    onChange={(e) => setEditReqForm({ ...editReqForm, buyerName: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                    value={editReqForm.requiredArea}
+                    onChange={(e) => setEditReqForm({ ...editReqForm, requiredArea: e.target.value })}
+                    placeholder="e.g. 50"
+                    className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
                   />
+                  <div className="h-6 w-px bg-slate-200 shrink-0" />
+                  <div className="relative w-[105px] shrink-0 h-full flex items-center">
+                    <select
+                      value={editReqForm.requiredAreaUnit || 'Cent'}
+                      onChange={(e) => setEditReqForm({ ...editReqForm, requiredAreaUnit: e.target.value })}
+                      className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                    >
+                      <option value="Cent">Cent</option>
+                      <option value="Sq. Ft.">Sq. Ft me</option>
+                      <option value="Acre">Acre</option>
+                      <option value="BHK">BHK</option>
+                      <option value="1 BHK">1 BHK</option>
+                      <option value="2 BHK">2 BHK</option>
+                      <option value="3 BHK">3 BHK</option>
+                      <option value="4 BHK">4 BHK</option>
+                      <option value="5+ BHK">5+ BHK</option>
+                      <option value="Sq. Meter">Sq. Meter</option>
+                      <option value="Sq. Yard">Sq. Yard</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
+              </div>
 
+              {editReqForm.requirementType === 'Rent' ? (
                 <div className="flex flex-col space-y-1.5">
                   <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Buyer Phone <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    value={editReqForm.phoneNumber}
-                    onChange={(e) => setEditReqForm({ ...editReqForm, phoneNumber: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
-                </div>
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Property Type <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                  </label>
-                  <select
-                    value={editReqForm.propertyType}
-                    onChange={(e) => setEditReqForm({ ...editReqForm, propertyType: e.target.value })}
-                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
-                  >
-                    {propertyTypes.map(pt => (
-                      <option key={pt} value={pt}>{pt}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <LocationSelector
-                  formData={editReqForm}
-                  onChange={(fieldOrObj, val) => {
-                    setEditReqForm(prev => {
-                      if (typeof fieldOrObj === 'object' && fieldOrObj !== null) {
-                        return { ...prev, ...fieldOrObj };
-                      }
-                      return { ...prev, [fieldOrObj]: val };
-                    });
-                  }}
-                  locationFieldName="preferredLocation"
-                  isEdit={true}
-                />
-
-                <div className="flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                    Required Area <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                    Max Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
                   </label>
                   <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
                     <input
-                      type="text"
+                      type="number"
                       required
-                      value={editReqForm.requiredArea}
-                      onChange={(e) => setEditReqForm({ ...editReqForm, requiredArea: e.target.value })}
-                      placeholder="e.g. 50"
+                      min="0"
+                      step="any"
+                      value={editReqForm.maximumMonthlyRent}
+                      onChange={(e) => setEditReqForm({ ...editReqForm, maximumMonthlyRent: e.target.value })}
+                      placeholder="e.g. 20000"
                       className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
                     />
                     <div className="h-6 w-px bg-slate-200 shrink-0" />
-                    <div className="relative w-[105px] shrink-0 h-full flex items-center">
+                    <div className="relative w-[115px] shrink-0 h-full flex items-center">
                       <select
-                        value={editReqForm.requiredAreaUnit || 'Cent'}
-                        onChange={(e) => setEditReqForm({ ...editReqForm, requiredAreaUnit: e.target.value })}
+                        value={editReqForm.maximumMonthlyRentUnit || '/ Month'}
+                        onChange={(e) => setEditReqForm({ ...editReqForm, maximumMonthlyRentUnit: e.target.value })}
                         className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
                       >
-                        <option value="Cent">Cent</option>
-                        <option value="Sq. Ft.">Sq. Ft.</option>
-                        <option value="Acre">Acre</option>
-                        <option value="BHK">BHK</option>
-                        <option value="1 BHK">1 BHK</option>
-                        <option value="2 BHK">2 BHK</option>
-                        <option value="3 BHK">3 BHK</option>
-                        <option value="4 BHK">4 BHK</option>
-                        <option value="5+ BHK">5+ BHK</option>
-                        <option value="Sq. Meter">Sq. Meter</option>
-                        <option value="Sq. Yard">Sq. Yard</option>
+                        <option value="/ Month">/ Month</option>
+                        <option value="All Properties">All Properties</option>
+                        <option value="/ Sq. Ft.">/ Sq. Ft.</option>
+                        <option value="/ Cent">/ Cent</option>
+                        <option value="/ Acre">/ Acre</option>
+                        <option value="/ BHK">/ BHK</option>
+                        <option value="/ House">/ House</option>
+                        <option value="/ Sq. Meter">/ Sq. Meter</option>
+                        <option value="/ Sq. Yard">/ Sq. Yard</option>
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
                 </div>
-
-                {editReqForm.requirementType === 'Rent' ? (
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                      Max Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                    </label>
-                    <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        step="any"
-                        value={editReqForm.maximumMonthlyRent}
-                        onChange={(e) => setEditReqForm({ ...editReqForm, maximumMonthlyRent: e.target.value })}
-                        placeholder="e.g. 20000"
-                        className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
-                      />
-                      <div className="h-6 w-px bg-slate-200 shrink-0" />
-                      <div className="relative w-[115px] shrink-0 h-full flex items-center">
-                        <select
-                          value={editReqForm.maximumMonthlyRentUnit || '/ Month'}
-                          onChange={(e) => setEditReqForm({ ...editReqForm, maximumMonthlyRentUnit: e.target.value })}
-                          className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
-                        >
-                          <option value="/ Month">/ Month</option>
-                          <option value="All Properties">All Properties</option>
-                          <option value="/ Sq. Ft.">/ Sq. Ft.</option>
-                          <option value="/ Cent">/ Cent</option>
-                          <option value="/ Acre">/ Acre</option>
-                          <option value="/ BHK">/ BHK</option>
-                          <option value="/ House">/ House</option>
-                          <option value="/ Sq. Meter">/ Sq. Meter</option>
-                          <option value="/ Sq. Yard">/ Sq. Yard</option>
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      </div>
+              ) : (
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                    Max Purchase Budget (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                  </label>
+                  <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="any"
+                      value={editReqForm.budget}
+                      onChange={(e) => setEditReqForm({ ...editReqForm, budget: e.target.value })}
+                      placeholder="e.g. 75"
+                      className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                    />
+                    <div className="h-6 w-px bg-slate-200 shrink-0" />
+                    <div className="relative w-[115px] shrink-0 h-full flex items-center">
+                      <select
+                        value={editReqForm.budgetUnit || `/ ${editReqForm.requiredAreaUnit || 'Cent'}`}
+                        onChange={(e) => setEditReqForm({ ...editReqForm, budgetUnit: e.target.value })}
+                        className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                      >
+                        <option value="/ Cent">/ Cent</option>
+                        <option value="/ Sq. Ft.">/ Sq. Ft.</option>
+                        <option value="/ Acre">/ Acre</option>
+                        <option value="All Properties">All Properties</option>
+                        <option value="/ Month">/ Month</option>
+                        <option value="/ BHK">/ BHK</option>
+                        <option value="/ House">/ House</option>
+                        <option value="/ Sq. Meter">/ Sq. Meter</option>
+                        <option value="/ Sq. Yard">/ Sq. Yard</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   </div>
-                ) : (
-                  <div className="flex flex-col space-y-1.5">
-                    <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                      Max Purchase Budget (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
-                    </label>
-                    <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
-                      <input
-                        type="number"
-                        required
-                        min="0"
-                        step="any"
-                        value={editReqForm.budget}
-                        onChange={(e) => setEditReqForm({ ...editReqForm, budget: e.target.value })}
-                        placeholder="e.g. 75"
-                        className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
-                      />
-                      <div className="h-6 w-px bg-slate-200 shrink-0" />
-                      <div className="relative w-[115px] shrink-0 h-full flex items-center">
-                        <select
-                          value={editReqForm.budgetUnit || `/ ${editReqForm.requiredAreaUnit || 'Cent'}`}
-                          onChange={(e) => setEditReqForm({ ...editReqForm, budgetUnit: e.target.value })}
-                          className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
-                        >
-                          <option value="/ Cent">/ Cent</option>
-                          <option value="/ Sq. Ft.">/ Sq. Ft.</option>
-                          <option value="/ Acre">/ Acre</option>
-                          <option value="All Properties">All Properties</option>
-                          <option value="/ Month">/ Month</option>
-                          <option value="/ BHK">/ BHK</option>
-                          <option value="/ House">/ House</option>
-                          <option value="/ Sq. Meter">/ Sq. Meter</option>
-                          <option value="/ Sq. Yard">/ Sq. Yard</option>
-                        </select>
-                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="md:col-span-2 flex flex-col space-y-1.5">
-                  <label className="text-[14px] font-medium text-slate-800">Description / Remarks</label>
-                  <textarea
-                    rows={3}
-                    value={editReqForm.description}
-                    onChange={(e) => setEditReqForm({ ...editReqForm, description: e.target.value })}
-                    className="w-full p-3.5 border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
-                  />
                 </div>
-              </div>
+              )}
 
-              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setEditingRequirement(null)}
-                  disabled={isSubmittingEditReq}
-                  className="w-full sm:w-auto h-[52px] px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-[10px] transition-all cursor-pointer flex items-center justify-center"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingEditReq}
-                  className="w-full sm:w-auto h-[52px] px-7 bg-[#B0004F] hover:bg-[#C4005A] text-white text-sm font-semibold rounded-[10px] shadow-sm transition-all cursor-pointer flex items-center justify-center"
-                >
-                  {isSubmittingEditReq ? "Saving..." : "Save Changes"}
-                </button>
+              <div className="md:col-span-2 flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800">Description / Remarks</label>
+                <textarea
+                  rows={3}
+                  value={editReqForm.description}
+                  onChange={(e) => setEditReqForm({ ...editReqForm, description: e.target.value })}
+                  className="w-full p-3.5 border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditingRequirement(null)}
+                disabled={isSubmittingEditReq}
+                className="w-full sm:w-auto h-[52px] px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-[10px] transition-all cursor-pointer flex items-center justify-center"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingEditReq}
+                className="w-full sm:w-auto h-[52px] px-7 bg-[#B0004F] hover:bg-[#C4005A] text-white text-sm font-semibold rounded-[10px] shadow-sm transition-all cursor-pointer flex items-center justify-center"
+              >
+                {isSubmittingEditReq ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* DELETE CONFIRMATION MODAL */}
       {deletingTarget && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-md w-full border border-slate-200 shadow-2xl p-6 space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-lg text-slate-900">
-                  Delete {deletingTarget.type === 'property' ? 'Property' : 'Buyer Requirement'}
-                </h3>
-                <p className="text-xs text-slate-500">This action will remove the record from PostgreSQL.</p>
-              </div>
-            </div>
-
-            {deleteError && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
-                {deleteError}
-              </div>
-            )}
-
-            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-100 space-y-1">
-              <p className="text-sm font-semibold text-slate-800">
-                Are you sure you want to delete this {deletingTarget.type}?
-              </p>
-              <p className="text-xs font-bold text-slate-900 pt-1">
-                {deletingTarget.type === 'property' ? deletingTarget.item.title : `${deletingTarget.item.buyerName}'s Requirement`}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-2">
+        <Modal
+          isOpen={!!deletingTarget}
+          onClose={() => setDeletingTarget(null)}
+          title={`Delete ${deletingTarget.type === 'property' ? 'Property' : 'Buyer Requirement'}`}
+          subtitle="This action will remove the record from PostgreSQL database."
+          icon={AlertCircle}
+          size="sm"
+          footer={
+            <div className="flex items-center justify-end space-x-3 w-full">
               <button
                 type="button"
                 onClick={() => setDeletingTarget(null)}
@@ -2214,483 +2305,46 @@ export default function Properties() {
                 {isSubmittingDelete ? 'Deleting...' : 'Delete Record'}
               </button>
             </div>
+          }
+        >
+          <div className="space-y-3 font-sans">
+            {deleteError && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-semibold">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-1">
+              <p className="text-sm font-semibold text-slate-800">
+                Are you sure you want to delete this {deletingTarget.type}?
+              </p>
+              <p className="text-xs font-bold text-slate-900 pt-1">
+                {deletingTarget.type === 'property' ? deletingTarget.item.title : `${deletingTarget.item.buyerName}'s Requirement`}
+              </p>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* MATCHES MODAL */}
       {activeMatchTarget && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden my-8 max-h-[90vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <div>
-                <div className="flex items-center space-x-2">
-                  <Sparkles className="w-5 h-5 text-[#B0004F]" />
-                  <h3 className="font-bold text-lg text-slate-900">
-                    {activeMatchTarget.type === 'property' 
-                      ? (activeMatchTarget.data?.listingType === 'Rent' ? 'Matching Rent Customers' : 'Matching Buy Customers')
-                      : 'Matching Properties'
-                    }
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {activeMatchTarget.type === 'property' 
-                    ? `Customers looking for properties like "${activeMatchTarget.data.title}"`
-                    : `Available properties matching requirement criteria`
-                  }
-                </p>
-              </div>
-              <button 
-                onClick={() => setActiveMatchTarget(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-4 flex-1">
-              {/* Top Matches & Manual Filter Toggle Bar */}
-              {!isLoadingMatches && (
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setMatchFilter('all')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        matchFilter === 'all'
-                          ? 'bg-white text-slate-800 shadow-sm border border-slate-200'
-                          : 'text-slate-500 hover:text-slate-700'
-                      }`}
-                    >
-                      All Matches ({matchResults.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setMatchFilter('top')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        matchFilter === 'top'
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                      }`}
-                    >
-                      <span>🎯 90%+ Top Choice Only</span>
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
-                        matchFilter === 'top' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-800'
-                      }`}>
-                        {matchResults.filter(m => m.matchScore >= 90).length}
-                      </span>
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsManualFilterOpen(!isManualFilterOpen)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                      isManualFilterOpen
-                        ? 'bg-[#B0004F] text-white shadow-sm'
-                        : 'text-slate-700 bg-slate-200/70 hover:bg-slate-200'
-                    }`}
-                  >
-                    <SlidersHorizontal className="w-3.5 h-3.5" />
-                    <span>{isManualFilterOpen ? 'Hide Custom Filter' : 'Adjust Criteria / Manual Filter'}</span>
-                  </button>
-                </div>
-              )}
-
-              {/* Manual Criteria Filter Form Box */}
-              {isManualFilterOpen && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 animate-fade-in shadow-xs">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <SlidersHorizontal className="w-4 h-4 text-[#B0004F]" />
-                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        Filter Matches by Property Details
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleApplyManualFilter(manualFilterForm)}
-                        className="px-3.5 py-1.5 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-                      >
-                        <Search className="w-3.5 h-3.5" />
-                        <span>Apply Filter</span>
-                      </button>
-                      {!activeMatchTarget.isManualSearch && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const isRent = ((activeMatchTarget.data?.listingType || activeMatchTarget.data?.requirementType) || '').toLowerCase() === 'rent';
-                            const priceVal = activeMatchTarget.data?.expectedPrice || activeMatchTarget.data?.monthlyRent || activeMatchTarget.data?.budget || activeMatchTarget.data?.maximumMonthlyRent || '';
-                            const resetForm = {
-                              listingType: isRent ? 'Rent' : 'Sale',
-                              district: activeMatchTarget.data?.district || '',
-                              location: activeMatchTarget.data?.location || activeMatchTarget.data?.preferredLocation || '',
-                              propertyType: activeMatchTarget.data?.propertyType || '',
-                              price: priceVal || '',
-                              area: activeMatchTarget.data?.area || activeMatchTarget.data?.requiredArea || '',
-                              areaUnit: 'Cent',
-                              minScore: 50
-                            };
-                            setManualFilterForm(resetForm);
-                            handleApplyManualFilter(resetForm);
-                          }}
-                          className="text-[11px] font-semibold text-slate-500 hover:text-[#B0004F] cursor-pointer flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-slate-200/50 transition-colors"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          <span>Reset Details</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* Transaction Type */}
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">
-                        Listing Type
-                      </label>
-                      <select
-                        value={manualFilterForm.listingType}
-                        onChange={(e) => {
-                          const updated = { ...manualFilterForm, listingType: e.target.value };
-                          setManualFilterForm(updated);
-                          handleApplyManualFilter(updated);
-                        }}
-                        className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
-                      >
-                        <option value="Sale">Sale / Buy</option>
-                        <option value="Rent">Rent</option>
-                      </select>
-                    </div>
-
-                    {/* District */}
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">District</label>
-                      <select
-                        value={manualFilterForm.district}
-                        onChange={(e) => {
-                          const updated = { ...manualFilterForm, district: e.target.value };
-                          setManualFilterForm(updated);
-                          handleApplyManualFilter(updated);
-                        }}
-                        className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
-                      >
-                        <option value="">All / Select District</option>
-                        <option value="Palakkad">Palakkad</option>
-                        <option value="Malappuram">Malappuram</option>
-                        <option value="Ernakulam">Ernakulam</option>
-                        <option value="Thrissur">Thrissur</option>
-                        <option value="Kozhikode">Kozhikode</option>
-                        <option value="Kannur">Kannur</option>
-                        <option value="Thiruvananthapuram">Thiruvananthapuram</option>
-                        <option value="Kottayam">Kottayam</option>
-                        <option value="Wayanad">Wayanad</option>
-                        <option value="Idukki">Idukki</option>
-                        <option value="Alappuzha">Alappuzha</option>
-                        <option value="Kollam">Kollam</option>
-                        <option value="Pathanamthitta">Pathanamthitta</option>
-                        <option value="Kasaragod">Kasaragod</option>
-                      </select>
-                    </div>
-
-                    {/* Property Type */}
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Property Type</label>
-                      <select
-                        value={manualFilterForm.propertyType}
-                        onChange={(e) => {
-                          const updated = { ...manualFilterForm, propertyType: e.target.value };
-                          setManualFilterForm(updated);
-                          handleApplyManualFilter(updated);
-                        }}
-                        className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
-                      >
-                        <option value="">All Property Types</option>
-                        <option value="Plot/Land">Plot/Land</option>
-                        <option value="House/Villa">House/Villa</option>
-                        <option value="Apartment/Flat">Apartment/Flat</option>
-                        <option value="Residential Plot">Residential Plot</option>
-                        <option value="Commercial Plot">Commercial Plot</option>
-                        <option value="Agricultural Land">Agricultural Land</option>
-                        <option value="Industrial Plot">Industrial Plot</option>
-                      </select>
-                    </div>
-
-                    {/* Location / Locality */}
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Location / Locality</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Kanjikode, Stadium Bye Pass"
-                        value={manualFilterForm.location}
-                        onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
-                        onChange={(e) => {
-                          const updated = { ...manualFilterForm, location: e.target.value };
-                          setManualFilterForm(updated);
-                        }}
-                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
-                      />
-                    </div>
-
-                    {/* Price / Budget */}
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">
-                        {manualFilterForm.listingType === 'Rent' ? 'Rent (₹/mo)' : 'Price / Budget (₹)'}
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 5000000"
-                        value={manualFilterForm.price}
-                        onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
-                        onChange={(e) => {
-                          const updated = { ...manualFilterForm, price: e.target.value };
-                          setManualFilterForm(updated);
-                        }}
-                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
-                      />
-                    </div>
-
-                    {/* Area / Size */}
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Area / Size</label>
-                      <div className="flex gap-1.5">
-                        <input
-                          type="text"
-                          placeholder="e.g. 10 or 2000"
-                          value={manualFilterForm.area}
-                          onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
-                          onChange={(e) => {
-                            const updated = { ...manualFilterForm, area: e.target.value };
-                            setManualFilterForm(updated);
-                          }}
-                          className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
-                        />
-                        <select
-                          value={manualFilterForm.areaUnit}
-                          onChange={(e) => {
-                            const updated = { ...manualFilterForm, areaUnit: e.target.value };
-                            setManualFilterForm(updated);
-                            handleApplyManualFilter(updated);
-                          }}
-                          className="w-[90px] text-xs font-semibold bg-white border border-slate-200 rounded-lg px-1.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
-                        >
-                          <option value="Cent">Cent</option>
-                          <option value="Sq. Ft.">Sq. Ft.</option>
-                          <option value="Acre">Acre</option>
-                          <option value="Sq. Meter">Sq. Meter</option>
-                          <option value="Sq. Yard">Sq. Yard</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between pt-2.5 border-t border-slate-200/60 gap-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-[11px] font-semibold text-slate-500">Min Accuracy Score:</span>
-                      <select
-                        value={manualFilterForm.minScore}
-                        onChange={(e) => {
-                          const updated = { ...manualFilterForm, minScore: Number(e.target.value) };
-                          setManualFilterForm(updated);
-                          handleApplyManualFilter(updated);
-                        }}
-                        className="text-xs font-bold bg-white border border-slate-200 rounded-md px-2 py-1 text-slate-700 focus:outline-none focus:border-[#B0004F]"
-                      >
-                        <option value={50}>50% (Recommended)</option>
-                        <option value={60}>60% (Strict Matches)</option>
-                        <option value={40}>40% (Broad Search)</option>
-                        <option value={0}>0% (All Items)</option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-center space-x-3">
-                      <span className="text-[11px] font-bold text-[#B0004F]">
-                        {matchResults.length} {activeMatchTarget.type === 'property' ? 'matching buyers' : 'matching properties'} found
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyManualFilter(manualFilterForm)}
-                        className="px-4 py-1.5 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-                      >
-                        <Search className="w-3.5 h-3.5" />
-                        <span>Apply Filter</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {isLoadingMatches ? (
-                <div className="py-12 flex flex-col items-center justify-center space-y-3">
-                  <div className="w-8 h-8 border-3 border-[#B0004F] border-t-transparent rounded-full animate-spin"></div>
-                  <p className="text-slate-600 text-sm font-medium">Finding High-Accuracy Matches...</p>
-                  <p className="text-xs text-slate-400">Comparing district, locality, type, budget & area</p>
-                </div>
-              ) : matchResults.length === 0 ? (
-                <div className="py-10 text-center border border-slate-200 border-dashed rounded-xl bg-slate-50 space-y-3 px-4">
-                  <p className="text-sm font-semibold text-slate-700">No matches found above the {manualFilterForm.minScore || 60}% threshold.</p>
-                  <p className="text-xs text-slate-500">Adjust the location, property type, budget, or accuracy threshold manually to find matching {activeMatchTarget.type === 'property' ? 'customers' : 'properties'}.</p>
-                  {!isManualFilterOpen && (
-                    <button
-                      type="button"
-                      onClick={() => setIsManualFilterOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
-                    >
-                      <SlidersHorizontal className="w-4 h-4" />
-                      <span>Adjust Match Criteria & Search</span>
-                    </button>
-                  )}
-                </div>
-              ) : matchFilter === 'top' && matchResults.filter(m => m.matchScore >= 90).length === 0 ? (
-                <div className="py-10 text-center border border-emerald-100 rounded-xl bg-emerald-50/50 space-y-2">
-                  <p className="text-sm font-semibold text-slate-800">No 90%+ Top Choice matches found yet.</p>
-                  <p className="text-xs text-slate-500">Switch to "All Matches" to see strong matches between 60% and 89%.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {(matchFilter === 'top' ? matchResults.filter(m => m.matchScore >= 90) : matchResults).map((matchItem, idx) => (
-                    <div key={idx} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-slate-300 transition-all duration-200 space-y-3.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
-                              (matchItem.requirementType === 'Rent' || matchItem.listingType === 'Rent')
-                                ? 'bg-violet-50 text-violet-700 border border-violet-100'
-                                : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                            }`}>
-                              {matchItem.requirementType 
-                                ? (matchItem.requirementType === 'Rent' ? 'Rent Customer' : 'Buy Customer') 
-                                : (matchItem.listingType || 'Sale')}
-                            </span>
-
-                            {/* Match Quality Badge */}
-                            {matchItem.matchScore >= 90 ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
-                                <span>🎯 90%+ Top Choice</span>
-                                <span className="text-[10px] text-emerald-800 bg-emerald-200/60 px-1 rounded">({matchItem.matchScore}%)</span>
-                              </span>
-                            ) : matchItem.matchScore >= 75 ? (
-                              <span className="inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-                                ⭐ Strong Match ({matchItem.matchScore}%)
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                                {matchItem.matchScore}% Match
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="font-bold text-slate-900 text-base mt-1.5 truncate">
-                            {activeMatchTarget.type === 'property' 
-                              ? (matchItem.propertyType || matchItem.requirementTitle || 'Requirement') 
-                              : matchItem.title}
-                          </h4>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">
-                            {activeMatchTarget.type === 'property' 
-                              ? (matchItem.requirementType === 'Rent' ? 'Max Rent' : 'Budget')
-                              : (matchItem.listingType === 'Rent' ? 'Rent' : 'Price')}
-                          </span>
-                          <span className="font-extrabold text-slate-900 text-base">
-                            {formatPrice(
-                              activeMatchTarget.type === 'property'
-                                ? (matchItem.requirementType === 'Rent' ? matchItem.maximumMonthlyRent : matchItem.budget)
-                                : (matchItem.listingType === 'Rent' ? matchItem.monthlyRent : matchItem.expectedPrice)
-                            )}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">
-                            {activeMatchTarget.type === 'property' ? `${matchItem.preferredLocation}, ${matchItem.district}` : `${matchItem.location}, ${matchItem.district}`}
-                          </span>
-                        </div>
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
-                          <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>
-                            {activeMatchTarget.type === 'property' ? (matchItem.requiredArea || 'Any Area') : (matchItem.area || '—')}
-                          </span>
-                        </div>
-                      </div>
-
-                      {matchItem.description && (
-                        <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{matchItem.description}</p>
-                      )}
-
-                      {/* Match Breakdown Toggle */}
-                      {matchItem.matchReasons && matchItem.matchReasons.length > 0 && (
-                        <div className="border-t border-slate-100 pt-2">
-                          <button
-                            type="button"
-                            onClick={() => setExpandedBreakdowns(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                            className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-[#B0004F] transition-colors cursor-pointer group w-full"
-                          >
-                            {expandedBreakdowns[idx] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                            <span>Match Breakdown</span>
-                            <div className="flex-1 h-px bg-slate-100 ml-2" />
-                          </button>
-                          {expandedBreakdowns[idx] && (
-                            <div className="mt-2.5 space-y-2 animate-fade-in">
-                              {matchItem.matchReasons.map((reason, rIdx) => {
-                                const pct = reason.maxScore > 0 ? Math.round((reason.score / reason.maxScore) * 100) : 0;
-                                const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : pct > 0 ? 'bg-orange-400' : 'bg-slate-200';
-                                const textColor = pct >= 80 ? 'text-emerald-700' : pct >= 50 ? 'text-amber-700' : pct > 0 ? 'text-orange-600' : 'text-slate-400';
-                                return (
-                                  <div key={rIdx} className="flex items-center gap-3">
-                                    <div className="w-[85px] shrink-0 text-right">
-                                      <span className={`text-[10.5px] font-bold ${textColor}`}>{reason.factor}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                                        <div
-                                          className={`h-full rounded-full ${barColor} transition-all duration-500`}
-                                          style={{ width: `${pct}%` }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="w-[38px] text-right shrink-0">
-                                      <span className={`text-[10px] font-bold ${textColor}`}>{reason.score}/{reason.maxScore}</span>
-                                    </div>
-                                    <div className="hidden sm:block min-w-0 max-w-[180px]">
-                                      <span className="text-[10px] text-slate-400 truncate block">{reason.detail}</span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Customer contact details hidden */}
-                      {isPropertySharingEnabled && (
-                        <div className="flex items-center justify-end border-t border-slate-100 pt-3 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const propObj = activeMatchTarget.type === 'property' ? activeMatchTarget.data : matchItem;
-                              const buyerObj = activeMatchTarget.type === 'property' ? matchItem : activeMatchTarget.data;
-                              setSharingTarget({ property: propObj, buyer: buyerObj });
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200/80 transition-all cursor-pointer"
-                            title="Share customer-facing property details via WhatsApp"
-                          >
-                            <Share2 className="w-3.5 h-3.5" />
-                            <span>Share Property</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex justify-end">
+        <Modal
+          isOpen={!!activeMatchTarget}
+          onClose={() => setActiveMatchTarget(null)}
+          title={
+            activeMatchTarget.type === 'property' 
+              ? (activeMatchTarget.data?.listingType === 'Rent' ? 'Matching Rent Customers' : 'Matching Buy Customers')
+              : 'Matching Properties'
+          }
+          subtitle={
+            activeMatchTarget.type === 'property' 
+              ? `Customers looking for properties like "${activeMatchTarget.data.title}"`
+              : `Available properties matching requirement criteria`
+          }
+          icon={Sparkles}
+          size="2xl"
+          footer={
+            <div className="flex items-center justify-end w-full">
               <button
                 onClick={() => setActiveMatchTarget(null)}
                 className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
@@ -2698,8 +2352,450 @@ export default function Properties() {
                 Close
               </button>
             </div>
+          }
+        >
+          <div className="space-y-4 font-sans">
+            {/* Top Matches & Manual Filter Toggle Bar */}
+            {!isLoadingMatches && (
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/70">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setMatchFilter('all')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      matchFilter === 'all'
+                        ? 'bg-white text-slate-800 shadow-sm border border-slate-200'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    All Matches ({matchResults.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMatchFilter('top')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      matchFilter === 'top'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
+                    }`}
+                  >
+                    <span>🎯 90%+ Top Choice Only</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      matchFilter === 'top' ? 'bg-emerald-700 text-white' : 'bg-emerald-200 text-emerald-800'
+                    }`}>
+                      {matchResults.filter(m => m.matchScore >= 90).length}
+                    </span>
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsManualFilterOpen(!isManualFilterOpen)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isManualFilterOpen
+                      ? 'bg-[#B0004F] text-white shadow-sm'
+                      : 'text-slate-700 bg-slate-200/70 hover:bg-slate-200'
+                  }`}
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>{isManualFilterOpen ? 'Hide Custom Filter' : 'Adjust Criteria / Manual Filter'}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Manual Criteria Filter Form Box */}
+            {isManualFilterOpen && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3 animate-fade-in shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <SlidersHorizontal className="w-4 h-4 text-[#B0004F]" />
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Filter Matches by Property Details
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyManualFilter(manualFilterForm)}
+                      className="px-3.5 py-1.5 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Apply Filter</span>
+                    </button>
+                    {!activeMatchTarget.isManualSearch && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const isRent = ((activeMatchTarget.data?.listingType || activeMatchTarget.data?.requirementType) || '').toLowerCase() === 'rent';
+                          const priceVal = activeMatchTarget.data?.expectedPrice || activeMatchTarget.data?.monthlyRent || activeMatchTarget.data?.budget || activeMatchTarget.data?.maximumMonthlyRent || '';
+                          const resetForm = {
+                            listingType: isRent ? 'Rent' : 'Sale',
+                            district: activeMatchTarget.data?.district || '',
+                            location: activeMatchTarget.data?.location || activeMatchTarget.data?.preferredLocation || '',
+                            propertyType: activeMatchTarget.data?.propertyType || '',
+                            price: priceVal || '',
+                            area: activeMatchTarget.data?.area || activeMatchTarget.data?.requiredArea || '',
+                            areaUnit: 'Cent',
+                            minScore: 50
+                          };
+                          setManualFilterForm(resetForm);
+                          handleApplyManualFilter(resetForm);
+                        }}
+                        className="text-[11px] font-semibold text-slate-500 hover:text-[#B0004F] cursor-pointer flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-slate-200/50 transition-colors"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span>Reset Details</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Transaction Type */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">
+                      Listing Type
+                    </label>
+                    <select
+                      value={manualFilterForm.listingType}
+                      onChange={(e) => {
+                        const updated = { ...manualFilterForm, listingType: e.target.value };
+                        setManualFilterForm(updated);
+                        handleApplyManualFilter(updated);
+                      }}
+                      className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                    >
+                      <option value="Sale">Sale / Buy</option>
+                      <option value="Rent">Rent</option>
+                    </select>
+                  </div>
+
+                  {/* District */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">District</label>
+                    <select
+                      value={manualFilterForm.district}
+                      onChange={(e) => {
+                        const updated = { ...manualFilterForm, district: e.target.value };
+                        setManualFilterForm(updated);
+                        handleApplyManualFilter(updated);
+                      }}
+                      className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                    >
+                      <option value="">All / Select District</option>
+                      <option value="Palakkad">Palakkad</option>
+                      <option value="Malappuram">Malappuram</option>
+                      <option value="Ernakulam">Ernakulam</option>
+                      <option value="Thrissur">Thrissur</option>
+                      <option value="Kozhikode">Kozhikode</option>
+                      <option value="Kannur">Kannur</option>
+                      <option value="Thiruvananthapuram">Thiruvananthapuram</option>
+                      <option value="Kottayam">Kottayam</option>
+                      <option value="Wayanad">Wayanad</option>
+                      <option value="Idukki">Idukki</option>
+                      <option value="Alappuzha">Alappuzha</option>
+                      <option value="Kollam">Kollam</option>
+                      <option value="Pathanamthitta">Pathanamthitta</option>
+                      <option value="Kasaragod">Kasaragod</option>
+                    </select>
+                  </div>
+
+                  {/* Property Type */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Property Type</label>
+                    <select
+                      value={manualFilterForm.propertyType}
+                      onChange={(e) => {
+                        const updated = { ...manualFilterForm, propertyType: e.target.value };
+                        setManualFilterForm(updated);
+                        handleApplyManualFilter(updated);
+                      }}
+                      className="w-full text-xs font-semibold bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                    >
+                      <option value="">All Property Types</option>
+                      <option value="Plot/Land">Plot/Land</option>
+                      <option value="House/Villa">House/Villa</option>
+                      <option value="Apartment/Flat">Apartment/Flat</option>
+                      <option value="Residential Plot">Residential Plot</option>
+                      <option value="Commercial Plot">Commercial Plot</option>
+                      <option value="Agricultural Land">Agricultural Land</option>
+                      <option value="Industrial Plot">Industrial Plot</option>
+                    </select>
+                  </div>
+
+                  {/* Location / Locality */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Location / Locality</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Kanjikode, Stadium Bye Pass"
+                      value={manualFilterForm.location}
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
+                      onChange={(e) => {
+                        const updated = { ...manualFilterForm, location: e.target.value };
+                        setManualFilterForm(updated);
+                      }}
+                      className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                    />
+                  </div>
+
+                  {/* Price / Budget */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">
+                      {manualFilterForm.listingType === 'Rent' ? 'Rent (₹/mo)' : 'Price / Budget (₹)'}
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 5000000"
+                      value={manualFilterForm.price}
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
+                      onChange={(e) => {
+                        const updated = { ...manualFilterForm, price: e.target.value };
+                        setManualFilterForm(updated);
+                      }}
+                      className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                    />
+                  </div>
+
+                  {/* Area / Size */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Area / Size</label>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="e.g. 10 or 2000"
+                        value={manualFilterForm.area}
+                        onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
+                        onChange={(e) => {
+                          const updated = { ...manualFilterForm, area: e.target.value };
+                          setManualFilterForm(updated);
+                        }}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                      />
+                      <select
+                        value={manualFilterForm.areaUnit}
+                        onChange={(e) => {
+                          const updated = { ...manualFilterForm, areaUnit: e.target.value };
+                          setManualFilterForm(updated);
+                          handleApplyManualFilter(updated);
+                        }}
+                        className="w-[90px] text-xs font-semibold bg-white border border-slate-200 rounded-lg px-1.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
+                      >
+                        <option value="Cent">Cent</option>
+                        <option value="Sq. Ft.">Sq. Ft.</option>
+                        <option value="Acre">Acre</option>
+                        <option value="Sq. Meter">Sq. Meter</option>
+                        <option value="Sq. Yard">Sq. Yard</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between pt-2.5 border-t border-slate-200/60 gap-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[11px] font-semibold text-slate-500">Min Accuracy Score:</span>
+                    <select
+                      value={manualFilterForm.minScore}
+                      onChange={(e) => {
+                        const updated = { ...manualFilterForm, minScore: Number(e.target.value) };
+                        setManualFilterForm(updated);
+                        handleApplyManualFilter(updated);
+                      }}
+                      className="text-xs font-bold bg-white border border-slate-200 rounded-md px-2 py-1 text-slate-700 focus:outline-none focus:border-[#B0004F]"
+                    >
+                      <option value={50}>50% (Recommended)</option>
+                      <option value={60}>60% (Strict Matches)</option>
+                      <option value={40}>40% (Broad Search)</option>
+                      <option value={0}>0% (All Items)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <span className="text-[11px] font-bold text-[#B0004F]">
+                      {matchResults.length} {activeMatchTarget.type === 'property' ? 'matching buyers' : 'matching properties'} found
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleApplyManualFilter(manualFilterForm)}
+                      className="px-4 py-1.5 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                      <span>Apply Filter</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isLoadingMatches ? (
+              <div className="py-12 flex flex-col items-center justify-center space-y-3">
+                <div className="w-8 h-8 border-3 border-[#B0004F] border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-slate-600 text-sm font-medium">Finding High-Accuracy Matches...</p>
+                <p className="text-xs text-slate-400">Comparing district, locality, type, budget & area</p>
+              </div>
+            ) : matchResults.length === 0 ? (
+              <div className="py-10 text-center border border-slate-200 border-dashed rounded-xl bg-slate-50 space-y-3 px-4">
+                <p className="text-sm font-semibold text-slate-700">No matches found above the {manualFilterForm.minScore || 60}% threshold.</p>
+                <p className="text-xs text-slate-500">Adjust the location, property type, budget, or accuracy threshold manually to find matching {activeMatchTarget.type === 'property' ? 'customers' : 'properties'}.</p>
+                {!isManualFilterOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setIsManualFilterOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#B0004F] hover:bg-[#8A003E] text-white font-bold text-xs rounded-lg shadow-sm transition-colors cursor-pointer"
+                  >
+                    <SlidersHorizontal className="w-4 h-4" />
+                    <span>Adjust Match Criteria & Search</span>
+                  </button>
+                )}
+              </div>
+            ) : matchFilter === 'top' && matchResults.filter(m => m.matchScore >= 90).length === 0 ? (
+              <div className="py-10 text-center border border-emerald-100 rounded-xl bg-emerald-50/50 space-y-2">
+                <p className="text-sm font-semibold text-slate-800">No 90%+ Top Choice matches found yet.</p>
+                <p className="text-xs text-slate-500">Switch to "All Matches" to see strong matches between 60% and 89%.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {(matchFilter === 'top' ? matchResults.filter(m => m.matchScore >= 90) : matchResults).map((matchItem, idx) => (
+                  <div key={idx} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-slate-300 transition-all duration-200 space-y-3.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`text-[10.5px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                            (matchItem.requirementType === 'Rent' || matchItem.listingType === 'Rent')
+                              ? 'bg-violet-50 text-violet-700 border border-violet-100'
+                              : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                          }`}>
+                            {matchItem.requirementType 
+                              ? (matchItem.requirementType === 'Rent' ? 'Rent Customer' : 'Buy Customer') 
+                              : (matchItem.listingType || 'Sale')}
+                          </span>
+
+                          {/* Match Quality Badge */}
+                          {matchItem.matchScore >= 90 ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-sm">
+                              <span>🎯 90%+ Top Choice</span>
+                              <span className="text-[10px] text-emerald-800 bg-emerald-200/60 px-1 rounded">({matchItem.matchScore}%)</span>
+                            </span>
+                          ) : matchItem.matchScore >= 75 ? (
+                            <span className="inline-flex items-center text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                              ⭐ Strong Match ({matchItem.matchScore}%)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                              {matchItem.matchScore}% Match
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="font-bold text-slate-900 text-base mt-1.5 truncate">
+                          {activeMatchTarget.type === 'property' 
+                            ? (matchItem.propertyType || matchItem.requirementTitle || 'Requirement') 
+                            : matchItem.title}
+                        </h4>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">
+                          {activeMatchTarget.type === 'property' 
+                            ? (matchItem.requirementType === 'Rent' ? 'Max Rent' : 'Budget')
+                            : (matchItem.listingType === 'Rent' ? 'Rent' : 'Price')}
+                        </span>
+                        <span className="font-extrabold text-slate-900 text-base">
+                          {formatPrice(
+                            activeMatchTarget.type === 'property'
+                              ? (matchItem.requirementType === 'Rent' ? matchItem.maximumMonthlyRent : matchItem.budget)
+                              : (matchItem.listingType === 'Rent' ? matchItem.monthlyRent : matchItem.expectedPrice)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">
+                          {activeMatchTarget.type === 'property' ? `${matchItem.preferredLocation}, ${matchItem.district}` : `${matchItem.location}, ${matchItem.district}`}
+                        </span>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                        <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>
+                          {activeMatchTarget.type === 'property' ? (matchItem.requiredArea || 'Any Area') : (matchItem.area || '—')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {matchItem.description && (
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{matchItem.description}</p>
+                    )}
+
+                    {/* Match Breakdown Toggle */}
+                    {matchItem.matchReasons && matchItem.matchReasons.length > 0 && (
+                      <div className="border-t border-slate-100 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedBreakdowns(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                          className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-[#B0004F] transition-colors cursor-pointer group w-full"
+                        >
+                          {expandedBreakdowns[idx] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          <span>Match Breakdown</span>
+                          <div className="flex-1 h-px bg-slate-100 ml-2" />
+                        </button>
+                        {expandedBreakdowns[idx] && (
+                          <div className="mt-2.5 space-y-2 animate-fade-in">
+                            {matchItem.matchReasons.map((reason, rIdx) => {
+                              const pct = reason.maxScore > 0 ? Math.round((reason.score / reason.maxScore) * 100) : 0;
+                              const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-400' : pct > 0 ? 'bg-orange-400' : 'bg-slate-200';
+                              const textColor = pct >= 80 ? 'text-emerald-700' : pct >= 50 ? 'text-amber-700' : pct > 0 ? 'text-orange-600' : 'text-slate-400';
+                              return (
+                                <div key={rIdx} className="flex items-center gap-3">
+                                  <div className="w-[85px] shrink-0 text-right">
+                                    <span className={`text-[10.5px] font-bold ${textColor}`}>{reason.factor}</span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${barColor} transition-all duration-500`}
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="w-[38px] text-right shrink-0">
+                                    <span className={`text-[10px] font-bold ${textColor}`}>{reason.score}/{reason.maxScore}</span>
+                                  </div>
+                                  <div className="hidden sm:block min-w-0 max-w-[180px]">
+                                    <span className="text-[10px] text-slate-400 truncate block">{reason.detail}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Customer contact details hidden */}
+                    {isPropertySharingEnabled && (
+                      <div className="flex items-center justify-end border-t border-slate-100 pt-3 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const propObj = activeMatchTarget.type === 'property' ? activeMatchTarget.data : matchItem;
+                            const buyerObj = activeMatchTarget.type === 'property' ? matchItem : activeMatchTarget.data;
+                            setSharingTarget({ property: propObj, buyer: buyerObj });
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200/80 transition-all cursor-pointer"
+                          title="Share customer-facing property details via WhatsApp"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Share Property</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* SHARE PROPERTY MODAL (OPTIONAL FEATURE) */}

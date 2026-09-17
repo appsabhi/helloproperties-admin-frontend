@@ -9,7 +9,7 @@ const MAX_LOGS = 500;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
   typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:5000/api'
-    : 'https://helloproperties-admin-backend.vercel.app/api'
+    : 'https://helloproperties-backend.vercel.app/api'
 );
 
 const getAuthHeaders = () => {
@@ -22,6 +22,10 @@ const getAuthHeaders = () => {
 
 export function ActivityProvider({ children }) {
   const { user, isAuthenticated } = useContext(AuthContext) || {};
+
+  const [totalCount, setTotalCount] = useState(null);
+  const [todayCount, setTodayCount] = useState(null);
+  const [activeUsersCount, setActiveUsersCount] = useState(null);
 
   const [activities, setActivities] = useState(() => {
     try {
@@ -104,16 +108,42 @@ export function ActivityProvider({ children }) {
       });
       if (res.ok) {
         const resData = await res.json();
-        if (resData.success && Array.isArray(resData.data) && resData.data.length > 0) {
-          setActivities(prev => {
-            const map = new Map();
-            resData.data.forEach(item => map.set(item.id || item._id, item));
-            prev.forEach(item => {
-              if (!map.has(item.id)) map.set(item.id, item);
+        if (resData.success) {
+          if (typeof resData.totalCount === 'number') {
+            setTotalCount(resData.totalCount);
+          }
+          if (typeof resData.todayCount === 'number') {
+            setTodayCount(resData.todayCount);
+          }
+          if (typeof resData.activeUsersCount === 'number') {
+            setActiveUsersCount(resData.activeUsersCount);
+          }
+
+          if (Array.isArray(resData.data) && resData.data.length > 0) {
+            setActivities(prev => {
+              const map = new Map();
+              resData.data.forEach(item => {
+                const userObj = item.user || {};
+                const username = userObj.username || item.username || item.user_id || item.userId || 'admin';
+                const fullName = userObj.fullName || userObj.full_name || item.full_name || item.fullName || item.name || username;
+                const role = userObj.role || item.role || 'Admin';
+
+                const normalized = {
+                  ...item,
+                  id: item.id || item._id,
+                  user: { username, fullName, role },
+                  actionLabel: item.actionLabel || item.action_label || item.action || 'Activity Logged',
+                  targetId: String(item.targetId || item.target_id || '')
+                };
+                map.set(normalized.id, normalized);
+              });
+              prev.forEach(item => {
+                if (!map.has(item.id)) map.set(item.id, item);
+              });
+              const merged = Array.from(map.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+              return merged.slice(0, MAX_LOGS);
             });
-            const merged = Array.from(map.values()).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            return merged.slice(0, MAX_LOGS);
-          });
+          }
         }
       }
     } catch (err) {
@@ -186,6 +216,9 @@ export function ActivityProvider({ children }) {
   // Clear activity logs
   const clearActivities = useCallback(() => {
     setActivities([]);
+    setTotalCount(0);
+    setTodayCount(0);
+    setActiveUsersCount(0);
     try {
       localStorage.removeItem(STORAGE_KEY);
       fetch(`${API_BASE_URL}/activity-logs`, {
@@ -241,6 +274,9 @@ export function ActivityProvider({ children }) {
     <ActivityContext.Provider
       value={{
         activities,
+        totalCount,
+        todayCount,
+        activeUsersCount,
         logActivity,
         clearActivities,
         exportActivitiesCSV,

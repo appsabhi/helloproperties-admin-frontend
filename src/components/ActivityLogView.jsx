@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export default function ActivityLogView({ compact = false, limit = null }) {
-  const { activities, clearActivities, exportActivitiesCSV } = useContext(ActivityContext);
+  const { activities, totalCount, todayCount, activeUsersCount, clearActivities, exportActivitiesCSV } = useContext(ActivityContext);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -120,12 +120,6 @@ export default function ActivityLogView({ compact = false, limit = null }) {
     return result;
   }, [activities, searchQuery, categoryFilter, userFilter, dateFilter, limit]);
 
-  // Statistics
-  const todayCount = useMemo(() => {
-    const todayStr = new Date().toDateString();
-    return activities.filter(a => new Date(a.timestamp).toDateString() === todayStr).length;
-  }, [activities]);
-
   const getCategoryIcon = (category) => {
     switch (category) {
       case 'Properties':
@@ -167,7 +161,7 @@ export default function ActivityLogView({ compact = false, limit = null }) {
             <h4 className="font-bold text-slate-900 text-sm">Recent User Activity</h4>
           </div>
           <span className="text-2xs font-semibold px-2 py-0.5 rounded-full bg-[#FFF1F6] text-[#C4005A]">
-            {activities.length} Events Logged
+            {totalCount !== null && totalCount !== undefined ? totalCount : activities.length} Events Logged
           </span>
         </div>
 
@@ -204,7 +198,9 @@ export default function ActivityLogView({ compact = false, limit = null }) {
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Activities</span>
-            <p className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{activities.length}</p>
+            <p className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">
+              {totalCount !== null && totalCount !== undefined ? totalCount : '...'}
+            </p>
           </div>
           <div className="p-2.5 rounded-xl bg-purple-50 text-purple-700">
             <Activity className="w-5 h-5" />
@@ -214,7 +210,9 @@ export default function ActivityLogView({ compact = false, limit = null }) {
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Logged Today</span>
-            <p className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{todayCount}</p>
+            <p className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">
+              {todayCount !== null && todayCount !== undefined ? todayCount : '...'}
+            </p>
           </div>
           <div className="p-2.5 rounded-xl bg-[#FFF1F6] text-[#C4005A]">
             <Clock className="w-5 h-5" />
@@ -224,7 +222,9 @@ export default function ActivityLogView({ compact = false, limit = null }) {
         <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Active Users</span>
-            <p className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">{uniqueUsers.length}</p>
+            <p className="text-2xl font-bold text-slate-900 leading-tight mt-0.5">
+              {activeUsersCount !== null && activeUsersCount !== undefined ? activeUsersCount : '...'}
+            </p>
           </div>
           <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700">
             <UsersIcon className="w-5 h-5" />

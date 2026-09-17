@@ -67,7 +67,7 @@ function RootOrPublicRoute() {
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-[#F7F7F7] flex flex-col items-center justify-center space-y-3 font-sans text-slate-600">
+      <div className="min-h-screen bg-[#F7F7F7] flex flex-col items-center justify-center space-y-3 font-sans text-slate-600">
         <Loader2 className="w-8 h-8 animate-spin text-[#B0004F]" />
         <p className="text-xs font-semibold">Loading HelloProperties...</p>
       </div>

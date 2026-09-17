@@ -382,72 +382,7 @@ export default function LocationSelector({
         <div className="flex-1 h-px bg-slate-100" />
       </div>
 
-      {/* State & District — two columns, State FIRST then District */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Column 1: State */}
-        <div className="flex flex-col gap-1">
-          <div className="relative">
-            <select
-              id="state-select"
-              value={stateValue}
-              onChange={handleStateChange}
-              className={`w-full px-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b appearance-none pr-9 focus:outline-none transition-colors duration-150 cursor-pointer ${
-                stateError ? "border-red-400" : "border-transparent focus:border-slate-300"
-              }`}
-            >
-              <option value=""></option>
-              {ALL_INDIAN_STATES.map((st) => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </select>
-            <label
-              htmlFor="state-select"
-              className={`absolute left-4 pointer-events-none transition-all duration-200 ${
-                stateValue
-                  ? "top-2 text-[10.5px] text-slate-400 font-semibold"
-                  : "top-4 text-[13px] text-slate-400"
-              }`}
-            >
-              State / UT<span className="text-[#B0004F] ml-0.5">*</span>
-            </label>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-          {stateError && <span className="text-[11px] text-red-500 px-1">{stateError}</span>}
-        </div>
-
-        {/* Column 2: District */}
-        <div className="flex flex-col gap-1">
-          <div className="relative">
-            <select
-              id="district-select"
-              value={districtValue}
-              onChange={handleDistrictChange}
-              className={`w-full px-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b appearance-none pr-9 focus:outline-none transition-colors duration-150 cursor-pointer ${
-                districtError ? "border-red-400" : "border-transparent focus:border-slate-300"
-              }`}
-            >
-              <option value=""></option>
-              {availableDistricts.map((dst) => (
-                <option key={dst} value={dst}>{dst}</option>
-              ))}
-            </select>
-            <label
-              htmlFor="district-select"
-              className={`absolute left-4 pointer-events-none transition-all duration-200 ${
-                districtValue
-                  ? "top-2 text-[10.5px] text-slate-400 font-semibold"
-                  : "top-4 text-[13px] text-slate-400"
-              }`}
-            >
-              District<span className="text-[#B0004F] ml-0.5">*</span>
-            </label>
-            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-          {districtError && <span className="text-[11px] text-red-500 px-1">{districtError}</span>}
-        </div>
-      </div>
-
-      {/* Locality autocomplete — floating label */}
+      {/* Locality autocomplete — floating label (TOP) */}
       <div className="relative" ref={wrapperRef}>
         <div className="relative">
           {isLoading ? (
@@ -513,7 +448,7 @@ export default function LocationSelector({
               ))
             ) : !isLoading ? (
               <div className="px-4 py-3 text-[12px] text-slate-400 text-center">
-                No automatic suggestions. Select State &amp; District above.
+                No automatic suggestions. Select State &amp; District below.
               </div>
             ) : null}
             <button
@@ -529,6 +464,71 @@ export default function LocationSelector({
             </button>
           </div>
         )}
+      </div>
+
+      {/* State & District — two columns below Locality */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Column 1: State */}
+        <div className="flex flex-col gap-1">
+          <div className="relative">
+            <select
+              id="state-select"
+              value={stateValue}
+              onChange={handleStateChange}
+              className={`w-full px-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b appearance-none pr-9 focus:outline-none transition-colors duration-150 cursor-pointer ${
+                stateError ? "border-red-400" : "border-transparent focus:border-slate-300"
+              }`}
+            >
+              <option value=""></option>
+              {ALL_INDIAN_STATES.map((st) => (
+                <option key={st} value={st}>{st}</option>
+              ))}
+            </select>
+            <label
+              htmlFor="state-select"
+              className={`absolute left-4 pointer-events-none transition-all duration-200 ${
+                stateValue
+                  ? "top-2 text-[10.5px] text-slate-400 font-semibold"
+                  : "top-4 text-[13px] text-slate-400"
+              }`}
+            >
+              State / UT<span className="text-[#B0004F] ml-0.5">*</span>
+            </label>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          {stateError && <span className="text-[11px] text-red-500 px-1">{stateError}</span>}
+        </div>
+
+        {/* Column 2: District */}
+        <div className="flex flex-col gap-1">
+          <div className="relative">
+            <select
+              id="district-select"
+              value={districtValue}
+              onChange={handleDistrictChange}
+              className={`w-full px-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b appearance-none pr-9 focus:outline-none transition-colors duration-150 cursor-pointer ${
+                districtError ? "border-red-400" : "border-transparent focus:border-slate-300"
+              }`}
+            >
+              <option value=""></option>
+              {availableDistricts.map((dst) => (
+                <option key={dst} value={dst}>{dst}</option>
+              ))}
+            </select>
+            <label
+              htmlFor="district-select"
+              className={`absolute left-4 pointer-events-none transition-all duration-200 ${
+                districtValue
+                  ? "top-2 text-[10.5px] text-slate-400 font-semibold"
+                  : "top-4 text-[13px] text-slate-400"
+              }`}
+            >
+              District<span className="text-[#B0004F] ml-0.5">*</span>
+            </label>
+            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+          {districtError && <span className="text-[11px] text-red-500 px-1">{districtError}</span>}
+        </div>
       </div>
     </div>
   );

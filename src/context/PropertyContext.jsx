@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback, useContext } from 'react';
+import { upload } from '@vercel/blob/client';
 import { ActivityContext } from './ActivityContext';
 import { AuthContext } from './AuthContext';
 
@@ -93,6 +94,92 @@ export const PropertyProvider = ({ children }) => {
     return null;
   };
 
+  const uploadVideoFile = async (file) => {
+    if (!file || !(file instanceof File || file instanceof Blob)) {
+      return { success: false, error: 'No valid video file selected.' };
+    }
+
+    // Validation: Allowed video formats
+    const allowedExtensions = ['mp4', 'webm', 'mov'];
+    const fileName = file.name || 'video.mp4';
+    const extMatch = fileName.split('.').pop();
+    const ext = extMatch ? extMatch.toLowerCase() : 'mp4';
+    const mimeType = (file.type || '').toLowerCase();
+
+    const isAllowedFormat = allowedExtensions.includes(ext) ||
+      mimeType === 'video/mp4' ||
+      mimeType === 'video/webm' ||
+      mimeType === 'video/quicktime' ||
+      mimeType.includes('mov');
+
+    if (!isAllowedFormat) {
+      return {
+        success: false,
+        error: 'Unsupported video format. Please select an MP4, WebM, or MOV video file.'
+      };
+    }
+
+    // Validation: Max 50MB
+    const MAX_50MB = 50 * 1024 * 1024;
+    if (file.size > MAX_50MB) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      return {
+        success: false,
+        error: `Video file size (${sizeMB} MB) exceeds the maximum allowed 50 MB limit.`
+      };
+    }
+
+    try {
+      const token = localStorage.getItem('hp_auth_token');
+      const sanitizedName = fileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const targetPath = `properties/videos/property-${Date.now()}-${sanitizedName}`;
+
+      const handleUploadEndpoint = `${API_BASE_URL}/upload/handle-upload`;
+
+      const blob = await upload(targetPath, file, {
+        access: 'public',
+        handleUploadUrl: handleUploadEndpoint,
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        clientPayload: JSON.stringify({
+          originalName: fileName,
+          size: file.size,
+          mimeType: file.type
+        })
+      });
+
+      if (blob && blob.url) {
+        return {
+          success: true,
+          videoUrl: blob.url
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Video upload completed but no Blob URL was returned.'
+      };
+    } catch (err) {
+      console.error('Failed to upload video to Vercel Blob via handle-upload:', err);
+
+      let errorMsg = err.message || 'Failed to upload video.';
+
+      if (errorMsg.includes('401') || errorMsg.includes('Unauthorized') || errorMsg.includes('Authentication')) {
+        errorMsg = 'Authentication required. Please log in again to upload property videos.';
+      } else if (errorMsg.includes('403') || errorMsg.includes('Forbidden')) {
+        errorMsg = 'Permission denied. Only authorized admins can upload property videos.';
+      } else if (errorMsg.includes('413') || errorMsg.includes('too large') || errorMsg.includes('entity too large')) {
+        errorMsg = 'Video size exceeds server upload limit (max 50MB).';
+      } else if (errorMsg === 'Failed to fetch') {
+        errorMsg = 'Network error connecting to backend handle-upload endpoint.';
+      }
+
+      return {
+        success: false,
+        error: errorMsg
+      };
+    }
+  };
+
   // Normalize backend item to frontend format
   const formatBackendProperty = (p) => ({
     id: p._id || p.id || p.propertyId || `prop-${Date.now()}`,
@@ -112,14 +199,14 @@ export const PropertyProvider = ({ children }) => {
     securityDeposit: Number(p.securityDeposit || p.security_deposit || 0),
     securityDepositUnit: p.securityDepositUnit || p.security_deposit_unit,
     description: p.description || '',
-    keywords: Array.isArray(p.keywords)
-      ? p.keywords
-      : (p.keywords ? String(p.keywords).split(/,\s*/).map(s=>s.trim()).filter(Boolean) : (p.description ? p.description.split(/,\s*/).map(s=>s.trim()).filter(Boolean) : [])),
+    keywords: Array.isArray(p.keywords) ? p.keywords : [],
     ownerName: p.ownerName || p.owner_name,
     phoneNumber: p.ownerPhone || p.phoneNumber || p.owner_phone || '',
     ownerPhone: p.ownerPhone || p.phoneNumber || p.owner_phone || '',
     ownerAddress: p.ownerAddress || p.owner_address || '',
     imageUrl: resolveImageUrl(p.imageUrl || p.image_url || (p.images && p.images[0])),
+    videoUrl: p.videoUrl || p.video_url || p.video || '',
+    video: p.video || p.videoUrl || p.video_url || '',
     status: p.status || 'Available',
     createdAt: p.createdAt || p.created_at || new Date().toISOString()
   });
@@ -206,6 +293,32 @@ export const PropertyProvider = ({ children }) => {
         finalImageUrl = '';
       }
 
+      let rawVideoUrl = propertyData.videoUrl !== undefined ? propertyData.videoUrl : (typeof propertyData.video === 'string' ? propertyData.video : '');
+      let finalVideoUrl = typeof rawVideoUrl === 'string' ? rawVideoUrl : (rawVideoUrl?.videoUrl || '');
+
+      const videoFileObj = propertyData.videoFile || (propertyData.video instanceof File ? propertyData.video : null);
+      if (videoFileObj) {
+        const uploadedVideo = await uploadVideoFile(videoFileObj);
+        if (uploadedVideo) {
+          finalVideoUrl = typeof uploadedVideo === 'string' ? uploadedVideo : (uploadedVideo?.videoUrl || '');
+        }
+      }
+
+      if (typeof finalVideoUrl === 'string' && finalVideoUrl.startsWith('blob:')) {
+        finalVideoUrl = '';
+      } else if (typeof finalVideoUrl !== 'string') {
+        finalVideoUrl = '';
+      }
+
+      const rawKeywords = Array.isArray(propertyData.keywords) ? propertyData.keywords : [];
+      const cleanKeywords = Array.from(new Set(
+        rawKeywords
+          .filter(k => k && typeof k === 'string' && k.trim())
+          .map(k => k.trim())
+      )).filter((item, index, self) => 
+        self.findIndex(t => t.toLowerCase() === item.toLowerCase()) === index
+      );
+
       const listingType = propertyData.listingType || 'Sale';
 
       const payload = {
@@ -220,12 +333,14 @@ export const PropertyProvider = ({ children }) => {
         monthlyRent: listingType === 'Rent' ? Number(propertyData.monthlyRent || 0) : 0,
         securityDeposit: listingType === 'Rent' ? Number(propertyData.securityDeposit || 0) : 0,
         description: propertyData.description || '',
-        keywords: propertyData.keywords || (propertyData.description ? propertyData.description.split(/,\s*/).map(s => s.trim()).filter(Boolean) : []),
+        keywords: cleanKeywords,
         ownerName: propertyData.ownerName,
         ownerPhone: propertyData.phoneNumber || propertyData.ownerPhone || '',
         ownerAddress: propertyData.ownerAddress || '',
         status: propertyData.status || 'Available',
-        imageUrl: finalImageUrl || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'
+        imageUrl: finalImageUrl || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80',
+        videoUrl: finalVideoUrl || null,
+        video: finalVideoUrl || null
       };
 
       try {
@@ -371,6 +486,54 @@ export const PropertyProvider = ({ children }) => {
         finalImageUrl = undefined;
       }
 
+      let finalVideoUrl;
+      if (updatedData.videoUrl !== undefined) {
+        if (typeof updatedData.videoUrl === 'string') {
+          finalVideoUrl = updatedData.videoUrl;
+        } else if (updatedData.videoUrl === null) {
+          finalVideoUrl = null;
+        } else if (typeof updatedData.videoUrl === 'object' && updatedData.videoUrl?.videoUrl) {
+          finalVideoUrl = updatedData.videoUrl.videoUrl;
+        } else {
+          finalVideoUrl = null;
+        }
+      } else if (updatedData.video_url !== undefined) {
+        finalVideoUrl = updatedData.video_url;
+      } else if (typeof updatedData.video === 'string') {
+        finalVideoUrl = updatedData.video;
+      } else if (updatedData.video === null) {
+        finalVideoUrl = null;
+      } else {
+        finalVideoUrl = undefined;
+      }
+
+      const videoFileToUpload = updatedData.videoFile instanceof File ? updatedData.videoFile : (updatedData.video instanceof File ? updatedData.video : null);
+      if (videoFileToUpload) {
+        const uploadedVideo = await uploadVideoFile(videoFileToUpload);
+        if (uploadedVideo) {
+          finalVideoUrl = typeof uploadedVideo === 'string' ? uploadedVideo : (uploadedVideo?.videoUrl || '');
+        }
+      }
+
+      if (typeof finalVideoUrl === 'string' && finalVideoUrl.startsWith('blob:')) {
+        finalVideoUrl = undefined;
+      }
+
+      let cleanKeywords;
+      if (updatedData.keywords !== undefined) {
+        if (Array.isArray(updatedData.keywords)) {
+          cleanKeywords = Array.from(new Set(
+            updatedData.keywords
+              .filter(k => k && typeof k === 'string' && k.trim())
+              .map(k => k.trim())
+          )).filter((item, index, self) =>
+            self.findIndex(t => t.toLowerCase() === item.toLowerCase()) === index
+          );
+        } else if (updatedData.keywords === null) {
+          cleanKeywords = [];
+        }
+      }
+
       const listingType = updatedData.listingType || 'Sale';
 
       const payload = {
@@ -385,13 +548,14 @@ export const PropertyProvider = ({ children }) => {
         monthlyRent: listingType === 'Rent' ? Number(updatedData.monthlyRent || 0) : 0,
         securityDeposit: listingType === 'Rent' ? Number(updatedData.securityDeposit || 0) : 0,
         description: updatedData.description || '',
-        keywords: updatedData.keywords || (updatedData.description ? updatedData.description.split(/,\s*/).map(s => s.trim()).filter(Boolean) : []),
+        ...(cleanKeywords !== undefined && { keywords: cleanKeywords }),
         ownerName: updatedData.ownerName,
         ownerPhone: updatedData.phoneNumber || updatedData.ownerPhone || '',
         phoneNumber: updatedData.phoneNumber || updatedData.ownerPhone || '',
         ownerAddress: updatedData.ownerAddress || '',
         status: updatedData.status || 'Available',
-        ...(finalImageUrl !== undefined && { imageUrl: finalImageUrl })
+        ...(finalImageUrl !== undefined && { imageUrl: finalImageUrl }),
+        ...(finalVideoUrl !== undefined && { videoUrl: finalVideoUrl || null, video: finalVideoUrl || null })
       };
 
       try {
@@ -1263,6 +1427,8 @@ export const PropertyProvider = ({ children }) => {
       computeMatchScore,
       computePropertyMatchesLocally,
       computeRequirementMatchesLocally,
+      uploadImageFile,
+      uploadVideoFile,
       importHistory,
       bulkAddItems,
       revertImportBatch

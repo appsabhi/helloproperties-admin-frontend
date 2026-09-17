@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { PropertyContext } from "../context/PropertyContext";
-import { Loader2, ChevronDown, ImagePlus, X, Sparkles, Plus, Check, Video, Film, Link } from "lucide-react";
+import { Loader2, ChevronDown, ImagePlus, X, Sparkles, Plus, Check, Video, Film, Link, AlertCircle } from "lucide-react";
 import LocationSelector from "./LocationSelector";
 
 const DEFAULT_INITIAL_VALUES = {};
@@ -24,20 +24,30 @@ const DESCRIPTION_KEYWORDS = [
 ];
 
 export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "Submit", initialValues = DEFAULT_INITIAL_VALUES }) {
-  const { isApiLoading } = useContext(PropertyContext) || {};
+  const { isApiLoading, uploadVideoFile } = useContext(PropertyContext) || {};
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [imagePreviews, setImagePreviews] = useState({});
   const [videoPreviews, setVideoPreviews] = useState({});
+  const [videoUploading, setVideoUploading] = useState({});
+  const [videoErrors, setVideoErrors] = useState({});
+  const [videoFileName, setVideoFileName] = useState({});
   const [customKeywords, setCustomKeywords] = useState([]);
   const [newKeywordInput, setNewKeywordInput] = useState("");
 
   useEffect(() => {
     const defaultData = {};
+    const initVideo = initialValues.videoUrl || initialValues.video || "";
+
     schema.forEach(field => {
-      defaultData[field.id] = initialValues[field.id] !== undefined
+      let val = initialValues[field.id] !== undefined
         ? initialValues[field.id]
         : (field.defaultValue !== undefined ? field.defaultValue : "");
+
+      if (field.type === 'video') {
+        val = initVideo || val;
+      }
+      defaultData[field.id] = val;
 
       if (field.hasUnit && field.unitId) {
         defaultData[field.unitId] = initialValues[field.unitId] !== undefined
@@ -49,6 +59,18 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     if (initialValues.preferredLocation) defaultData.preferredLocation = initialValues.preferredLocation;
     if (initialValues.district) defaultData.district = initialValues.district;
     if (initialValues.state) defaultData.state = initialValues.state;
+
+    const initKeywords = Array.isArray(initialValues.keywords) ? initialValues.keywords : [];
+    defaultData.keywords = initKeywords;
+
+    if (initVideo && typeof initVideo === 'string') {
+      defaultData.videoUrl = initVideo;
+      defaultData.video = initVideo;
+      const extractedName = initVideo.split('/').pop().split('?')[0];
+      setVideoFileName({ video: extractedName });
+      setVideoPreviews({ video: initVideo });
+    }
+
     setFormData(defaultData);
     setErrors({});
     setImagePreviews({});
@@ -104,46 +126,113 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     }
   };
 
-  const handleVideoChange = (e, fieldId) => {
+  const handleVideoSelect = async (e, fieldId) => {
     const file = e.target.files && e.target.files[0];
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setVideoPreviews(prev => ({ ...prev, [fieldId]: previewUrl }));
-      setFormData(prev => ({ ...prev, [fieldId]: file, videoFile: file, videoUrl: previewUrl }));
-      if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
+    if (!file) return;
+
+    e.target.value = '';
+
+    const allowedExtensions = ['mp4', 'webm', 'mov'];
+    const fileName = file.name || '';
+    const ext = fileName.split('.').pop().toLowerCase();
+    const mimeType = file.type || '';
+
+    const isAllowedFormat = allowedExtensions.includes(ext) ||
+      mimeType === 'video/mp4' ||
+      mimeType === 'video/webm' ||
+      mimeType === 'video/quicktime' ||
+      mimeType.includes('mov');
+
+    if (!isAllowedFormat) {
+      setVideoErrors(prev => ({
+        ...prev,
+        [fieldId]: 'Unsupported video format. Please upload an MP4, WebM, or MOV video file.'
+      }));
+      return;
+    }
+
+    const MAX_50MB = 50 * 1024 * 1024;
+    if (file.size > MAX_50MB) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setVideoErrors(prev => ({
+        ...prev,
+        [fieldId]: `Video size (${sizeMB} MB) exceeds the maximum allowed 50 MB limit.`
+      }));
+      return;
+    }
+
+    setVideoErrors(prev => ({ ...prev, [fieldId]: null }));
+    setVideoUploading(prev => ({ ...prev, [fieldId]: true }));
+    setVideoFileName(prev => ({ ...prev, [fieldId]: fileName }));
+
+    const localPreviewUrl = URL.createObjectURL(file);
+    setVideoPreviews(prev => ({ ...prev, [fieldId]: localPreviewUrl }));
+
+    try {
+      const uploadFn = uploadVideoFile || (async () => ({ success: false, error: 'Upload service unavailable' }));
+      const res = await uploadFn(file);
+
+      setVideoUploading(prev => ({ ...prev, [fieldId]: false }));
+
+      if (res && res.success && res.videoUrl) {
+        const returnedUrl = typeof res.videoUrl === 'string' ? res.videoUrl : '';
+        setVideoPreviews(prev => ({ ...prev, [fieldId]: returnedUrl }));
+        setFormData(prev => ({
+          ...prev,
+          [fieldId]: returnedUrl,
+          videoUrl: returnedUrl,
+          video: returnedUrl,
+          videoFile: null
+        }));
+        if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
+      } else {
+        const errorMsg = (res && res.error) ? res.error : 'Video upload failed. Please try again.';
+        setVideoErrors(prev => ({ ...prev, [fieldId]: errorMsg }));
+      }
+    } catch (err) {
+      setVideoUploading(prev => ({ ...prev, [fieldId]: false }));
+      setVideoErrors(prev => ({ ...prev, [fieldId]: err.message || 'Network error during upload.' }));
     }
   };
 
-  const toggleKeyword = (fieldId, keyword) => {
-    const currentVal = formData[fieldId] || "";
-    const exists = currentVal.toLowerCase().includes(keyword.toLowerCase());
-    let nextVal = "";
-
-    if (exists) {
-      let parts = currentVal.split(/,\s*/);
-      let filtered = parts.filter(p => p.trim().toLowerCase() !== keyword.toLowerCase());
-      nextVal = filtered.join(", ");
-    } else {
-      let trimmed = currentVal.trim();
-      if (!trimmed) {
-        nextVal = keyword;
-      } else if (trimmed.endsWith(",") || trimmed.endsWith(".")) {
-        nextVal = `${trimmed} ${keyword}`;
-      } else {
-        nextVal = `${trimmed}, ${keyword}`;
-      }
-    }
-
-    const keywordsArray = nextVal.split(/,\s*/).map(s => s.trim()).filter(Boolean);
+  const handleRemoveVideo = (fieldId) => {
+    setVideoPreviews(prev => ({ ...prev, [fieldId]: null }));
+    setVideoFileName(prev => ({ ...prev, [fieldId]: null }));
+    setVideoErrors(prev => ({ ...prev, [fieldId]: null }));
+    setVideoUploading(prev => ({ ...prev, [fieldId]: false }));
     setFormData(prev => ({
       ...prev,
-      [fieldId]: nextVal,
-      keywords: keywordsArray
+      [fieldId]: null,
+      videoUrl: null,
+      video: null,
+      videoFile: null
     }));
-    if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
   };
 
-  const handleAddCustomKeyword = (fieldId) => {
+  const toggleKeyword = (keyword) => {
+    if (!keyword || typeof keyword !== 'string') return;
+    const trimmed = keyword.trim();
+    if (!trimmed) return;
+
+    const currentKeywords = Array.isArray(formData.keywords) ? formData.keywords : [];
+    const lowerTarget = trimmed.toLowerCase();
+
+    const exists = currentKeywords.some(k => k.toLowerCase() === lowerTarget);
+    let nextKeywords = [];
+
+    if (exists) {
+      nextKeywords = currentKeywords.filter(k => k.toLowerCase() !== lowerTarget);
+    } else {
+      nextKeywords = [...currentKeywords, trimmed];
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      keywords: nextKeywords
+    }));
+  };
+
+  const handleAddCustomKeyword = () => {
     const trimmed = newKeywordInput.trim();
     if (!trimmed) return;
 
@@ -151,7 +240,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       setCustomKeywords(prev => [...prev, trimmed]);
     }
 
-    toggleKeyword(fieldId, trimmed);
+    toggleKeyword(trimmed);
     setNewKeywordInput("");
   };
 
@@ -327,47 +416,35 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                       <label htmlFor={`input-${field.id}`} className={floatLabel}>
                         {field.label}{field.required && <span className="text-[#B0004F] ml-0.5">*</span>}
                       </label>
-                      {field.id === "description" && (
-                        <button
-                          type="button"
-                          onClick={() => handleAutoGenerateDescription(field.id)}
-                          className="absolute right-3 top-3 inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold text-[#B0004F] bg-white border border-[#B0004F]/20 hover:bg-[#B0004F] hover:text-white rounded-lg shadow-xs transition-all cursor-pointer z-10 group"
-                          title="Auto generate property description from entered details"
-                        >
-                          <Sparkles className="w-3 h-3 text-[#B0004F] group-hover:text-white transition-colors" />
-                          <span>Auto Fill Details</span>
-                        </button>
-                      )}
                     </div>
 
-                    {/* Quick Autofill Keywords */}
+                    {/* Quick Property Keywords */}
                     {field.id === "description" && (
                       <div className="flex flex-col gap-2 bg-[#F8F9FA] p-3 rounded-xl border border-slate-200/70">
                         <div className="flex items-center justify-between">
                           <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
-                            Quick Autofill Keywords (Click to add/remove)
+                            Quick Property Keywords (Click to add/remove)
                           </span>
-                          {formData[field.id] && (
+                          {Array.isArray(formData.keywords) && formData.keywords.length > 0 && (
                             <button
                               type="button"
-                              onClick={() => handleChange(field.id, "")}
+                              onClick={() => setFormData(prev => ({ ...prev, keywords: [] }))}
                               className="text-[10.5px] font-semibold text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
                             >
-                              Clear Text
+                              Clear Keywords ({formData.keywords.length})
                             </button>
                           )}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                           {Array.from(new Set([...DESCRIPTION_KEYWORDS, ...customKeywords])).map((kw) => {
-                            const isSelected = (formData[field.id] || "")
-                              .toLowerCase()
-                              .includes(kw.toLowerCase());
+                            const isSelected = Array.isArray(formData.keywords) &&
+                              formData.keywords.some(k => k.toLowerCase() === kw.toLowerCase());
 
                             return (
                               <button
                                 key={kw}
                                 type="button"
-                                onClick={() => toggleKeyword(field.id, kw)}
+                                onClick={() => toggleKeyword(kw)}
                                 className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-medium transition-all cursor-pointer ${
                                   isSelected
                                     ? "bg-[#B0004F] text-white shadow-xs font-semibold"
@@ -396,7 +473,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   e.preventDefault();
-                                  handleAddCustomKeyword(field.id);
+                                  handleAddCustomKeyword();
                                 }
                               }}
                               className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#B0004F] transition-all"
@@ -404,7 +481,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleAddCustomKeyword(field.id)}
+                            onClick={handleAddCustomKeyword}
                             className="px-3 py-1.5 text-[11.5px] font-semibold text-white bg-[#B0004F] hover:bg-[#9A0044] rounded-lg shadow-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -484,77 +561,150 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                   </div>
 
                 ) : field.type === "video" ? (
-                  /* Video upload & Link */
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-slate-400 px-0.5">
-                      {field.label}{field.required && <span className="text-[#B0004F] ml-0.5">*</span>}
-                    </span>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Video File Upload */}
-                      <label className="relative flex items-center gap-3 bg-[#F4F4F6] hover:bg-white border-2 border-dashed border-slate-200 hover:border-[#B0004F]/30 rounded-xl px-4 py-3 transition-all cursor-pointer group">
-                        <input
-                          type="file"
-                          accept="video/*"
-                          onChange={(e) => handleVideoChange(e, field.id)}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <Video className="w-5 h-5 text-slate-400 group-hover:text-[#B0004F] transition-colors flex-shrink-0" />
-                        <div>
-                          <span className="block text-[12.5px] font-medium text-slate-600 group-hover:text-slate-800">
-                            Upload Video File
-                          </span>
-                          <span className="text-[10.5px] text-slate-400">MP4, WEBM or MOV</span>
-                        </div>
-                      </label>
-
-                      {/* Video URL Input */}
-                      <div className="relative flex items-center bg-[#F4F4F6] rounded-xl border border-transparent focus-within:border-slate-300 transition-colors px-3 py-2.5">
-                        <Link className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
-                        <input
-                          type="url"
-                          placeholder="Or paste Video / YouTube URL..."
-                          value={typeof formData[field.id] === 'string' ? formData[field.id] : (formData.videoUrl || '')}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setFormData(prev => ({ ...prev, [field.id]: val, videoUrl: val }));
-                            if (errors[field.id]) setErrors(prev => ({ ...prev, [field.id]: null }));
-                          }}
-                          className="w-full bg-transparent text-[12.5px] text-slate-800 placeholder-slate-400 focus:outline-none"
-                        />
-                      </div>
+                  /* Video upload & Link UI */
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-slate-500 px-0.5">
+                        {field.label}{field.required && <span className="text-[#B0004F] ml-0.5">*</span>}
+                      </span>
+                      <span className="text-[10.5px] text-slate-400">
+                        MP4, WebM or MOV · Max 50 MB
+                      </span>
                     </div>
 
-                    {/* Video Preview */}
-                    {(videoPreviews[field.id] || (typeof formData[field.id] === 'string' && formData[field.id]) || formData.videoUrl) && (
-                      <div className="relative mt-2 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 p-2 flex items-center justify-between text-white max-w-full">
-                        {videoPreviews[field.id] || (formData[field.id] instanceof File) ? (
-                          <div className="w-full">
-                            <video
-                              src={videoPreviews[field.id] || (formData[field.id] instanceof File ? URL.createObjectURL(formData[field.id]) : '')}
-                              controls
-                              className="w-full max-h-48 object-cover rounded-lg"
-                            />
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2.5 py-1 px-2 text-xs truncate">
+                    {/* Case A: Uploading State */}
+                    {videoUploading[field.id] ? (
+                      <div className="flex flex-col items-center justify-center p-6 bg-[#F8F9FA] rounded-2xl border-2 border-dashed border-[#B0004F]/40 animate-pulse">
+                        <Loader2 className="w-6 h-6 text-[#B0004F] animate-spin mb-2" />
+                        <span className="text-xs font-semibold text-slate-700">Uploading Video to Server...</span>
+                        {videoFileName[field.id] && (
+                          <span className="text-[11px] text-slate-400 mt-0.5 truncate max-w-xs">{videoFileName[field.id]}</span>
+                        )}
+                      </div>
+
+                    /* Case B: Video Preview (Uploaded or Loaded from Edit) */
+                    ) : (videoPreviews[field.id] || (formData.videoUrl && typeof formData.videoUrl === 'string') || (formData[field.id] && typeof formData[field.id] === 'string')) ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
+                          {(() => {
+                            const currentVideoSrc = videoPreviews[field.id] || formData.videoUrl || (typeof formData[field.id] === 'string' ? formData[field.id] : '');
+
+                            if (currentVideoSrc && (currentVideoSrc.includes('youtu') || currentVideoSrc.includes('embed'))) {
+                              return (
+                                <iframe
+                                  src={currentVideoSrc.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                                  title="Video Preview"
+                                  className="w-full h-48 sm:h-56 rounded-2xl border-0"
+                                  allowFullScreen
+                                />
+                              );
+                            }
+
+                            return (
+                              <video
+                                src={currentVideoSrc}
+                                controls
+                                className="w-full max-h-56 object-cover rounded-2xl"
+                              />
+                            );
+                          })()}
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveVideo(field.id)}
+                            className="absolute top-3 right-3 bg-black/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-lg transition-colors cursor-pointer z-20"
+                            title="Remove Video"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* File Details & Action Controls */}
+                        <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-200/70">
+                          <div className="flex items-center gap-2 min-w-0">
                             <Film className="w-4 h-4 text-[#B0004F] shrink-0" />
-                            <span className="truncate text-slate-200 text-[12px]">
-                              {typeof formData[field.id] === 'string' ? formData[field.id] : formData.videoUrl}
+                            <span className="text-xs font-medium text-slate-700 truncate">
+                              {videoFileName[field.id] || (formData.videoUrl ? formData.videoUrl.split('/').pop().split('?')[0] : 'Uploaded Video')}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0 border border-emerald-200">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              Ready
                             </span>
                           </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVideoPreviews(prev => ({ ...prev, [field.id]: null }));
-                            setFormData(prev => ({ ...prev, [field.id]: "", videoUrl: "", videoFile: null }));
-                          }}
-                          className="absolute top-3 right-3 bg-black/80 hover:bg-red-500 text-white rounded-full p-1 shadow-md transition-colors cursor-pointer z-10"
-                          title="Remove video"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <label className="text-xs font-semibold text-[#B0004F] hover:text-[#88003d] hover:underline cursor-pointer">
+                              Replace
+                              <input
+                                type="file"
+                                accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                                onChange={(e) => handleVideoSelect(e, field.id)}
+                                className="hidden"
+                              />
+                            </label>
+                            <span className="text-slate-300">|</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveVideo(field.id)}
+                              className="text-xs font-semibold text-red-500 hover:text-red-700 hover:underline cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                    /* Case C: File Selector Dropzone + Video Link Input */
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label className="relative flex items-center gap-3 bg-[#F4F4F6] hover:bg-white border-2 border-dashed border-slate-200 hover:border-[#B0004F]/40 rounded-2xl px-4 py-3.5 transition-all cursor-pointer group">
+                          <input
+                            type="file"
+                            accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                            onChange={(e) => handleVideoSelect(e, field.id)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          />
+                          <div className="w-9 h-9 rounded-xl bg-[#B0004F]/10 group-hover:bg-[#B0004F] text-[#B0004F] group-hover:text-white flex items-center justify-center transition-colors shrink-0">
+                            <Video className="w-4 h-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="block text-[13px] font-semibold text-slate-700 group-hover:text-[#B0004F] transition-colors">
+                              Click to select video
+                            </span>
+                            <span className="block text-[11px] text-slate-400">MP4, WebM or MOV · Max 50 MB</span>
+                          </div>
+                        </label>
+
+                        <div className="relative flex items-center bg-[#F4F4F6] hover:bg-white rounded-2xl border border-slate-200/80 focus-within:border-[#B0004F] transition-colors px-3 py-3">
+                          <Link className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                          <input
+                            type="url"
+                            placeholder="Or paste Video / YouTube URL..."
+                            value={typeof formData[field.id] === 'string' ? formData[field.id] : (formData.videoUrl || '')}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setFormData(prev => ({
+                                ...prev,
+                                [field.id]: val || null,
+                                videoUrl: val || null,
+                                video: val || null
+                              }));
+                              if (errors[field.id]) setErrors(prev => ({ ...prev, [field.id]: null }));
+                              if (val) {
+                                setVideoPreviews(prev => ({ ...prev, [field.id]: val }));
+                              }
+                            }}
+                            className="w-full bg-transparent text-[12.5px] text-slate-800 placeholder-slate-400 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Video Error Banner */}
+                    {videoErrors[field.id] && (
+                      <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
+                        <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                        <span className="flex-1">{videoErrors[field.id]}</span>
                       </div>
                     )}
                   </div>

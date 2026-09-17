@@ -400,38 +400,54 @@ export default function Properties() {
   // Handle Add Property Submission
   const handleAddPropertySubmit = async (formData) => {
     setIsSubmittingAddProp(true);
-    const formattedData = {
-      ...formData,
-      area: parseAreaWithUnit(formData.area, formData.areaUnit || 'Cent'),
-      expectedPrice: parsePriceWithUnit(formData.expectedPrice, formData.expectedPriceUnit || '/ Cent', formData.area),
-      monthlyRent: parsePriceWithUnit(formData.monthlyRent, formData.monthlyRentUnit || '/ Month', formData.area),
-      securityDeposit: parseDepositVal(formData.securityDeposit, formData.securityDepositUnit, formData.monthlyRent),
-      imageUrl: formData.imageUrl || ''
-    };
-    const res = await addProperty(formattedData);
-    setIsSubmittingAddProp(false);
+    try {
+      const formattedData = {
+        ...formData,
+        area: parseAreaWithUnit(formData.area, formData.areaUnit || 'Cent'),
+        expectedPrice: parsePriceWithUnit(formData.expectedPrice, formData.expectedPriceUnit || '/ Cent', formData.area),
+        monthlyRent: parsePriceWithUnit(formData.monthlyRent, formData.monthlyRentUnit || '/ Month', formData.area),
+        securityDeposit: parseDepositVal(formData.securityDeposit, formData.securityDepositUnit, formData.monthlyRent),
+        imageUrl: formData.imageUrl || ''
+      };
+      const res = await addProperty(formattedData);
 
-    if (res) {
-      setAddPropertyResult(res);
-      showToast('Property created successfully in PostgreSQL database!');
+      if (res && res.success) {
+        setAddPropertyResult(res);
+        showToast('Property created successfully in PostgreSQL database!');
+      } else {
+        showToast(res?.error || 'Failed to create property. Please try again.', 'error');
+      }
+    } catch (err) {
+      console.error('Error submitting property:', err);
+      showToast(err.message || 'An error occurred while saving the property.', 'error');
+    } finally {
+      setIsSubmittingAddProp(false);
     }
   };
 
   // Handle Add Requirement Submission
   const handleAddRequirementSubmit = async (formData) => {
     setIsSubmittingAddReq(true);
-    const formattedData = {
-      ...formData,
-      requiredArea: parseAreaWithUnit(formData.requiredArea, formData.requiredAreaUnit || 'Cent'),
-      budget: parsePriceWithUnit(formData.budget, formData.budgetUnit || '/ Cent', formData.requiredArea),
-      maximumMonthlyRent: parsePriceWithUnit(formData.maximumMonthlyRent, formData.maximumMonthlyRentUnit || '/ Month', formData.requiredArea)
-    };
-    const res = await addRequirement(formattedData);
-    setIsSubmittingAddReq(false);
+    try {
+      const formattedData = {
+        ...formData,
+        requiredArea: parseAreaWithUnit(formData.requiredArea, formData.requiredAreaUnit || 'Cent'),
+        budget: parsePriceWithUnit(formData.budget, formData.budgetUnit || '/ Cent', formData.requiredArea),
+        maximumMonthlyRent: parsePriceWithUnit(formData.maximumMonthlyRent, formData.maximumMonthlyRentUnit || '/ Month', formData.requiredArea)
+      };
+      const res = await addRequirement(formattedData);
 
-    if (res) {
-      setAddRequirementResult(res);
-      showToast('Buyer requirement created successfully in PostgreSQL database!');
+      if (res && res.success) {
+        setAddRequirementResult(res);
+        showToast('Buyer requirement created successfully in PostgreSQL database!');
+      } else {
+        showToast(res?.error || 'Failed to create buyer requirement. Please try again.', 'error');
+      }
+    } catch (err) {
+      console.error('Error submitting requirement:', err);
+      showToast(err.message || 'An error occurred while saving the requirement.', 'error');
+    } finally {
+      setIsSubmittingAddReq(false);
     }
   };
 
@@ -474,11 +490,14 @@ export default function Properties() {
       securityDeposit: prop.securityDeposit || '',
       securityDepositUnit: 'Thousand',
       description: prop.description || '',
+      keywords: Array.isArray(prop.keywords) ? prop.keywords : [],
       ownerName: prop.ownerName || '',
       phoneNumber: prop.phoneNumber || prop.ownerPhone || '',
       ownerAddress: prop.ownerAddress || '',
       status: prop.status || 'Available',
       imageUrl: prop.imageUrl || '',
+      videoUrl: prop.videoUrl || prop.video_url || prop.video || '',
+      video: prop.videoUrl || prop.video_url || prop.video || '',
       listingType: prop.listingType || 'Sale'
     });
     setEditPropError(null);
@@ -496,22 +515,28 @@ export default function Properties() {
     setIsSubmittingEditProp(true);
     setEditPropError(null);
 
-    const formattedPayload = {
-      ...editPropForm,
-      area: parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
-      expectedPrice: parsePriceWithUnit(editPropForm.expectedPrice, editPropForm.expectedPriceUnit || '/ Cent'),
-      monthlyRent: parsePriceWithUnit(editPropForm.monthlyRent, editPropForm.monthlyRentUnit || '/ Month'),
-      securityDeposit: parseDepositVal(editPropForm.securityDeposit, editPropForm.securityDepositUnit, editPropForm.monthlyRent)
-    };
+    try {
+      const formattedPayload = {
+        ...editPropForm,
+        area: parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
+        expectedPrice: parsePriceWithUnit(editPropForm.expectedPrice, editPropForm.expectedPriceUnit || '/ Cent'),
+        monthlyRent: parsePriceWithUnit(editPropForm.monthlyRent, editPropForm.monthlyRentUnit || '/ Month'),
+        securityDeposit: parseDepositVal(editPropForm.securityDeposit, editPropForm.securityDepositUnit, editPropForm.monthlyRent)
+      };
 
-    const res = await updateProperty(editingProperty.id, formattedPayload);
-    setIsSubmittingEditProp(false);
+      const res = await updateProperty(editingProperty.id, formattedPayload);
 
-    if (res && res.success) {
-      setEditingProperty(null);
-      showToast('Property updated successfully!', 'success');
-    } else {
-      setEditPropError(res?.error || 'Failed to update property. Please try again.');
+      if (res && res.success) {
+        setEditingProperty(null);
+        showToast('Property updated successfully!', 'success');
+      } else {
+        setEditPropError(res?.error || 'Failed to update property. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error updating property:', err);
+      setEditPropError(err.message || 'An error occurred while updating the property.');
+    } finally {
+      setIsSubmittingEditProp(false);
     }
   };
 
@@ -1297,10 +1322,10 @@ export default function Properties() {
       {/* FULL DETAILS POPUP MODAL */}
       {viewingDetailTarget && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200/80 shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200/80 shadow-2xl overflow-hidden my-auto max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
             {/* Modal Header */}
-            <div className="px-6 py-4 sm:px-7 border-b border-slate-100 flex items-center justify-between bg-white">
-              <div className="flex items-center gap-2.5 min-w-0">
+            <div className="px-5 py-3.5 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
                   (viewingDetailTarget.item.requirementType === 'Rent' || viewingDetailTarget.item.listingType === 'Rent')
                     ? 'bg-violet-50 text-violet-700 border border-violet-100'
@@ -1324,7 +1349,7 @@ export default function Properties() {
               </div>
               <button 
                 onClick={() => setViewingDetailTarget(null)}
-                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                 title="Close"
               >
                 <X className="w-5 h-5" />
@@ -1332,30 +1357,54 @@ export default function Properties() {
             </div>
 
             {/* Modal Scrollable Body */}
-            <div className="p-6 sm:p-7 overflow-y-auto space-y-5 flex-1 font-sans">
-              {/* Image banner for property */}
-              {viewingDetailTarget.type === 'property' && viewingDetailTarget.item.imageUrl && (
-                <div className="h-56 sm:h-64 w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
-                  <img 
-                    src={viewingDetailTarget.item.imageUrl} 
-                    alt={viewingDetailTarget.item.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
-                    }}
-                  />
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 font-sans">
+              {/* Media Container: Image or Video */}
+              {viewingDetailTarget.type === 'property' && (
+                <div className="space-y-3">
+                  {viewingDetailTarget.item.imageUrl && (
+                    <div className="h-40 sm:h-48 max-h-[28vh] w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
+                      <img 
+                        src={viewingDetailTarget.item.imageUrl} 
+                        alt={viewingDetailTarget.item.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Video Player in Popup */}
+                  {viewingDetailTarget.item.videoUrl && (
+                    <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
+                      {viewingDetailTarget.item.videoUrl.includes('youtu') || viewingDetailTarget.item.videoUrl.includes('embed') ? (
+                        <iframe
+                          src={viewingDetailTarget.item.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                          title="Property Video"
+                          className="w-full h-44 rounded-xl border-0"
+                          allowFullScreen
+                        />
+                      ) : (
+                        <video
+                          src={viewingDetailTarget.item.videoUrl}
+                          controls
+                          className="w-full max-h-44 object-cover rounded-xl"
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Title & Financials */}
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-4 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
                 <div className="min-w-0 flex-1">
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+                  <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
                     {viewingDetailTarget.type === 'property' 
                       ? viewingDetailTarget.item.title
                       : (viewingDetailTarget.item.requirementTitle || `${viewingDetailTarget.item.propertyType} Requirement`)}
                   </h3>
-                  <div className="flex items-center gap-1.5 mt-1.5 text-xs text-slate-500">
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span>
                       {viewingDetailTarget.type === 'property'
@@ -1365,13 +1414,13 @@ export default function Properties() {
                   </div>
                 </div>
 
-                <div className="bg-slate-50 border border-slate-100 px-4 py-2.5 rounded-xl text-left sm:text-right shrink-0">
+                <div className="bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-xl text-left sm:text-right shrink-0">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
                     {viewingDetailTarget.item.listingType === 'Rent' || viewingDetailTarget.item.requirementType === 'Rent'
                       ? 'Rent'
                       : 'Price / Budget'}
                   </span>
-                  <span className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight block">
+                  <span className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight block">
                     {viewingDetailTarget.type === 'property'
                       ? (viewingDetailTarget.item.listingType === 'Rent'
                           ? formatPrice(viewingDetailTarget.item.monthlyRent)
@@ -1381,52 +1430,46 @@ export default function Properties() {
                           : formatPrice(viewingDetailTarget.item.budget))}
                   </span>
                   {getItemUnitText(viewingDetailTarget.item, viewingDetailTarget.type) && (
-                    <span className="text-[11px] font-bold text-[#B0004F] bg-[#B0004F]/10 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                    <span className="text-[10.5px] font-bold text-[#B0004F] bg-[#B0004F]/10 px-2 py-0.5 rounded-md inline-block mt-0.5">
                       {getItemUnitText(viewingDetailTarget.item, viewingDetailTarget.type)}
                     </span>
                   )}
-                  {/* Temporarily hidden security deposit */}
-                  {/* {Number(viewingDetailTarget.item.securityDeposit) > 0 && (
-                    <span className="text-[11px] text-slate-500 font-medium block mt-1">
-                      Deposit: {formatPrice(viewingDetailTarget.item.securityDeposit)}
-                    </span>
-                  )} */}
                 </div>
               </div>
 
               {/* Specifications Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5 block">{viewingDetailTarget.item.propertyType}</span>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.propertyType}</span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider block">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
                     {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5 block">
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
                     {viewingDetailTarget.type === 'property' 
                       ? formatDisplayArea(viewingDetailTarget.item.area) 
                       : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider block">Location / City</span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5 block truncate">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Location / City</span>
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
                     {viewingDetailTarget.type === 'property' ? viewingDetailTarget.item.location : viewingDetailTarget.item.preferredLocation}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider block">District</span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5 block">{viewingDetailTarget.item.district || '—'}</span>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">District</span>
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.district || '—'}</span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider block">State</span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5 block">{viewingDetailTarget.item.state || '—'}</span>
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">State</span>
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.state || '—'}</span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider block">Registered Date</span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5 block">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Registered Date</span>
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
                     {viewingDetailTarget.item.createdAt 
                       ? new Date(viewingDetailTarget.item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
                       : 'Recently'}
@@ -1434,35 +1477,46 @@ export default function Properties() {
                 </div>
               </div>
 
+              {/* Keywords Section */}
+              {Array.isArray(viewingDetailTarget.item.keywords) && viewingDetailTarget.item.keywords.length > 0 && (
+                <div className="space-y-1.5">
+                  <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Property Keywords</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewingDetailTarget.item.keywords.map((kw, kIdx) => (
+                      <span key={kIdx} className="px-2.5 py-1 rounded-lg bg-rose-50 text-[#B0004F] border border-rose-100/80 text-xs font-semibold">
+                        {kw}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Description & Remarks */}
               {viewingDetailTarget.item.description && (
                 <div className="space-y-1.5">
-                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Description & Remarks</h4>
-                  <p className="text-xs sm:text-sm text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
+                  <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Description & Remarks</h4>
+                  <p className="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
                     {viewingDetailTarget.item.description}
                   </p>
                 </div>
               )}
 
               {/* Hello Properties Contact Details Box */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-3">
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2.5">
+                <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
                   Hello Properties Contact Details
                 </h4>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#B0004F] text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-full bg-[#B0004F] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
                       HP
                     </div>
                     <div>
-                      <p className="text-xs sm:text-sm font-bold text-slate-900">
+                      <p className="text-xs font-bold text-slate-900">
                         Hello Properties Support
                       </p>
                       <p className="text-xs text-slate-500 font-medium">
                         +91 98765 43210
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        Official Support & Helpdesk
                       </p>
                     </div>
                   </div>
@@ -1470,7 +1524,7 @@ export default function Properties() {
                   <div className="flex items-center gap-2">
                     <a 
                       href="tel:9876543210"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold transition-colors"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold transition-colors"
                     >
                       <Phone className="w-3.5 h-3.5 text-slate-500" />
                       <span>Call</span>
@@ -1479,7 +1533,7 @@ export default function Properties() {
                       href="https://wa.me/919876543210"
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-all"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-all"
                     >
                       <Share2 className="w-3.5 h-3.5" />
                       <span>WhatsApp</span>
@@ -1490,7 +1544,7 @@ export default function Properties() {
             </div>
 
             {/* Modal Actions Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+            <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-2 shrink-0">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {

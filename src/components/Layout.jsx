@@ -67,6 +67,22 @@ export default function Layout({ children }) {
   const { isApiLoading, apiLoadingMessage } = useContext(PropertyContext) || {};
   const { logout, user } = useContext(AuthContext) || {};
 
+  const searchParams = new URLSearchParams(location.search);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState(searchParams.get('search') || '');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setGlobalSearchQuery(params.get('search') || '');
+  }, [location.search]);
+
+  const handleGlobalSearch = (e) => {
+    if (e.key === 'Enter') {
+      const isRequirementsPage = location.pathname.includes('/requirements') || location.pathname.includes('/buy');
+      const basePath = isRequirementsPage ? '/properties/requirements' : '/properties';
+      navigate(`${basePath}?search=${encodeURIComponent(globalSearchQuery.trim())}`);
+    }
+  };
+
   useEffect(() => {
     if (location.pathname.startsWith('/properties')) {
       setIsPropertiesOpen(true);
@@ -254,6 +270,9 @@ export default function Layout({ children }) {
               <input
                 type="text"
                 placeholder="Search properties, locations, owners..."
+                value={globalSearchQuery}
+                onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                onKeyDown={handleGlobalSearch}
                 className="w-full pl-9 pr-4 py-2 border border-[#E8E8E8] rounded-full text-xs bg-white text-[#171717] focus:outline-none focus:ring-2 focus:ring-[#C4005A]/10 focus:border-[#C4005A] transition-colors"
               />
             </div>

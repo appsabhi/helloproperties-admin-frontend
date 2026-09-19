@@ -96,11 +96,18 @@ export default function Properties() {
     setMatchFilter('all');
     setSharingTarget(null);
     setViewingDetailTarget(null);
-    setSearchQuery('');
+    
+    const currentParams = new URLSearchParams(location.search);
+    const q = currentParams.get('search') || '';
+    setSearchQuery(q);
+    
     setStatusFilter('');
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('search') || '';
+  });
   const [statusFilter, setStatusFilter] = useState('');
 
   // Expandable cards state: { [id]: boolean }

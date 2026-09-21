@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Search, ChevronDown, Loader2, Compass, CheckCircle2 } from 'lucide-react';
+import { MapPin, Search, ChevronDown, Loader2, Compass, CheckCircle2, X } from 'lucide-react';
 import { ALL_INDIAN_STATES, getDistrictsForState, INDIA_LOCATION_DATA } from '../data/indiaLocationData';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
@@ -14,6 +14,10 @@ const CLIENT_LOCATION_LOOKUP = {
   'engapuzha': { district: 'Kozhikode', state: 'Kerala' },
   'kodencherry': { district: 'Kozhikode', state: 'Kerala' },
   'kunnamangalam': { district: 'Kozhikode', state: 'Kerala' },
+  'palazhi': { district: 'Kozhikode', state: 'Kerala' },
+  'palazhy': { district: 'Kozhikode', state: 'Kerala' },
+  'thondayad bypass': { district: 'Kozhikode', state: 'Kerala' },
+  'hilite mall': { district: 'Kozhikode', state: 'Kerala' },
   'mukkam': { district: 'Kozhikode', state: 'Kerala' },
   'mavoor': { district: 'Kozhikode', state: 'Kerala' },
   'thondayad': { district: 'Kozhikode', state: 'Kerala' },
@@ -134,13 +138,14 @@ export default function LocationSelector({
   onChange,
   errors = {},
   locationFieldName = 'location', // 'location' for Property, 'preferredLocation' for Requirement
+  allowMultiple = false,
   isEdit = false
 }) {
   const locationValue = formData[locationFieldName] || '';
   const districtValue = formData.district || '';
   const stateValue = formData.state || 'Kerala';
 
-  const [query, setQuery] = useState(locationValue);
+  const [query, setQuery] = useState(allowMultiple ? '' : locationValue);
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -150,8 +155,10 @@ export default function LocationSelector({
 
   // Sync internal query when prop changes externally
   useEffect(() => {
-    setQuery(formData[locationFieldName] || '');
-  }, [formData[locationFieldName]]);
+    if (!allowMultiple) {
+      setQuery(formData[locationFieldName] || '');
+    }
+  }, [formData[locationFieldName], allowMultiple]);
 
   // Sync district options based on current State
   useEffect(() => {
@@ -270,14 +277,27 @@ export default function LocationSelector({
     const selectedDistrict = item.district || districtValue;
     const selectedState = item.state || stateValue || 'Kerala';
 
-    setQuery(selectedLocality);
-    setIsOpen(false);
-
-    onChange({
-      [locationFieldName]: selectedLocality,
-      district: selectedDistrict,
-      state: selectedState
-    });
+    if (allowMultiple) {
+      const currentLocs = formData[locationFieldName] ? String(formData[locationFieldName]).split(',').map(s => s.trim()).filter(Boolean) : [];
+      if (!currentLocs.includes(selectedLocality)) {
+        currentLocs.push(selectedLocality);
+      }
+      onChange({
+        [locationFieldName]: currentLocs.join(', '),
+        district: selectedDistrict,
+        state: selectedState
+      });
+      setQuery('');
+      setIsOpen(false);
+    } else {
+      setQuery(selectedLocality);
+      setIsOpen(false);
+      onChange({
+        [locationFieldName]: selectedLocality,
+        district: selectedDistrict,
+        state: selectedState
+      });
+    }
   };
 
   // Custom locality fallback -> Auto-detect District & State if possible
@@ -300,11 +320,24 @@ export default function LocationSelector({
 
     setIsOpen(false);
 
-    onChange({
-      [locationFieldName]: customText,
-      ...(detectedDistrict ? { district: detectedDistrict } : {}),
-      ...(detectedState ? { state: detectedState } : {})
-    });
+    if (allowMultiple) {
+      const currentLocs = formData[locationFieldName] ? String(formData[locationFieldName]).split(',').map(s => s.trim()).filter(Boolean) : [];
+      if (!currentLocs.includes(customText)) {
+        currentLocs.push(customText);
+      }
+      onChange({
+        [locationFieldName]: currentLocs.join(', '),
+        ...(detectedDistrict ? { district: detectedDistrict } : {}),
+        ...(detectedState ? { state: detectedState } : {})
+      });
+      setQuery('');
+    } else {
+      onChange({
+        [locationFieldName]: customText,
+        ...(detectedDistrict ? { district: detectedDistrict } : {}),
+        ...(detectedState ? { state: detectedState } : {})
+      });
+    }
   };
 
   // State Change handler -> Update districts list & reset district if invalid
@@ -384,6 +417,27 @@ export default function LocationSelector({
 
       {/* Locality autocomplete — floating label (TOP) */}
       <div className="relative" ref={wrapperRef}>
+        {allowMultiple && formData[locationFieldName] && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {String(formData[locationFieldName]).split(',').map(s => s.trim()).filter(Boolean).map((loc, idx) => (
+              <span key={idx} className="flex items-center gap-1.5 bg-[#FFF1F6] text-[#B0004F] px-3 py-1.5 rounded-full text-[12px] font-semibold border border-[#B0004F]/20 shadow-sm">
+                {loc}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentLocs = String(formData[locationFieldName]).split(',').map(s => s.trim()).filter(Boolean);
+                    const newLocs = currentLocs.filter(l => l !== loc);
+                    onChange({ [locationFieldName]: newLocs.join(', ') });
+                  }}
+                  className="hover:bg-[#B0004F]/20 rounded-full p-0.5 transition-colors cursor-pointer text-[#B0004F]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="relative">
           {isLoading ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B0004F] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
@@ -397,7 +451,9 @@ export default function LocationSelector({
             onChange={(e) => {
               const val = e.target.value;
               setQuery(val);
-              onChange(locationFieldName, val);
+              if (!allowMultiple) {
+                onChange(locationFieldName, val);
+              }
               setIsOpen(true);
               setHighlightedIndex(-1);
             }}

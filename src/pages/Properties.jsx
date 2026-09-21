@@ -1239,8 +1239,13 @@ export default function Properties() {
                         {req.requirementType === 'Rent' ? 'Rent' : 'Buy'}
                       </span>
                       <h3 className="font-bold text-base sm:text-[17px] text-slate-900 tracking-tight truncate hover:text-[#B0004F] transition-colors">
-                        {req.propertyType}
+                        {req.buyerName || req.requirementTitle || req.propertyType}
                       </h3>
+                      {req.buyerName && (
+                        <span className="text-sm font-medium text-slate-500 truncate">
+                          ({req.propertyType})
+                        </span>
+                      )}
                     </div>
 
                     <div className="text-right shrink-0">
@@ -1251,17 +1256,27 @@ export default function Properties() {
                         {req.requirementType === 'Rent' 
                           ? formatPrice(req.maximumMonthlyRent)
                           : formatPrice(req.budget)}
-                        {req.requirementType === 'Rent' && <span className="text-xs font-normal text-slate-400 ml-0.5">/mo</span>}
+                        <span className="text-xs font-normal text-slate-500 ml-0.5">
+                          {req.requirementType === 'Rent' 
+                            ? (req.maximumMonthlyRentUnit && req.maximumMonthlyRentUnit !== 'All Properties' ? req.maximumMonthlyRentUnit : '')
+                            : (req.budgetUnit && req.budgetUnit !== 'All Properties' ? req.budgetUnit : '')}
+                        </span>
                       </span>
                     </div>
                   </div>
 
-                  {/* Location Chip */}
-                  <div className="flex items-center gap-2 pt-0.5">
+                  {/* Tags / Chips Row */}
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5">
                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600 max-w-full">
                       <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">{req.preferredLocation}, {req.district}{req.state ? `, ${req.state}` : ''}</span>
                     </div>
+                    {req.requiredArea && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600 max-w-full">
+                        <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{req.requiredArea} {req.requiredAreaUnit}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1714,7 +1729,16 @@ export default function Properties() {
                   <div className="relative w-[105px] shrink-0 h-full flex items-center">
                     <select
                       value={editPropForm.areaUnit || 'Cent'}
-                      onChange={(e) => setEditPropForm({ ...editPropForm, areaUnit: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const cleanUnit = String(val).replace(/^\/\s*/, '').trim();
+                        setEditPropForm({ 
+                          ...editPropForm, 
+                          areaUnit: val,
+                          expectedPriceUnit: `/ ${cleanUnit}`,
+                          monthlyRentUnit: `/ ${cleanUnit}`
+                        });
+                      }}
                       className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
                     >
                       <option value="Cent">Cent</option>
@@ -2118,6 +2142,7 @@ export default function Properties() {
                   });
                 }}
                 locationFieldName="preferredLocation"
+                allowMultiple={true}
                 isEdit={true}
               />
 
@@ -2138,11 +2163,20 @@ export default function Properties() {
                   <div className="relative w-[105px] shrink-0 h-full flex items-center">
                     <select
                       value={editReqForm.requiredAreaUnit || 'Cent'}
-                      onChange={(e) => setEditReqForm({ ...editReqForm, requiredAreaUnit: e.target.value })}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const cleanUnit = String(val).replace(/^\/\s*/, '').trim();
+                        setEditReqForm({ 
+                          ...editReqForm, 
+                          requiredAreaUnit: val,
+                          budgetUnit: `/ ${cleanUnit}`,
+                          maximumMonthlyRentUnit: `/ ${cleanUnit}`
+                        });
+                      }}
                       className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
                     >
                       <option value="Cent">Cent</option>
-                      <option value="Sq. Ft.">Sq. Ft me</option>
+                      <option value="Sq. Ft.">Sq. Ft.</option>
                       <option value="Acre">Acre</option>
                       <option value="BHK">BHK</option>
                       <option value="1 BHK">1 BHK</option>

@@ -385,6 +385,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                   onChange={handleChange}
                   errors={errors}
                   locationFieldName={field.locationFieldName || "location"}
+                  allowMultiple={field.allowMultiple}
                 />
               </React.Fragment>
             );

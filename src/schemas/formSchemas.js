@@ -18,13 +18,13 @@ export const sellPropertySchema = [
 export const buyRequirementSchema = [
   { id: 'requirementType', label: 'Requirement Type', type: 'select', options: ['Buy', 'Rent'], defaultValue: 'Buy', required: true },
   { id: 'requirementTitle', label: 'Requirement Title', type: 'text', placeholder: 'e.g. 3 BHK House Requirement', required: false },
+  { id: 'buyerName', label: 'Buyer Name', type: 'text', placeholder: 'e.g. Suresh Nair', required: true },
+  { id: 'phoneNumber', label: 'Phone Number', type: 'tel', placeholder: 'e.g. 9123456789', required: true },
+  { id: 'buyerAddress', label: 'Buyer Address', type: 'textarea', placeholder: "Buyer's residential/office address", required: false },
   { id: 'propertyType', label: 'Property Type Required', type: 'select', options: ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'], defaultValue: 'House/Villa', required: true },
-  { id: 'locationSelector', label: 'Location & Region Selection', type: 'location_selector', locationFieldName: 'preferredLocation', required: true },
+  { id: 'locationSelector', label: 'Location & Region Selection', type: 'location_selector', locationFieldName: 'preferredLocation', required: true, allowMultiple: true },
   { id: 'requiredArea', label: 'Required Area / Size', type: 'text', placeholder: 'e.g. 50 or 3', required: true, hasUnit: true, unitId: 'requiredAreaUnit', unitOptions: ['Cent', 'Sq. Ft.', 'Acre', 'BHK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK', 'Sq. Meter', 'Sq. Yard'], defaultUnit: 'Cent' },
   { id: 'budget', label: 'Max Purchase Budget (₹)', type: 'number', placeholder: 'e.g. 75', required: true, showIf: (data) => data.requirementType === 'Buy', hasUnit: true, unitId: 'budgetUnit', unitOptions: ['/ Cent', '/ Sq. Ft.', '/ Acre', '/ Month', '/ BHK', '/ House', '/ Sq. Meter', '/ Sq. Yard', 'All Properties'], defaultUnit: '/ Cent', isPricePerArea: true },
   { id: 'maximumMonthlyRent', label: 'Max Rent (₹)', type: 'number', placeholder: 'e.g. 20000', required: true, showIf: (data) => data.requirementType === 'Rent', hasUnit: true, unitId: 'maximumMonthlyRentUnit', unitOptions: ['/ Month', 'All Properties', '/ Sq. Ft.', '/ Cent', '/ Acre', '/ BHK', '/ House', '/ Sq. Meter', '/ Sq. Yard'], defaultUnit: '/ Month', isPricePerArea: true },
-  { id: 'description', label: 'Description / Remarks', type: 'textarea', placeholder: 'Specific details (e.g. corner plot, clear titles required)', required: false },
-  { id: 'buyerName', label: 'Buyer Name', type: 'text', placeholder: 'e.g. Suresh Nair', required: true },
-  { id: 'phoneNumber', label: 'Phone Number', type: 'tel', placeholder: 'e.g. 9123456789', required: true },
-  { id: 'buyerAddress', label: 'Buyer Address', type: 'textarea', placeholder: "Buyer's residential/office address", required: false }
+  { id: 'description', label: 'Description / Remarks', type: 'textarea', placeholder: 'Specific details (e.g. corner plot, clear titles required)', required: false }
 ];

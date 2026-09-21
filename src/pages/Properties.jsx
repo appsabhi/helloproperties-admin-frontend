@@ -211,19 +211,13 @@ export default function Properties() {
     if (isNaN(num) || num <= 0) return 0;
     
     const unitLower = String(unit || '').toLowerCase();
+    
+    let basePrice = num;
+    if (unitLower.includes('crore')) basePrice = num * 10000000;
+    else if (unitLower.includes('lakh')) basePrice = num * 100000;
+    else if (unitLower.includes('thousand')) basePrice = num * 1000;
 
-    if (unitLower.includes('/') || unitLower.includes('per ')) {
-      const areaVal = parseFloat(String(areaStr).replace(/[^\d.]/g, '')) || 1;
-      if (unitLower.includes('lakh')) return num * 100000 * areaVal;
-      if (unitLower.includes('crore')) return num * 10000000 * areaVal;
-      if (unitLower.includes('thousand')) return num * 1000 * areaVal;
-      return num * areaVal;
-    }
-
-    if (unit === 'Crore') return num * 10000000;
-    if (unit === 'Lakh') return num * 100000;
-    if (unit === 'Thousand') return num * 1000;
-    return num;
+    return basePrice;
   };
 
   const parseDepositVal = (val, unit, rentVal = 0) => {
@@ -864,6 +858,21 @@ export default function Properties() {
               <span>Smart Match Finder</span>
             </button>
             <button
+              onClick={async () => {
+                if (!window.confirm("Delete ALL old Excel data?")) return;
+                try {
+                  const items = properties.filter(p => p.importBatchId || (p.description && p.description.includes('Broker Details')));
+                  for (const p of items) await deleteProperty(p.id);
+                  const reqs = requirements.filter(r => r.importBatchId || (r.description && r.description.includes('Broker Details')));
+                  for (const r of reqs) await deleteRequirement(r.id);
+                  showToast(`Wiped ${items.length + reqs.length} excel records!`);
+                } catch(e) {}
+              }}
+              className="inline-flex items-center justify-center space-x-2 px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <span>WIPE OLD EXCEL DATA</span>
+            </button>
+            <button
               onClick={() => setIsImportModalOpen(true)}
               className="inline-flex items-center justify-center space-x-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer"
             >
@@ -1132,6 +1141,9 @@ export default function Properties() {
                             <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">Price</span>
                             <span className="font-extrabold text-base sm:text-[17px] text-slate-900 tracking-tight block">
                               {formatPrice(prop.expectedPrice)}
+                              <span className="text-xs font-normal text-slate-500 ml-0.5">
+                                {prop.expectedPriceUnit && prop.expectedPriceUnit !== 'All Properties' ? prop.expectedPriceUnit : ''}
+                              </span>
                             </span>
                           </div>
                         )}
@@ -1145,6 +1157,12 @@ export default function Properties() {
                         <span className="truncate">{prop.location}, {prop.district}{prop.state ? `, ${prop.state}` : ''}</span>
                       </div>
                     </div>
+
+                    {prop.description && (
+                      <div className="pt-2 text-[13px] text-slate-500 line-clamp-2 leading-relaxed">
+                        {prop.description}
+                      </div>
+                    )}
                   </div>
 
                   {/* Bottom Action / Status Bar */}
@@ -1278,6 +1296,12 @@ export default function Properties() {
                       </div>
                     )}
                   </div>
+
+                  {req.description && (
+                    <div className="pt-2 text-[13px] text-slate-500 line-clamp-2 leading-relaxed">
+                      {req.description}
+                    </div>
+                  )}
                 </div>
 
                 {/* Bottom Action / Status Bar */}
@@ -1814,17 +1838,19 @@ export default function Properties() {
                     <div className="h-6 w-px bg-slate-200 shrink-0" />
                     <div className="relative w-[105px] shrink-0 h-full flex items-center">
                       <select
-                        value={editPropForm.expectedPriceUnit || 'Lakh'}
+                        value={editPropForm.expectedPriceUnit || `/ ${editPropForm.areaUnit || 'Cent'}`}
                         onChange={(e) => setEditPropForm({ ...editPropForm, expectedPriceUnit: e.target.value })}
                         className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
                       >
-                        <option value="Lakh">Lakh</option>
-                        <option value="Crore">Crore</option>
-                        <option value="Thousand">Thousand</option>
-                        <option value="Total Price">Total Price</option>
                         <option value="/ Cent">/ Cent</option>
                         <option value="/ Sq. Ft.">/ Sq. Ft.</option>
                         <option value="/ Acre">/ Acre</option>
+                        <option value="All Properties">All Properties</option>
+                        <option value="/ Month">/ Month</option>
+                        <option value="/ BHK">/ BHK</option>
+                        <option value="/ House">/ House</option>
+                        <option value="/ Sq. Meter">/ Sq. Meter</option>
+                        <option value="/ Sq. Yard">/ Sq. Yard</option>
                       </select>
                       <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>

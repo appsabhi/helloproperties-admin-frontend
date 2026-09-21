@@ -150,7 +150,13 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
 
           const categoryVal = String(map['category'] || map['recordtype'] || map['type'] || '').toLowerCase();
           const listingTypeVal = String(map['listingtype'] || map['type'] || map['requirementtype'] || 'Sale').trim();
-          const propertyTypeVal = String(map['propertytype'] || map['type'] || map['category'] || 'Plot/Land').trim();
+          
+          let rawPropType = String(map['type'] || map['propertytype'] || '').toUpperCase();
+          let propertyTypeVal = 'Plot/Land';
+          if (rawPropType.includes('HOUSE')) propertyTypeVal = 'House/Villa';
+          else if (rawPropType.includes('APARTMENT') || rawPropType.includes('FLAT') || rawPropType.includes('BUILDING')) propertyTypeVal = 'Apartment/Flat';
+          else if (rawPropType.includes('LAND') || rawPropType.includes('PLOT')) propertyTypeVal = 'Plot/Land';
+          else if (String(map['propertytype']).toUpperCase() === 'COMMERCIAL') propertyTypeVal = 'Commercial Plot';
 
           const isRequirement = 
             categoryVal.includes('require') || 
@@ -161,14 +167,54 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
 
           const isRent = listingTypeVal.toLowerCase().includes('rent');
 
-          const title = String(map['title'] || map['propertytitle'] || map['requirementtitle'] || map['name'] || `Imported Item ${idx + 1}`).trim();
-          const district = String(map['district'] || map['city'] || map['state'] || '').trim();
-          const location = String(map['location'] || map['locality'] || map['preferredlocation'] || '').trim();
-          const area = String(map['area'] || map['requiredarea'] || map['size'] || '').trim();
-          const price = Number(map['priceorbudget'] || map['expectedprice'] || map['price'] || map['budget'] || map['maxrent'] || map['monthlyrent'] || 0);
+          const title = String(map['title'] || map['propertyname'] || map['propertytitle'] || map['requirementtitle'] || map['name'] || `Imported Item ${idx + 1}`).trim();
+          const district = String(map['district'] || map['city'] || map['state'] || 'Kozhikode').trim();
+          const location = String(map['location'] || map['locality'] || map['preferredlocation'] || 'Calicut').trim();
+          let rawAreaStr = String(map['area'] || map['requiredarea'] || map['size'] || map['propertydetails'] || map['requirements'] || '').trim();
+          let area = rawAreaStr;
+          let leftoverDetails = '';
+          
+          const areaMatch = rawAreaStr.match(/^([\d.]+\s*(?:cent|sq\.?\s*ft\.?|acre|bhk|sq\.?\s*m|sq\.?\s*yd))/i);
+          if (areaMatch) {
+            area = areaMatch[1].trim();
+            leftoverDetails = rawAreaStr.substring(areaMatch[0].length).replace(/^[,-\s]+/, '').trim();
+          } else if (rawAreaStr.length < 20) {
+            area = rawAreaStr;
+          } else {
+            area = ''; // too long to be just an area
+            leftoverDetails = rawAreaStr;
+          }
+          
+          const rawPrice = String(map['priceorbudget'] || map['expectedprice'] || map['price'] || map['budget'] || map['maxrent'] || map['monthlyrent'] || '0');
+          const cleanPriceStr = rawPrice.replace(/,/g, '').match(/[\d.]+/);
+          let price = cleanPriceStr ? Number(cleanPriceStr[0]) : 0;
+          
+          const rp = rawPrice.toLowerCase();
+          if (rp.includes('crore') || rp.includes('cr')) {
+            price *= 10000000;
+          } else if (rp.includes('lakh') || rp.includes('lac') || rp.match(/l(\s|-|$)/) || rp.match(/l\b/)) {
+            price *= 100000;
+          } else if (rp.includes('thousand') || rp.match(/k(\s|-|$)/) || rp.match(/k\b/)) {
+            price *= 1000;
+          }
+          
+          const priceUnit = String(map['priceunit'] || '').trim(); // E.g. "/ Cent"
           const contactName = String(map['contactname'] || map['ownername'] || map['buyername'] || map['name'] || '').trim();
-          const phone = String(map['phonenumber'] || map['phone'] || map['mobile'] || map['contact'] || map['ownerphone'] || map['buyerphone'] || '').trim();
-          const description = String(map['description'] || map['remarks'] || map['notes'] || '').trim();
+          const phone = String(map['phonenumber'] || map['phone'] || map['ownumber'] || map['mobile'] || map['contact'] || map['ownerphone'] || map['buyerphone'] || '').trim();
+          
+          let description = String(map['description'] || map['remarks'] || map['notes'] || '').trim();
+          if (leftoverDetails && !description.includes(leftoverDetails)) {
+             description = (leftoverDetails + (description ? '\n' + description : '')).trim();
+          }
+          if (map['brokersdetails']) {
+            description += (description ? '\n\nBroker Details: ' : 'Broker Details: ') + String(map['brokersdetails']);
+          }
+          if (map['owemail']) {
+            description += (description ? '\nEmail: ' : 'Email: ') + String(map['owemail']);
+          }
+          if (map['status']) {
+            description += (description ? '\nStatus Info: ' : 'Status Info: ') + String(map['status']);
+          }
 
           if (isRequirement) {
             requirementsToImport.push({
@@ -179,7 +225,9 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
               preferredLocation: location,
               requiredArea: area,
               budget: isRent ? 0 : price,
+              budgetUnit: priceUnit || '/ Cent',
               maximumMonthlyRent: isRent ? price : 0,
+              maximumMonthlyRentUnit: priceUnit || '/ Month',
               buyerName: contactName || 'Imported Buyer',
               phoneNumber: phone || '9999999999',
               description
@@ -193,7 +241,9 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
               location,
               area,
               expectedPrice: isRent ? 0 : price,
+              expectedPriceUnit: priceUnit || '/ Cent',
               monthlyRent: isRent ? price : 0,
+              monthlyRentUnit: priceUnit || '/ Month',
               ownerName: contactName || 'Imported Owner',
               phoneNumber: phone || '9999999999',
               description
@@ -248,20 +298,34 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
   // ═══════════════════════════════════════════════════════════════════════════
   // CONFIRM IMPORT BATCH
   // ═══════════════════════════════════════════════════════════════════════════
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (!parsedData) return;
 
-    const fileName = selectedFile ? selectedFile.name : 'Imported_File.xlsx';
-    const batchMeta = bulkAddItems(parsedData.properties, parsedData.requirements, fileName);
+    setIsProcessing(true);
+    try {
+      const fileName = selectedFile ? selectedFile.name : 'Imported_File.xlsx';
+      const batchMeta = await bulkAddItems(parsedData.properties, parsedData.requirements, fileName);
 
-    setIsSuccess(true);
-    setTimeout(() => {
-      setIsSuccess(false);
-      setSelectedFile(null);
-      setParsedData(null);
-      if (onImportComplete) onImportComplete(batchMeta);
-      onClose();
-    }, 1800);
+      if (batchMeta.errors && batchMeta.errors.length > 0) {
+        setParseError(`Backend rejected ${batchMeta.errors.length} items. First error: ${batchMeta.errors[0]}`);
+        setIsProcessing(false);
+        return;
+      }
+
+      setIsSuccess(true);
+      setTimeout(() => {
+        setIsSuccess(false);
+        setSelectedFile(null);
+        setParsedData(null);
+        if (onImportComplete) onImportComplete(batchMeta);
+        onClose();
+      }, 1800);
+    } catch (error) {
+      console.error('Import failed:', error);
+      setParseError('Failed to import data to the backend. Please check your connection.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -299,10 +363,22 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
                   type="button"
                   onClick={handleConfirmImport}
                   disabled={isProcessing}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#B0004F] text-white hover:bg-[#800039] shadow-md shadow-pink-900/10 transition-all cursor-pointer flex items-center gap-2"
+                  className={`px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md shadow-pink-900/10 transition-all flex items-center gap-2 ${isProcessing ? 'bg-slate-400 cursor-not-allowed opacity-70' : 'bg-[#B0004F] hover:bg-[#800039] cursor-pointer'}`}
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirm & Import All ({parsedData.totalRows})</span>
+                  {isProcessing ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Importing... Please wait</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Confirm & Import All ({parsedData.totalRows})</span>
+                    </>
+                  )}
                 </button>
               )}
             </div>

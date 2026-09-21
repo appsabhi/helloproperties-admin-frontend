@@ -815,23 +815,150 @@ export const PropertyProvider = ({ children }) => {
     } catch (e) {}
   }, [importHistory]);
 
-  const bulkAddItems = useCallback((newProperties = [], newRequirements = [], fileName = 'Imported_Data.xlsx') => {
+  const bulkAddItems = useCallback(async (newProperties = [], newRequirements = [], fileName = 'Imported_Data.xlsx') => {
     const batchId = `batch_${Date.now()}`;
     const importedAt = new Date().toISOString();
 
-    const taggedProps = newProperties.map((p, idx) => ({
-      ...formatBackendProperty(p),
-      id: p.id || `prop-bulk-${Date.now()}-${idx}`,
-      importBatchId: batchId,
-      importedAt
-    }));
+    const taggedProps = [];
+    const taggedReqs = [];
+    const importErrors = [];
 
-    const taggedReqs = newRequirements.map((r, idx) => ({
-      ...formatBackendRequirement(r),
-      id: r.id || `req-bulk-${Date.now()}-${idx}`,
-      importBatchId: batchId,
-      importedAt
-    }));
+    // Persist properties to backend
+    for (const p of newProperties) {
+      try {
+        const payload = {
+          title: p.title || 'Untitled Property',
+          listingType: p.listingType || 'Sale',
+          propertyType: p.propertyType || 'Plot/Land',
+          location: p.location || 'Unknown Location',
+          district: p.district || 'Kozhikode',
+          state: p.state || 'Kerala',
+          area: p.area || 'Unknown Area',
+          expectedPrice: p.listingType === 'Sale' ? (Number(p.expectedPrice) || 1) : 0,
+          expectedPriceUnit: p.expectedPriceUnit || '/ Cent',
+          monthlyRent: p.listingType === 'Rent' ? (Number(p.monthlyRent) || 1) : 0,
+          monthlyRentUnit: p.monthlyRentUnit || '/ Month',
+          description: p.description || '',
+          ownerName: p.ownerName || 'Unknown Owner',
+          phoneNumber: p.phoneNumber || '9999999999',
+          ownerAddress: p.ownerAddress || '',
+          status: 'Active',
+          importBatchId: batchId,
+          importedAt
+        };
+
+        const response = await fetch(`${API_BASE_URL}/properties`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        });
+        
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success && resData.data) {
+            taggedProps.push({
+              ...formatBackendProperty(resData.data),
+              importBatchId: batchId,
+              importedAt
+            });
+          } else {
+            console.error('Backend returned success: false for property:', resData);
+            importErrors.push(`Row ${p.title || 'Unknown'}: ${resData.message || 'Success false'}`);
+            taggedProps.push({
+              ...payload,
+              id: `prop-bulk-${Date.now()}-${Math.random()}`
+            });
+          }
+        } else {
+          const text = await response.text();
+          console.error('Backend rejected property with HTTP error:', text);
+          importErrors.push(`Row ${p.title || 'Unknown'}: ${text}`);
+          // Fallback: save it to local state anyway so the user doesn't lose the import!
+          taggedProps.push({
+            ...payload,
+            id: `prop-bulk-${Date.now()}-${Math.random()}`
+          });
+        }
+      } catch (err) {
+        console.error('Failed to import property:', err);
+        importErrors.push(`Network error for ${p.title || 'Unknown'}: ${err.message}`);
+        // Fallback for network errors
+        taggedProps.push({
+          ...p,
+          id: `prop-bulk-${Date.now()}-${Math.random()}`,
+          importBatchId: batchId,
+          importedAt
+        });
+      }
+    }
+
+    // Persist requirements to backend
+    for (const r of newRequirements) {
+      try {
+        const payload = {
+          requirementTitle: r.requirementTitle || `${r.buyerName || 'Client'}'s Requirement`,
+          requirementType: r.requirementType || 'Buy',
+          propertyType: r.propertyType || 'Plot/Land',
+          preferredLocation: r.preferredLocation || 'Unknown Location',
+          district: r.district || 'Kozhikode',
+          state: r.state || 'Kerala',
+          requiredArea: r.requiredArea || 'Unknown Area',
+          budget: r.requirementType === 'Buy' ? (Number(r.budget) || 1) : 0,
+          budgetUnit: r.budgetUnit || '/ Cent',
+          maximumMonthlyRent: r.requirementType === 'Rent' ? (Number(r.maximumMonthlyRent) || 1) : 0,
+          maximumMonthlyRentUnit: r.maximumMonthlyRentUnit || '/ Month',
+          description: r.description || '',
+          buyerName: r.buyerName || 'Unknown Buyer',
+          phoneNumber: r.phoneNumber || '9999999999',
+          buyerAddress: r.buyerAddress || '',
+          status: 'Active',
+          importBatchId: batchId,
+          importedAt
+        };
+
+        const response = await fetch(`${API_BASE_URL}/buy-requirements`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          credentials: 'include',
+          body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success && resData.data) {
+            taggedReqs.push({
+              ...formatBackendRequirement(resData.data),
+              importBatchId: batchId,
+              importedAt
+            });
+          } else {
+            console.error('Backend returned success: false for requirement:', resData);
+            taggedReqs.push({
+              ...payload,
+              id: `req-bulk-${Date.now()}-${Math.random()}`
+            });
+          }
+        } else {
+          const text = await response.text();
+          console.error('Backend rejected requirement:', text);
+          importErrors.push(`Row ${r.requirementTitle || 'Unknown'}: ${text}`);
+          taggedReqs.push({
+            ...payload,
+            id: `req-bulk-${Date.now()}-${Math.random()}`
+          });
+        }
+      } catch (err) {
+        console.error('Failed to import requirement:', err);
+        importErrors.push(`Network error for ${r.requirementTitle || 'Unknown'}: ${err.message}`);
+        taggedReqs.push({
+          ...r,
+          id: `req-bulk-${Date.now()}-${Math.random()}`,
+          importBatchId: batchId,
+          importedAt
+        });
+      }
+    }
 
     if (taggedProps.length > 0) {
       setProperties(prev => [...taggedProps, ...prev]);
@@ -848,7 +975,8 @@ export const PropertyProvider = ({ children }) => {
       rentPropsCount: taggedProps.filter(p => (p.listingType || '').toLowerCase() === 'rent').length,
       buyReqsCount: taggedReqs.filter(r => (r.requirementType || '').toLowerCase() === 'buy').length,
       rentReqsCount: taggedReqs.filter(r => (r.requirementType || '').toLowerCase() === 'rent').length,
-      totalItems: taggedProps.length + taggedReqs.length
+      totalItems: taggedProps.length + taggedReqs.length,
+      errors: importErrors
     };
 
     setImportHistory(prev => [batchMeta, ...prev]);
@@ -867,10 +995,47 @@ export const PropertyProvider = ({ children }) => {
     return batchMeta;
   }, [logActivity]);
 
-  const revertImportBatch = useCallback((batchId) => {
+  const revertImportBatch = useCallback(async (batchId) => {
+    // Find all items associated with this batch
+    const propsToDelete = properties.filter(p => p.importBatchId === batchId);
+    const reqsToDelete = requirements.filter(r => r.importBatchId === batchId);
+
+    // Revert locally first for fast UI
     setProperties(prev => prev.filter(p => p.importBatchId !== batchId));
     setRequirements(prev => prev.filter(r => r.importBatchId !== batchId));
     setImportHistory(prev => prev.filter(b => b.batchId !== batchId));
+
+    // Delete properties from backend
+    for (const p of propsToDelete) {
+      try {
+        const id = p.id || p.propertyId || p._id;
+        if (id && !String(id).startsWith('prop-bulk-')) {
+          await fetch(`${API_BASE_URL}/properties/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+            credentials: 'include'
+          });
+        }
+      } catch (e) {
+        console.error('Failed to revert property:', e);
+      }
+    }
+
+    // Delete requirements from backend
+    for (const r of reqsToDelete) {
+      try {
+        const id = r.id || r.requirementId || r._id;
+        if (id && !String(id).startsWith('req-bulk-')) {
+          await fetch(`${API_BASE_URL}/buy-requirements/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+            credentials: 'include'
+          });
+        }
+      } catch (e) {
+        console.error('Failed to revert requirement:', e);
+      }
+    }
 
     if (logActivity) {
       logActivity({
@@ -884,7 +1049,7 @@ export const PropertyProvider = ({ children }) => {
     }
 
     return { success: true };
-  }, [logActivity]);
+  }, [properties, requirements, logActivity]);
 
   // Conversion factors to square feet
   const AREA_UNIT_TO_SQFT = {

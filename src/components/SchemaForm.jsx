@@ -762,6 +762,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                               step={field.type === "number" ? "any" : undefined}
                               value={formData[field.id] || ""}
                               onChange={(e) => handleChange(e, field.id)}
+                              onWheel={(e) => field.type === "number" && e.target.blur()}
                               placeholder=" "
                               className="w-full px-4 pt-6 pb-2 rounded-l-xl text-[13.5px] text-slate-800 bg-transparent focus:outline-none peer pr-2"
                             />
@@ -802,6 +803,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                       type={field.type}
                       value={formData[field.id] || ""}
                       onChange={(e) => handleChange(e, field.id)}
+                      onWheel={(e) => field.type === "number" && e.target.blur()}
                       placeholder=" "
                       className={`${inputBase(hasError)} peer`}
                     />

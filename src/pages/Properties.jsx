@@ -464,10 +464,6 @@ export default function Properties() {
 
   // Open Edit Property Modal
   const handleOpenEditProperty = (prop) => {
-    if (user?.role !== 'Admin') {
-      showToast('Access denied. Staff members cannot edit property details.', 'error');
-      return;
-    }
     setEditingProperty(prop);
 
     let areaVal = prop.area || '';
@@ -517,10 +513,6 @@ export default function Properties() {
   // Save Edit Property
   const handleSaveEditProperty = async (e) => {
     e.preventDefault();
-    if (user?.role !== 'Admin') {
-      setEditPropError('Access denied. Staff members cannot edit property details.');
-      return;
-    }
     if (!editingProperty) return;
 
     setIsSubmittingEditProp(true);
@@ -555,10 +547,6 @@ export default function Properties() {
 
   // Open Edit Requirement Modal
   const handleOpenEditRequirement = (req) => {
-    if (user?.role !== 'Admin') {
-      showToast('Access denied. Staff members cannot edit requirement details.', 'error');
-      return;
-    }
     setEditingRequirement(req);
 
     let reqAreaVal = req.requiredArea || '';
@@ -600,10 +588,6 @@ export default function Properties() {
   // Save Edit Requirement
   const handleSaveEditRequirement = async (e) => {
     e.preventDefault();
-    if (user?.role !== 'Admin') {
-      setEditReqError('Access denied. Staff members cannot edit requirement details.');
-      return;
-    }
     if (!editingRequirement) return;
 
     setIsSubmittingEditReq(true);
@@ -1406,35 +1390,33 @@ export default function Properties() {
               </div>
 
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const target = viewingDetailTarget;
+                    setViewingDetailTarget(null);
+                    if (target.type === 'property') {
+                      handleOpenEditProperty(target.item);
+                    } else {
+                      handleOpenEditRequirement(target.item);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
                 {user?.role === 'Admin' && (
-                  <>
-                    <button
-                      onClick={() => {
-                        const target = viewingDetailTarget;
-                        setViewingDetailTarget(null);
-                        if (target.type === 'property') {
-                          handleOpenEditProperty(target.item);
-                        } else {
-                          handleOpenEditRequirement(target.item);
-                        }
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>Edit</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        const target = viewingDetailTarget;
-                        setViewingDetailTarget(null);
-                        setDeletingTarget({ type: target.type, item: target.item });
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
-                    </button>
-                  </>
+                  <button
+                    onClick={() => {
+                      const target = viewingDetailTarget;
+                      setViewingDetailTarget(null);
+                      setDeletingTarget({ type: target.type, item: target.item });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
                 )}
                 <button
                   onClick={() => setViewingDetailTarget(null)}

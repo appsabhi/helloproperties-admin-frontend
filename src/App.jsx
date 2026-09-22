@@ -82,6 +82,23 @@ function RootOrPublicRoute() {
 }
 
 export default function App() {
+  const isPublicMode = import.meta.env.VITE_APP_MODE === 'public';
+
+  if (isPublicMode) {
+    return (
+      <PropertyProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/property/:id" element={<PublicPropertyDetail />} />
+            <Route path="/p/:id" element={<PublicPropertyDetail />} />
+            <Route path="/share/:id" element={<PublicPropertyDetail />} />
+            <Route path="*" element={<PublicNotice />} />
+          </Routes>
+        </BrowserRouter>
+      </PropertyProvider>
+    );
+  }
+
   return (
     <AuthProvider>
       <PropertyProvider>
@@ -96,7 +113,7 @@ export default function App() {
               <Route path="/share/:id" element={<PublicPropertyDetail />} />
 
               {/* Root Domain & Non-ID Public Routes */}
-              <Route path="/" element={<RootOrPublicRoute />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/p" element={<RootOrPublicRoute />} />
               <Route path="/property" element={<RootOrPublicRoute />} />
               <Route path="/share" element={<RootOrPublicRoute />} />

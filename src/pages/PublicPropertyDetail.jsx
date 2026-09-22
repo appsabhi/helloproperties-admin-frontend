@@ -39,7 +39,36 @@ function formatArea(areaStr) {
   if (!areaStr) return '—';
   const s = String(areaStr).trim();
   if (s === '—' || s === 'Any Area') return s;
-  return s;
+
+  const numMatch = s.match(/^([\d.,]+)/);
+  if (!numMatch) return s;
+
+  const num = numMatch[1];
+  const rest = s.slice(numMatch[0].length).trim();
+  if (!rest) return num;
+
+  const recognizedUnits = [
+    '5+ BHK', '4+ BHK', '4 BHK', '3 BHK', '2 BHK', '1 BHK',
+    'Sq. Meter', 'Sq. Yard', 'Sq. Ft.', 'House', 'Month',
+    'Cent', 'Acre', 'BHK'
+  ];
+
+  let lastMatchUnit = null;
+  let maxIdx = -1;
+
+  for (const u of recognizedUnits) {
+    const idx = rest.toLowerCase().lastIndexOf(u.toLowerCase());
+    if (idx > maxIdx) {
+      maxIdx = idx;
+      lastMatchUnit = u;
+    }
+  }
+
+  if (lastMatchUnit) {
+    return `${num} ${lastMatchUnit}`;
+  }
+
+  return `${num} ${rest}`;
 }
 
 export default function PublicPropertyDetail() {
@@ -53,11 +82,26 @@ export default function PublicPropertyDetail() {
 
   useEffect(() => {
     setLoading(true);
+    const decodeId = (hex) => {
+      try {
+        return decodeURIComponent('%' + hex.match(/.{1,2}/g).join('%'));
+      } catch (e) {
+        return hex; // fallback if it's not a valid hex string (e.g. old plain ID)
+      }
+    };
+
+    let decodedId = id;
+    try {
+      decodedId = decodeId(id);
+    } catch (e) {
+      decodedId = id;
+    }
+
     // 1. Check local context properties
     const found = properties.find(p => 
-      String(p.id) === String(id) || 
-      String(p.propertyId) === String(id) || 
-      String(p._id) === String(id)
+      String(p.id) === String(decodedId) || 
+      String(p.propertyId) === String(decodedId) || 
+      String(p._id) === String(decodedId)
     );
 
     if (found) {
@@ -71,7 +115,7 @@ export default function PublicPropertyDetail() {
           : 'https://helloproperties-admin-backend.vercel.app/api'
       );
 
-      fetch(`${API_BASE_URL}/properties/${id}`)
+      fetch(`${API_BASE_URL}/properties/${decodedId}`)
         .then(res => res.json())
         .then(data => {
           if (data.success && data.property) {

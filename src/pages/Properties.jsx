@@ -233,13 +233,36 @@ export default function Properties() {
   const parseAreaWithUnit = (val, unit) => {
     if (!val) return '';
     const strVal = String(val).trim();
-    const numMatch = strVal.match(/^([\d.,\s]+)/);
-    const numPart = numMatch ? numMatch[1].trim() : strVal;
-    if (unit && unit !== '—' && unit !== 'Any Area') {
-      const cleanUnit = unit.replace(/^\/\s*/, '');
+    if (!unit || unit === '—' || unit === 'Any Area') return strVal;
+    
+    const cleanUnit = unit.replace(/^\/\s*/, '').trim();
+    
+    // Extract leading number and the rest of the string
+    const numMatch = strVal.match(/^([\d.,]+)\s*(.*)$/);
+    if (!numMatch) {
+      return `${strVal} ${cleanUnit}`;
+    }
+    
+    const numPart = numMatch[1];
+    const restPart = numMatch[2].trim();
+    
+    // If the selected unit already contains the numeric part (e.g. val="2", unit="2 BHK")
+    const unitHasNum = cleanUnit.match(/^([\d.,]+)/);
+    if (unitHasNum && unitHasNum[1] === numPart) {
+      return cleanUnit;
+    }
+    
+    // If what the user typed matches the unit (e.g. val="2bhk", unit="BHK")
+    if (restPart && cleanUnit.toLowerCase().includes(restPart.toLowerCase())) {
       return `${numPart} ${cleanUnit}`;
     }
-    return strVal;
+    
+    // If what the user typed is just the unit, but not matching perfectly (e.g. val="2 bhk", unit="Cent")
+    if (restPart && !cleanUnit.toLowerCase().includes(restPart.toLowerCase())) {
+      return `${numPart} ${restPart} ${cleanUnit}`;
+    }
+
+    return `${numPart} ${cleanUnit}`;
   };
 
   const formatPrice = (price) => {
@@ -857,16 +880,24 @@ export default function Properties() {
               <Sparkles className="w-4 h-4" />
               <span>Smart Match Finder</span>
             </button>
+            {/*
             <button
               onClick={async () => {
                 if (!window.confirm("Delete ALL old Excel data?")) return;
-                try {
-                  const items = properties.filter(p => p.importBatchId || (p.description && p.description.includes('Broker Details')));
+                  const isExcel = (item) => {
+                    if (item.importBatchId) return true;
+                    if (item.description && item.description.includes('Broker Details')) return true;
+                    if (item.ownerName && item.ownerName.toLowerCase().includes('broker')) return true;
+                    if (item.buyerName && item.buyerName.toLowerCase().includes('broker')) return true;
+                    const title = (item.title || item.requirementTitle || '').toLowerCase();
+                    return title.includes('payambra') || title.includes('pottamal') || title.includes('methottuthazham') || title.includes('iringalore') || title.includes('karaparamba') || title.includes('apartment, 2bhk');
+                  };
+                  
+                  const items = properties.filter(isExcel);
                   for (const p of items) await deleteProperty(p.id);
-                  const reqs = requirements.filter(r => r.importBatchId || (r.description && r.description.includes('Broker Details')));
+                  const reqs = requirements.filter(isExcel);
                   for (const r of reqs) await deleteRequirement(r.id);
                   showToast(`Wiped ${items.length + reqs.length} excel records!`);
-                } catch(e) {}
               }}
               className="inline-flex items-center justify-center space-x-2 px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer"
             >
@@ -879,6 +910,7 @@ export default function Properties() {
               <FileSpreadsheet className="w-4 h-4" />
               <span>Import Excel / CSV</span>
             </button>
+            */}
             {activeTab === 'listings' ? (
               <button
                 onClick={() => { setView('addProperty'); setAddPropertyResult(null); }}
@@ -1292,7 +1324,7 @@ export default function Properties() {
                     {req.requiredArea && (
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600 max-w-full">
                         <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{req.requiredArea} {req.requiredAreaUnit}</span>
+                        <span className="truncate">{formatDisplayArea(req.requiredArea, req.requiredAreaUnit)}</span>
                       </div>
                     )}
                   </div>

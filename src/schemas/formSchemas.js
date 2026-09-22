@@ -1,7 +1,7 @@
 export const sellPropertySchema = [
   { id: 'listingType', label: 'Listing Type', type: 'select', options: ['Sale', 'Rent'], defaultValue: 'Sale', required: true },
   { id: 'title', label: 'Property Title', type: 'text', placeholder: 'e.g. 3 BHK Modern Villa in Town', required: true },
-  { id: 'propertyType', label: 'Property Type', type: 'select', options: ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'], defaultValue: 'House/Villa', required: true },
+  { id: 'propertyType', label: 'Property Type', type: 'select', options: ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Commercial Building', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'], defaultValue: 'House/Villa', required: true },
   { id: 'locationSelector', label: 'Location & Region Selection', type: 'location_selector', locationFieldName: 'location', required: true },
   { id: 'area', label: 'Area / Size', type: 'text', placeholder: 'e.g. 45 or 3', required: true, hasUnit: true, unitId: 'areaUnit', unitOptions: ['Cent', 'Sq. Ft.', 'Acre', 'BHK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK', 'Sq. Meter', 'Sq. Yard'], defaultUnit: 'Cent' },
   { id: 'expectedPrice', label: 'Expected Price (₹)', type: 'number', placeholder: 'e.g. 5000000 (for 50 Lakhs)', required: true, showIf: (data) => data.listingType === 'Sale', hasUnit: true, unitId: 'expectedPriceUnit', unitOptions: ['All Properties', '/ Cent', '/ Sq. Ft.', '/ Acre', '/ Month', '/ BHK', '/ House', '/ Sq. Meter', '/ Sq. Yard'], defaultUnit: 'All Properties', isPricePerArea: true },
@@ -21,7 +21,7 @@ export const buyRequirementSchema = [
   { id: 'buyerName', label: 'Buyer Name', type: 'text', placeholder: 'e.g. Suresh Nair', required: true },
   { id: 'phoneNumber', label: 'Phone Number', type: 'tel', placeholder: 'e.g. 9123456789', required: true },
   { id: 'buyerAddress', label: 'Buyer Address', type: 'textarea', placeholder: "Buyer's residential/office address", required: false },
-  { id: 'propertyType', label: 'Property Type Required', type: 'select', options: ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'], defaultValue: 'House/Villa', required: true },
+  { id: 'propertyType', label: 'Property Type Required', type: 'select', options: ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Commercial Building', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'], defaultValue: 'House/Villa', required: true },
   { id: 'locationSelector', label: 'Location & Region Selection', type: 'location_selector', locationFieldName: 'preferredLocation', required: true, allowMultiple: true },
   { id: 'requiredArea', label: 'Required Area / Size', type: 'text', placeholder: 'e.g. 50 or 3', required: true, hasUnit: true, unitId: 'requiredAreaUnit', unitOptions: ['Cent', 'Sq. Ft.', 'Acre', 'BHK', '1 BHK', '2 BHK', '3 BHK', '4 BHK', '5+ BHK', 'Sq. Meter', 'Sq. Yard'], defaultUnit: 'Cent' },
   { id: 'budget', label: 'Max Purchase Budget (₹)', type: 'number', placeholder: 'e.g. 7500000 (for 75 Lakhs)', required: true, showIf: (data) => data.requirementType === 'Buy', hasUnit: true, unitId: 'budgetUnit', unitOptions: ['All Properties', '/ Cent', '/ Sq. Ft.', '/ Acre', '/ Month', '/ BHK', '/ House', '/ Sq. Meter', '/ Sq. Yard'], defaultUnit: 'All Properties', isPricePerArea: true },

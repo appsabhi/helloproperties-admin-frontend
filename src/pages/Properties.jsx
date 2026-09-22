@@ -401,7 +401,7 @@ export default function Properties() {
   // Statuses list
   const propertyStatuses = ['Available', 'Under Negotiation', 'Sold', 'Inactive'];
   const requirementStatuses = ['Active', 'Fulfilled', 'Suspended'];
-  const propertyTypes = ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'];
+  const propertyTypes = ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Commercial Building', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'];
 
   // Filtering listings
   const filteredProperties = properties.filter(prop => {
@@ -1200,7 +1200,7 @@ export default function Properties() {
                   {/* Bottom Action / Status Bar */}
                   <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div className="flex items-center space-x-2 shrink-0">
-                      {user?.role === 'Admin' ? (
+                      {(user?.role === 'Admin' || user?.role === 'Staff') ? (
                         <select
                           value={prop.status}
                           onChange={(e) => updatePropertyStatus(prop.id, e.target.value)}
@@ -1339,7 +1339,7 @@ export default function Properties() {
                 {/* Bottom Action / Status Bar */}
                 <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center space-x-2 shrink-0">
-                    {user?.role === 'Admin' ? (
+                    {(user?.role === 'Admin' || user?.role === 'Staff') ? (
                       <select
                         value={req.status}
                         onChange={(e) => updateRequirementStatus(req.id, e.target.value)}
@@ -2597,6 +2597,7 @@ export default function Properties() {
                       <option value="Plot/Land">Plot/Land</option>
                       <option value="House/Villa">House/Villa</option>
                       <option value="Apartment/Flat">Apartment/Flat</option>
+                      <option value="Commercial Building">Commercial Building</option>
                       <option value="Residential Plot">Residential Plot</option>
                       <option value="Commercial Plot">Commercial Plot</option>
                       <option value="Agricultural Land">Agricultural Land</option>

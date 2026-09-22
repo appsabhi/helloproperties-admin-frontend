@@ -211,6 +211,15 @@ export default function PublicPropertyDetail() {
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/90 backdrop-blur-xs text-slate-800 shadow-md">
                 {property.propertyType || 'Plot/Land'}
               </span>
+              {property.status && property.status !== 'Available' && (
+                <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-md ${
+                  property.status === 'Under Negotiation' ? 'bg-amber-500 text-white' :
+                  property.status === 'Sold' ? 'bg-slate-700 text-white' :
+                  'bg-red-600 text-white'
+                }`}>
+                  {property.status}
+                </span>
+              )}
             </div>
 
             {/* Title & Location overlay on bottom of image */}

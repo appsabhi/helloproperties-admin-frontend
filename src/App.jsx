@@ -168,6 +168,22 @@ export default function App() {
                 }
               />
               <Route
+                path="/properties/sale"
+                element={
+                  <ProtectedRoute>
+                    <Properties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/properties/rent"
+                element={
+                  <ProtectedRoute>
+                    <Properties />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/settings"
                 element={
                   <ProtectedRoute>

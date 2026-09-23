@@ -4,6 +4,7 @@ import {
   LayoutDashboard, 
   Building2, 
   Home,
+  Key,
   Shield,
   Activity,
   Settings as SettingsIcon, 
@@ -103,7 +104,8 @@ export default function Layout({ children }) {
       label: 'Properties', 
       icon: Building2,
       subItems: [
-        { to: '/properties', label: 'Property Listings', icon: Home, exact: true },
+        { to: '/properties/sale', label: 'Sale Properties', icon: Home, exact: true },
+        { to: '/properties/rent', label: 'Rent Properties', icon: Key },
         { to: '/properties/requirements', label: 'Buyer Requirements', icon: UserDollarIcon }
       ]
     },
@@ -175,8 +177,10 @@ export default function Layout({ children }) {
                   isCollapsed ? 'border-none ml-0 pl-0' : 'border-l ml-6'
                 }`}>
                   {item.subItems.map((sub) => {
-                    const isSubActive = sub.exact
-                      ? (location.pathname === '/properties' || location.pathname === '/properties/listings')
+                    const isSubActive = sub.to === '/properties/sale'
+                      ? (location.pathname === '/properties' || location.pathname === '/properties/listings' || location.pathname === '/properties/sale' || location.pathname === '/properties/sell')
+                      : sub.to === '/properties/rent'
+                      ? (location.pathname === '/properties/rent')
                       : (location.pathname === '/properties/requirements' || location.pathname === '/properties/buy');
 
                     return (

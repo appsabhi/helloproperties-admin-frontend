@@ -34,7 +34,8 @@ import {
   FileSpreadsheet,
   SlidersHorizontal,
   RotateCcw,
-  Filter
+  Filter,
+  Film
 } from 'lucide-react';
 import ExcelImportModal from '../components/ExcelImportModal';
 
@@ -62,12 +63,14 @@ export default function Properties() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Active tab state: 'listings' | 'requirements'
+  // Active tab state: 'sale' | 'rent' | 'requirements'
   const [activeTab, setActiveTab] = useState(() => {
-    if (location.pathname === '/properties/requirements' || location.pathname === '/properties/buy') {
+    if (location.pathname.includes('/requirements') || location.pathname.includes('/buy')) {
       return 'requirements';
+    } else if (location.pathname.includes('/rent')) {
+      return 'rent';
     }
-    return 'listings';
+    return 'sale';
   });
 
   // Inline view state: 'list' | 'addProperty' | 'addRequirement'
@@ -77,10 +80,12 @@ export default function Properties() {
   const [viewingDetailTarget, setViewingDetailTarget] = useState(null);
 
   useEffect(() => {
-    if (location.pathname === '/properties/requirements' || location.pathname === '/properties/buy') {
+    if (location.pathname.includes('/requirements') || location.pathname.includes('/buy')) {
       setActiveTab('requirements');
+    } else if (location.pathname.includes('/rent')) {
+      setActiveTab('rent');
     } else {
-      setActiveTab('listings');
+      setActiveTab('sale');
     }
 
     // Reset all open modal/form states when navigating between tabs or sections
@@ -406,6 +411,10 @@ export default function Properties() {
 
   // Filtering listings
   const filteredProperties = properties.filter(prop => {
+    // Listing Type Filter
+    if (activeTab === 'rent' && prop.listingType !== 'Rent') return false;
+    if (activeTab === 'sale' && prop.listingType === 'Rent') return false;
+
     const matchesSearch = (prop.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (prop.location || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (prop.district || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -861,10 +870,10 @@ export default function Properties() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div>
           <h2 className="text-[24px] font-bold text-slate-900 tracking-tight">
-            {activeTab === 'listings' ? 'Property Listings' : 'Buyer Requirements'}
+            {activeTab === 'sale' ? 'Sale Properties' : activeTab === 'rent' ? 'Rent Properties' : 'Buyer Requirements'}
           </h2>
           <p className="text-sm text-slate-500 mt-1">
-            {activeTab === 'listings' 
+            {activeTab === 'sale' || activeTab === 'rent'
               ? 'Manage all registered seller lands and properties in PostgreSQL.' 
               : 'Manage client buying criteria and search requirements.'
             }
@@ -912,7 +921,7 @@ export default function Properties() {
               <span>Import Excel / CSV</span>
             </button>
             */}
-            {activeTab === 'listings' ? (
+            {activeTab === 'sale' || activeTab === 'rent' ? (
               <button
                 onClick={() => { setView('addProperty'); setAddPropertyResult(null); }}
                 className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#B0004F] hover:bg-[#C4005A] active:bg-[#80003C] text-white rounded-lg text-xs sm:text-sm font-semibold shadow-sm transition-colors cursor-pointer"
@@ -943,7 +952,7 @@ export default function Properties() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={activeTab === 'listings' ? 'Search by title, location, owner...' : 'Search requirements, buyer, location...'}
+            placeholder={activeTab === 'sale' || activeTab === 'rent' ? 'Search by title, location, owner...' : 'Search requirements, buyer, location...'}
             className="w-full pl-9 pr-4 py-2 border border-[#E8E8E8] rounded-lg text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] transition-colors"
           />
         </div>
@@ -957,7 +966,7 @@ export default function Properties() {
             className="w-full pl-9 pr-4 py-2 border border-[#E8E8E8] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] transition-colors cursor-pointer"
           >
             <option value="">All Statuses</option>
-            {activeTab === 'listings' ? (
+            {activeTab === 'sale' || activeTab === 'rent' ? (
               propertyStatuses.map(status => (
                 <option key={status} value={status}>{status}</option>
               ))
@@ -1112,7 +1121,7 @@ export default function Properties() {
 
       {/* ── GRID LIST ── only shown on list view */}
       {view === 'list' && (<>
-      {activeTab === 'listings' ? (
+      {activeTab === 'sale' || activeTab === 'rent' ? (
         filteredProperties.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 border-dashed text-slate-400">
             No properties match your active search filters.

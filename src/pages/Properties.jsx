@@ -7,6 +7,7 @@ import SchemaForm from '../components/SchemaForm';
 import LocationSelector from '../components/LocationSelector';
 import SharePropertyModal from '../components/SharePropertyModal';
 import Modal from '../components/Modal';
+import MediaThumbnail from '../components/MediaThumbnail';
 import { 
   MapPin, 
   Ruler, 
@@ -1124,13 +1125,13 @@ export default function Properties() {
                   className="h-44 w-full relative bg-slate-100 overflow-hidden flex-shrink-0 cursor-pointer"
                   title="Click to view full property details"
                 >
-                  <img 
-                    src={prop.imageUrl} 
-                    alt={prop.title} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
-                    }}
+                  <MediaThumbnail 
+                    imageUrl={prop.imageUrl} 
+                    videoUrl={prop.videoUrl}
+                    video={prop.video}
+                    video_url={prop.video_url}
+                    title={prop.title} 
+                    playButtonSize="large"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
                   

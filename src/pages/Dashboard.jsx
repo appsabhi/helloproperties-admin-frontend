@@ -4,6 +4,7 @@ import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
 import ActivityLogView from '../components/ActivityLogView';
 import Modal from '../components/Modal';
+import MediaThumbnail from '../components/MediaThumbnail';
 import { 
   Building2, 
   CheckCircle2, 
@@ -126,13 +127,14 @@ export default function Dashboard() {
                 className="group bg-white rounded-2xl border border-slate-200/80 p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-[#C4005A]/40 transition-all duration-200 cursor-pointer flex items-center space-x-4"
               >
                 <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-200 relative">
-                  <img 
-                    src={prop.imageUrl} 
-                    alt={prop.title} 
+                  <MediaThumbnail 
+                    imageUrl={prop.imageUrl} 
+                    videoUrl={prop.videoUrl}
+                    video={prop.video}
+                    video_url={prop.video_url}
+                    title={prop.title} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
-                    }}
+                    playButtonSize="small"
                   />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5">

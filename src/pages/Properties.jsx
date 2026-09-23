@@ -2085,6 +2085,16 @@ export default function Properties() {
                   </div>
                 )}
               </div>
+
+              <div className="md:col-span-2 flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800">Description / Remarks</label>
+                <textarea
+                  rows={3}
+                  value={editPropForm.description}
+                  onChange={(e) => setEditPropForm({ ...editPropForm, description: e.target.value })}
+                  className="w-full p-3.5 border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+              </div>
             </div>
 
             <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-3 pt-4 border-t border-slate-100">

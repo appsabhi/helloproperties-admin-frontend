@@ -218,7 +218,13 @@ export default function Dashboard() {
               {(() => {
                 const item = selectedProperty;
                 const vUrl = item.videoUrl || item.video || item.video_url;
-                const hasImage = !!item.imageUrl;
+                const isFallbackOrInvalid = !item.imageUrl || 
+                                            item.imageUrl === 'null' || 
+                                            item.imageUrl === 'undefined' || 
+                                            String(item.imageUrl).trim() === '' || 
+                                            (typeof item.imageUrl === 'string' && item.imageUrl.includes('images.unsplash.com'));
+                
+                const hasImage = !isFallbackOrInvalid;
                 const hasVideo = !!vUrl;
 
                 return (

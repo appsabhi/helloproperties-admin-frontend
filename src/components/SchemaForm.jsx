@@ -23,7 +23,7 @@ const DESCRIPTION_KEYWORDS = [
   "Gated Community"
 ];
 
-export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "Submit", initialValues = DEFAULT_INITIAL_VALUES }) {
+export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "Submit", initialValues = DEFAULT_INITIAL_VALUES, onError }) {
   const { isApiLoading, uploadVideoFile } = useContext(PropertyContext) || {};
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
@@ -329,15 +329,19 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       }
     });
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validate()) {
+    const newErrors = validate();
+    if (Object.keys(newErrors).length === 0) {
       onSubmit(formData);
     } else {
-      const firstErrorKey = Object.keys(errors)[0];
+      if (onError) {
+        onError("Please fill in all required fields correctly.");
+      }
+      const firstErrorKey = Object.keys(newErrors)[0];
       if (firstErrorKey) {
         const element = document.getElementById(`field-${firstErrorKey}`);
         if (element) element.scrollIntoView({ behavior: "smooth", block: "center" });

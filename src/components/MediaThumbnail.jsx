@@ -11,8 +11,13 @@ export default function MediaThumbnail({
   playButtonSize = "large" // 'large' or 'small'
 }) {
   const actualVideoUrl = videoUrl || video || video_url;
+  const isFallbackOrInvalid = !imageUrl || 
+                              imageUrl === 'null' || 
+                              imageUrl === 'undefined' || 
+                              String(imageUrl).trim() === '' || 
+                              (typeof imageUrl === 'string' && imageUrl.includes('images.unsplash.com'));
 
-  if (imageUrl) {
+  if (!isFallbackOrInvalid) {
     return (
       <img 
         src={imageUrl} 

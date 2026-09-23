@@ -1503,38 +1503,48 @@ export default function Properties() {
           {/* Media Container: Image or Video */}
           {viewingDetailTarget.type === 'property' && (
             <div className="space-y-3">
-              {viewingDetailTarget.item.imageUrl && (
-                <div className="h-48 sm:h-56 max-h-[30vh] w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
-                  <img 
-                    src={viewingDetailTarget.item.imageUrl} 
-                    alt={viewingDetailTarget.item.title}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
-                    }}
-                  />
-                </div>
-              )}
+              {(() => {
+                const item = viewingDetailTarget.item;
+                const vUrl = item.videoUrl || item.video || item.video_url;
+                const hasImage = !!item.imageUrl;
+                const hasVideo = !!vUrl;
 
-              {/* Video Player in Popup */}
-              {viewingDetailTarget.item.videoUrl && (
-                <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
-                  {viewingDetailTarget.item.videoUrl.includes('youtu') || viewingDetailTarget.item.videoUrl.includes('embed') ? (
-                    <iframe
-                      src={viewingDetailTarget.item.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                      title="Property Video"
-                      className="w-full h-44 rounded-xl border-0"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      src={viewingDetailTarget.item.videoUrl}
-                      controls
-                      className="w-full max-h-44 object-cover rounded-xl"
-                    />
-                  )}
-                </div>
-              )}
+                return (
+                  <>
+                    {(hasImage || (!hasImage && !hasVideo)) && (
+                      <div className="h-48 sm:h-56 max-h-[30vh] w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
+                        <img 
+                          src={item.imageUrl || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'} 
+                          alt={item.title || "Property"}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {hasVideo && (
+                      <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
+                        {vUrl.includes('youtu') || vUrl.includes('embed') ? (
+                          <iframe
+                            src={vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                            title="Property Video"
+                            className="w-full h-44 sm:h-56 rounded-xl border-0"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <video
+                            src={vUrl}
+                            controls
+                            className="w-full h-44 sm:h-56 object-cover rounded-xl"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 

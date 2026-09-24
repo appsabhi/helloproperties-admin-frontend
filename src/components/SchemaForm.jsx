@@ -2,26 +2,9 @@ import React, { useState, useEffect, useContext } from "react";
 import { PropertyContext } from "../context/PropertyContext";
 import { Loader2, ChevronDown, ImagePlus, X, Sparkles, Plus, Check, Video, Film, Link, AlertCircle } from "lucide-react";
 import LocationSelector from "./LocationSelector";
+import PropertyKeywordsSelector, { DESCRIPTION_KEYWORDS } from "./PropertyKeywordsSelector";
 
 const DEFAULT_INITIAL_VALUES = {};
-
-const DESCRIPTION_KEYWORDS = [
-  "Tar Road Frontage",
-  "Clear Title Deed",
-  "Well Water Available",
-  "Electricity Available",
-  "Near Highway / Bypass",
-  "Corner Plot",
-  "Peaceful Residential Area",
-  "Commercial Potential",
-  "Bank Loan Approved",
-  "Price Negotiable",
-  "Compound Wall Built",
-  "Immediate Possession",
-  "Ready to Build",
-  "Car Parking Space",
-  "Gated Community"
-];
 
 export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "Submit", initialValues = DEFAULT_INITIAL_VALUES, onError }) {
   const { isApiLoading, uploadVideoFile } = useContext(PropertyContext) || {};
@@ -111,9 +94,11 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       } else if (fieldId === "areaUnit") {
         let cleanUnit = String(value).replace(/^\/\s*/, '').trim();
         next.expectedPriceUnit = `/ ${cleanUnit}`;
+        next.monthlyRentUnit = `/ ${cleanUnit}`;
       } else if (fieldId === "requiredAreaUnit") {
         let cleanUnit = String(value).replace(/^\/\s*/, '').trim();
         next.budgetUnit = `/ ${cleanUnit}`;
+        next.maximumMonthlyRentUnit = `/ ${cleanUnit}`;
       }
       return next;
     });
@@ -440,75 +425,20 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
 
                     {/* Quick Property Keywords */}
                     {field.id === "description" && (
-                      <div className="flex flex-col gap-2 bg-[#F8F9FA] p-3 rounded-xl border border-slate-200/70">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
-                            Quick Property Keywords (Click to add/remove)
-                          </span>
-                          {Array.isArray(formData.keywords) && formData.keywords.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setFormData(prev => ({ ...prev, keywords: [], description: "" }))}
-                              className="text-[10.5px] font-semibold text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
-                            >
-                              Clear Keywords ({formData.keywords.length})
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {Array.from(new Set([...DESCRIPTION_KEYWORDS, ...customKeywords])).map((kw) => {
-                            const isSelected = Array.isArray(formData.keywords) &&
-                              formData.keywords.some(k => k.toLowerCase() === kw.toLowerCase());
-
-                            return (
-                              <button
-                                key={kw}
-                                type="button"
-                                onClick={() => toggleKeyword(kw)}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-medium transition-all cursor-pointer ${
-                                  isSelected
-                                    ? "bg-[#B0004F] text-white shadow-xs font-semibold"
-                                    : "bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800 border border-slate-200/80"
-                                }`}
-                              >
-                                {isSelected ? (
-                                  <Check className="w-3 h-3 text-white" />
-                                ) : (
-                                  <Plus className="w-3 h-3 text-slate-400" />
-                                )}
-                                <span>{kw}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Add Custom Keyword Input Bar */}
-                        <div className="flex items-center gap-2 pt-2 border-t border-slate-200/70 mt-1">
-                          <div className="relative flex-1">
-                            <input
-                              type="text"
-                              placeholder="Add your own keywords (e.g. Near InfoPark)..."
-                              value={newKeywordInput}
-                              onChange={(e) => setNewKeywordInput(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleAddCustomKeyword();
-                                }
-                              }}
-                              className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[12px] text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#B0004F] transition-all"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleAddCustomKeyword}
-                            className="px-3 py-1.5 text-[11.5px] font-semibold text-white bg-[#B0004F] hover:bg-[#9A0044] rounded-lg shadow-xs transition-colors flex items-center gap-1 cursor-pointer shrink-0"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Add Keyword</span>
-                          </button>
-                        </div>
-                      </div>
+                      <PropertyKeywordsSelector
+                        keywords={formData.keywords}
+                        description={formData.description}
+                        onChange={({ keywords, description }) => {
+                          setFormData(prev => ({
+                            ...prev,
+                            keywords,
+                            description
+                          }));
+                          if (errors.description) {
+                            setErrors(prev => ({ ...prev, description: null }));
+                          }
+                        }}
+                      />
                     )}
                   </div>
 

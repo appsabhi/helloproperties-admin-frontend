@@ -5,6 +5,7 @@ import { AuthContext } from '../context/AuthContext';
 import { sellPropertySchema, buyRequirementSchema } from '../schemas/formSchemas';
 import SchemaForm from '../components/SchemaForm';
 import LocationSelector from '../components/LocationSelector';
+import PropertyKeywordsSelector from '../components/PropertyKeywordsSelector';
 import SharePropertyModal from '../components/SharePropertyModal';
 import Modal from '../components/Modal';
 import MediaThumbnail from '../components/MediaThumbnail';
@@ -310,7 +311,6 @@ export default function Properties() {
     if (!rest) return num;
 
     const recognizedUnits = [
-      '5+ BHK', '4+ BHK', '4 BHK', '3 BHK', '2 BHK', '1 BHK',
       'Sq. Meter', 'Sq. Yard', 'Sq. Ft.', 'House', 'Month',
       'Cent', 'Acre', 'BHK'
     ];
@@ -339,7 +339,6 @@ export default function Properties() {
     if (s.toLowerCase() === 'all properties') return 'All Properties';
 
     const recognizedUnits = [
-      '5+ BHK', '4+ BHK', '4 BHK', '3 BHK', '2 BHK', '1 BHK',
       'Sq. Meter', 'Sq. Yard', 'Sq. Ft.', 'House', 'Month',
       'Cent', 'Acre', 'BHK'
     ];
@@ -603,6 +602,7 @@ export default function Properties() {
       maximumMonthlyRent: req.maximumMonthlyRent || '',
       maximumMonthlyRentUnit: maxRentUnitVal,
       description: req.description || '',
+      keywords: Array.isArray(req.keywords) ? req.keywords : [],
       buyerName: req.buyerName || '',
       phoneNumber: req.phoneNumber || req.buyerPhone || '',
       buyerAddress: req.buyerAddress || '',
@@ -1177,7 +1177,9 @@ export default function Properties() {
                             <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">Rent</span>
                             <span className="font-extrabold text-base sm:text-[17px] text-slate-900 tracking-tight block">
                               {formatPrice(prop.monthlyRent)}
-                              <span className="text-xs font-normal text-slate-400 ml-0.5">/mo</span>
+                              <span className="text-xs font-normal text-slate-400 ml-0.5">
+                                {prop.monthlyRentUnit && prop.monthlyRentUnit !== 'All Properties' ? prop.monthlyRentUnit : ''}
+                              </span>
                             </span>
                           </div>
                         ) : (
@@ -1212,34 +1214,18 @@ export default function Properties() {
                   {/* Bottom Action / Status Bar */}
                   <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                     <div className="flex items-center space-x-2 shrink-0">
-                      {(user?.role === 'Admin' || user?.role === 'Staff') ? (
-                        <select
-                          value={prop.status}
-                          onChange={(e) => updatePropertyStatus(prop.id, e.target.value)}
-                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg border focus:outline-none transition-colors cursor-pointer ${
-                            prop.status === 'Available' ? 'bg-emerald-50/80 border-emerald-200/80 text-emerald-700' :
-                            prop.status === 'Under Negotiation' ? 'bg-amber-50/80 border-amber-200/80 text-amber-700' :
-                            prop.status === 'Sold' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-red-50/80 border-red-200/80 text-red-700'
-                          }`}
-                        >
-                          {propertyStatuses.map(st => (
-                            <option key={st} value={st}>{st}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                          prop.status === 'Available' ? 'bg-emerald-50/80 border-emerald-200/80 text-emerald-700' :
-                          prop.status === 'Under Negotiation' ? 'bg-amber-50/80 border-amber-200/80 text-amber-700' :
-                          prop.status === 'Sold' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-red-50/80 border-red-200/80 text-red-700'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${
-                            prop.status === 'Available' ? 'bg-emerald-500' :
-                            prop.status === 'Under Negotiation' ? 'bg-amber-500' :
-                            prop.status === 'Sold' ? 'bg-slate-400' : 'bg-red-500'
-                          }`} />
-                          <span>{prop.status}</span>
-                        </span>
-                      )}
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                        prop.status === 'Available' ? 'bg-emerald-50/80 border-emerald-200/80 text-emerald-700' :
+                        prop.status === 'Under Negotiation' ? 'bg-amber-50/80 border-amber-200/80 text-amber-700' :
+                        prop.status === 'Sold' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-red-50/80 border-red-200/80 text-red-700'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          prop.status === 'Available' ? 'bg-emerald-500' :
+                          prop.status === 'Under Negotiation' ? 'bg-amber-500' :
+                          prop.status === 'Sold' ? 'bg-slate-400' : 'bg-red-500'
+                        }`} />
+                        <span>{prop.status}</span>
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-1.5 justify-start sm:justify-end flex-wrap">
@@ -1351,31 +1337,16 @@ export default function Properties() {
                 {/* Bottom Action / Status Bar */}
                 <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center space-x-2 shrink-0">
-                    {(user?.role === 'Admin' || user?.role === 'Staff') ? (
-                      <select
-                        value={req.status}
-                        onChange={(e) => updateRequirementStatus(req.id, e.target.value)}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg border focus:outline-none transition-colors cursor-pointer ${
-                          req.status === 'Active' ? 'bg-emerald-50/80 border-emerald-200/80 text-emerald-700' :
-                          req.status === 'Fulfilled' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-red-50/80 border-red-200/80 text-red-700'
-                        }`}
-                      >
-                        {requirementStatuses.map(st => (
-                          <option key={st} value={st}>{st}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                        req.status === 'Active' ? 'bg-emerald-50/80 border-emerald-200/80 text-emerald-700' :
-                        req.status === 'Fulfilled' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-red-50/80 border-red-200/80 text-red-700'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          req.status === 'Active' ? 'bg-emerald-500' :
-                          req.status === 'Fulfilled' ? 'bg-slate-400' : 'bg-red-500'
-                        }`} />
-                        <span>{req.status}</span>
-                      </span>
-                    )}
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                      req.status === 'Active' ? 'bg-emerald-50/80 border-emerald-200/80 text-emerald-700' :
+                      req.status === 'Fulfilled' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-red-50/80 border-red-200/80 text-red-700'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        req.status === 'Active' ? 'bg-emerald-500' :
+                        req.status === 'Fulfilled' ? 'bg-slate-400' : 'bg-red-500'
+                      }`} />
+                      <span>{req.status}</span>
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 justify-start sm:justify-end">
@@ -1881,11 +1852,6 @@ export default function Properties() {
                       <option value="Sq. Ft.">Sq. Ft.</option>
                       <option value="Acre">Acre</option>
                       <option value="BHK">BHK</option>
-                      <option value="1 BHK">1 BHK</option>
-                      <option value="2 BHK">2 BHK</option>
-                      <option value="3 BHK">3 BHK</option>
-                      <option value="4 BHK">4 BHK</option>
-                      <option value="5+ BHK">5+ BHK</option>
                       <option value="Sq. Meter">Sq. Meter</option>
                       <option value="Sq. Yard">Sq. Yard</option>
                     </select>
@@ -2166,6 +2132,21 @@ export default function Properties() {
                 )}
               </div>
 
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Status
+                </label>
+                <select
+                  value={editPropForm.status}
+                  onChange={(e) => setEditPropForm({ ...editPropForm, status: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+                >
+                  {propertyStatuses.map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="md:col-span-2 flex flex-col space-y-1.5">
                 <label className="text-[14px] font-medium text-slate-800">Description / Remarks</label>
                 <textarea
@@ -2173,6 +2154,11 @@ export default function Properties() {
                   value={editPropForm.description}
                   onChange={(e) => setEditPropForm({ ...editPropForm, description: e.target.value })}
                   className="w-full p-3.5 border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+                <PropertyKeywordsSelector
+                  keywords={editPropForm.keywords}
+                  description={editPropForm.description}
+                  onChange={({ keywords, description }) => setEditPropForm(prev => ({ ...prev, keywords, description }))}
                 />
               </div>
             </div>
@@ -2327,11 +2313,6 @@ export default function Properties() {
                       <option value="Sq. Ft.">Sq. Ft.</option>
                       <option value="Acre">Acre</option>
                       <option value="BHK">BHK</option>
-                      <option value="1 BHK">1 BHK</option>
-                      <option value="2 BHK">2 BHK</option>
-                      <option value="3 BHK">3 BHK</option>
-                      <option value="4 BHK">4 BHK</option>
-                      <option value="5+ BHK">5+ BHK</option>
                       <option value="Sq. Meter">Sq. Meter</option>
                       <option value="Sq. Yard">Sq. Yard</option>
                     </select>
@@ -2416,6 +2397,21 @@ export default function Properties() {
                 </div>
               )}
 
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Status
+                </label>
+                <select
+                  value={editReqForm.status}
+                  onChange={(e) => setEditReqForm({ ...editReqForm, status: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+                >
+                  {requirementStatuses.map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="md:col-span-2 flex flex-col space-y-1.5">
                 <label className="text-[14px] font-medium text-slate-800">Description / Remarks</label>
                 <textarea
@@ -2423,6 +2419,11 @@ export default function Properties() {
                   value={editReqForm.description}
                   onChange={(e) => setEditReqForm({ ...editReqForm, description: e.target.value })}
                   className="w-full p-3.5 border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+                <PropertyKeywordsSelector
+                  keywords={editReqForm.keywords}
+                  description={editReqForm.description}
+                  onChange={({ keywords, description }) => setEditReqForm(prev => ({ ...prev, keywords, description }))}
                 />
               </div>
             </div>

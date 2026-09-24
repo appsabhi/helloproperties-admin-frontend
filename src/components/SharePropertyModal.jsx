@@ -15,7 +15,6 @@ function formatDisplayArea(areaStr) {
   if (!rest) return num;
 
   const recognizedUnits = [
-    '5+ BHK', '4+ BHK', '4 BHK', '3 BHK', '2 BHK', '1 BHK',
     'Sq. Meter', 'Sq. Yard', 'Sq. Ft.', 'House', 'Month',
     'Cent', 'Acre', 'BHK'
   ];

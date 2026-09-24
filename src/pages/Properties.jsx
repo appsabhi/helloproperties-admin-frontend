@@ -641,8 +641,8 @@ export default function Properties() {
   // Confirm Delete Action
   const handleConfirmDelete = async () => {
     if (!deletingTarget) return;
-    if (user?.role !== 'Admin') {
-      setDeleteError('Access denied. Staff members cannot delete records.');
+    if (user?.role !== 'Admin' && user?.role !== 'Staff') {
+      setDeleteError('Access denied. You cannot delete records.');
       return;
     }
 
@@ -1488,7 +1488,7 @@ export default function Properties() {
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Edit</span>
                 </button>
-                {user?.role === 'Admin' && (
+                {(user?.role === 'Admin' || user?.role === 'Staff') && (
                   <button
                     onClick={() => {
                       const target = viewingDetailTarget;

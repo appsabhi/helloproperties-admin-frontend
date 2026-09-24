@@ -358,7 +358,7 @@ export default function Properties() {
       return lastMatchUnit;
     }
 
-    return s;
+    return '';
   };
 
   const getItemUnitText = (item, type) => {

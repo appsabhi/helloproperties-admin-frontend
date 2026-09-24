@@ -159,11 +159,21 @@ export default function Dashboard() {
                   </div>
 
                   <div className="pt-1 flex items-center justify-between">
-                    <span className="font-extrabold text-slate-900 text-sm">
-                      {prop.listingType === 'Rent'
-                        ? `${formatPrice(prop.monthlyRent)}/mo`
-                        : formatPrice(prop.expectedPrice)}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-extrabold text-slate-900 text-sm">
+                        {prop.listingType === 'Rent'
+                          ? formatPrice(prop.monthlyRent)
+                          : formatPrice(prop.expectedPrice)}
+                      </span>
+                      {(() => {
+                        const unit = prop.listingType === 'Rent' ? prop.monthlyRentUnit : prop.expectedPriceUnit;
+                        return unit && unit !== 'All Properties' ? (
+                          <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F]">
+                            {unit}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
                     <button
                       type="button"
                       onClick={(e) => {

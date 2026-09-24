@@ -503,7 +503,7 @@ export default function Properties() {
     }
 
     let priceVal = prop.expectedPrice !== undefined ? prop.expectedPrice : '';
-    let priceUnitVal = prop.expectedPriceUnit || `/${areaUnitVal}`;
+    let priceUnitVal = prop.expectedPriceUnit || `/ ${areaUnitVal}`;
 
     let rentVal = prop.monthlyRent !== undefined ? prop.monthlyRent : '';
     let rentUnitVal = prop.monthlyRentUnit || '/ Month';
@@ -586,7 +586,7 @@ export default function Properties() {
     }
 
     let budgetVal = req.budget !== undefined ? req.budget : '';
-    let budgetUnitVal = req.budgetUnit || `/${reqAreaUnitVal}`;
+    let budgetUnitVal = req.budgetUnit || `/ ${reqAreaUnitVal}`;
     let maxRentUnitVal = req.maximumMonthlyRentUnit || '/ Month';
 
     setEditReqForm({
@@ -1020,7 +1020,19 @@ export default function Properties() {
                       <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{m.matchScore}% Match</span>
-                          <span className="font-bold text-[#B0004F] text-xs">{formatPrice(m.budget)}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold text-[#B0004F] text-xs">
+                              {m.requirementType === 'Rent' ? formatPrice(m.maximumMonthlyRent) : formatPrice(m.budget)}
+                            </span>
+                            {(() => {
+                              const unit = m.requirementType === 'Rent' ? m.maximumMonthlyRentUnit : m.budgetUnit;
+                              return unit && unit !== 'All Properties' ? (
+                                <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F] leading-none">
+                                  {unit}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
                         </div>
                         <p className="text-xs font-semibold text-slate-800">{m.propertyType} — {m.preferredLocation}, {m.district}</p>
                         <p className="text-xs text-slate-500">{m.buyerName} · {m.phoneNumber}</p>
@@ -1089,7 +1101,19 @@ export default function Properties() {
                       <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{m.matchScore}% Match</span>
-                          <span className="font-bold text-[#B0004F] text-xs">{formatPrice(m.expectedPrice)}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold text-[#B0004F] text-xs">
+                              {m.listingType === 'Rent' ? formatPrice(m.monthlyRent) : formatPrice(m.expectedPrice)}
+                            </span>
+                            {(() => {
+                              const unit = m.listingType === 'Rent' ? m.monthlyRentUnit : m.expectedPriceUnit;
+                              return unit && unit !== 'All Properties' ? (
+                                <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F] leading-none">
+                                  {unit}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
                         </div>
                         <p className="text-xs font-semibold text-slate-800">{m.title}</p>
                         <p className="text-xs text-slate-500">{m.location}, {m.district} · {m.ownerName} · {m.phoneNumber}</p>
@@ -1171,28 +1195,35 @@ export default function Properties() {
                       >
                         {prop.title}
                       </h3>
-                      <div className="text-right shrink-0">
-                        {prop.listingType === 'Rent' ? (
-                          <div>
-                            <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">Rent</span>
-                            <span className="font-extrabold text-base sm:text-[17px] text-slate-900 tracking-tight block">
-                              {formatPrice(prop.monthlyRent)}
-                              <span className="text-xs font-normal text-slate-400 ml-0.5">
-                                {prop.monthlyRentUnit && prop.monthlyRentUnit !== 'All Properties' ? prop.monthlyRentUnit : ''}
+                      <div className="shrink-0 bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex flex-col items-end min-w-[110px]">
+                        {(() => {
+                          const unitText = getItemUnitText(prop, 'property');
+                          return prop.listingType === 'Rent' ? (
+                            <>
+                              <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider mb-0.5">Rent</span>
+                              <span className="font-extrabold text-[17px] text-slate-900 tracking-tight block leading-none">
+                                {formatPrice(prop.monthlyRent)}
                               </span>
-                            </span>
-                          </div>
-                        ) : (
-                          <div>
-                            <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">Price</span>
-                            <span className="font-extrabold text-base sm:text-[17px] text-slate-900 tracking-tight block">
-                              {formatPrice(prop.expectedPrice)}
-                              <span className="text-xs font-normal text-slate-500 ml-0.5">
-                                {prop.expectedPriceUnit && prop.expectedPriceUnit !== 'All Properties' ? prop.expectedPriceUnit : ''}
+                              {unitText && unitText !== 'All Properties' && (
+                                <span className="mt-1.5 inline-flex text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F]">
+                                  {unitText.startsWith('/') ? unitText : `/ ${unitText}`}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider mb-0.5">Price / Budget</span>
+                              <span className="font-extrabold text-[17px] text-slate-900 tracking-tight block leading-none">
+                                {formatPrice(prop.expectedPrice)}
                               </span>
-                            </span>
-                          </div>
-                        )}
+                              {unitText && unitText !== 'All Properties' && (
+                                <span className="mt-1.5 inline-flex text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F]">
+                                  {unitText.startsWith('/') ? unitText : `/ ${unitText}`}
+                                </span>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                     
@@ -1296,20 +1327,23 @@ export default function Properties() {
                       )}
                     </div>
 
-                    <div className="text-right shrink-0">
-                      <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">
-                        {req.requirementType === 'Rent' ? 'Max Rent' : 'Budget'}
+                    <div className="shrink-0 bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex flex-col items-end min-w-[110px]">
+                      <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider mb-0.5">
+                        {req.requirementType === 'Rent' ? 'Max Rent' : 'Price / Budget'}
                       </span>
-                      <span className="font-extrabold text-base sm:text-[17px] text-slate-900 tracking-tight block">
+                      <span className="font-extrabold text-[17px] text-slate-900 tracking-tight block leading-none">
                         {req.requirementType === 'Rent' 
                           ? formatPrice(req.maximumMonthlyRent)
                           : formatPrice(req.budget)}
-                        <span className="text-xs font-normal text-slate-500 ml-0.5">
-                          {req.requirementType === 'Rent' 
-                            ? (req.maximumMonthlyRentUnit && req.maximumMonthlyRentUnit !== 'All Properties' ? req.maximumMonthlyRentUnit : '')
-                            : (req.budgetUnit && req.budgetUnit !== 'All Properties' ? req.budgetUnit : '')}
-                        </span>
                       </span>
+                      {(() => {
+                        const unitText = getItemUnitText(req, 'requirement');
+                        return unitText && unitText !== 'All Properties' ? (
+                          <span className="mt-1.5 inline-flex text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F]">
+                            {unitText.startsWith('/') ? unitText : `/ ${unitText}`}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
 
@@ -1616,20 +1650,6 @@ export default function Properties() {
               </span>
             </div>
           </div>
-
-          {/* Keywords Section */}
-          {Array.isArray(viewingDetailTarget.item.keywords) && viewingDetailTarget.item.keywords.length > 0 && (
-            <div className="space-y-1.5">
-              <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Property Keywords</h4>
-              <div className="flex flex-wrap gap-1.5">
-                {viewingDetailTarget.item.keywords.map((kw, kIdx) => (
-                  <span key={kIdx} className="px-2.5 py-1 rounded-lg bg-rose-50 text-[#B0004F] border border-rose-100/80 text-xs font-semibold">
-                    {kw}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Description & Remarks */}
           {viewingDetailTarget.item.description && (
@@ -2865,19 +2885,31 @@ export default function Properties() {
                             : matchItem.title}
                         </h4>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">
+                      <div className="text-right shrink-0 flex flex-col items-end">
+                        <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider mb-0.5">
                           {activeMatchTarget.type === 'property' 
                             ? (matchItem.requirementType === 'Rent' ? 'Max Rent' : 'Budget')
                             : (matchItem.listingType === 'Rent' ? 'Rent' : 'Price')}
                         </span>
-                        <span className="font-extrabold text-slate-900 text-base">
-                          {formatPrice(
-                            activeMatchTarget.type === 'property'
-                              ? (matchItem.requirementType === 'Rent' ? matchItem.maximumMonthlyRent : matchItem.budget)
-                              : (matchItem.listingType === 'Rent' ? matchItem.monthlyRent : matchItem.expectedPrice)
-                          )}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                          <span className="font-extrabold text-slate-900 text-base leading-none">
+                            {formatPrice(
+                              activeMatchTarget.type === 'property'
+                                ? (matchItem.requirementType === 'Rent' ? matchItem.maximumMonthlyRent : matchItem.budget)
+                                : (matchItem.listingType === 'Rent' ? matchItem.monthlyRent : matchItem.expectedPrice)
+                            )}
+                          </span>
+                          {(() => {
+                            const unit = activeMatchTarget.type === 'property'
+                              ? (matchItem.requirementType === 'Rent' ? matchItem.maximumMonthlyRentUnit : matchItem.budgetUnit)
+                              : (matchItem.listingType === 'Rent' ? matchItem.monthlyRentUnit : matchItem.expectedPriceUnit);
+                            return unit && unit !== 'All Properties' ? (
+                              <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F] leading-none">
+                                {unit}
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                       </div>
                     </div>
 

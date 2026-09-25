@@ -1528,12 +1528,14 @@ export const PropertyProvider = ({ children }) => {
       const itemDist = (item.district || '').toLowerCase().trim();
       const itemLoc = (item.location || item.preferredLocation || '').toLowerCase().trim();
 
-      if (targetDist && itemDist && targetDist !== itemDist) {
+      // Only apply this string-based filter if we don't have exact coordinate distance confirmed by the backend
+      if (targetDist && itemDist && targetDist !== itemDist && item.distanceKm == null) {
         return false; // Disqualify cross-district items (e.g. Kannur for Palakkad)
       }
 
       // 4. Hard filter: Locality matching if both specify locality
-      if (targetLoc && itemLoc) {
+      // Only apply this string-based filter if we don't have exact coordinate distance confirmed by the backend
+      if (targetLoc && itemLoc && item.distanceKm == null) {
         const locRes = computeLocalityScore(targetLoc, itemLoc, targetDist, itemDist);
         if (locRes.isOverlap === false) return false;
       }
@@ -1543,11 +1545,50 @@ export const PropertyProvider = ({ children }) => {
   }, []);
 
   // Get Property Matches from API (with fast timeout and local fallback)
+  
+  const getCustomPropertyMatches = async (mockProp, threshold = 60) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/properties/matches/custom`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({ property: mockProp, threshold })
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        return resData.matches || [];
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  };
+
+  const getCustomRequirementMatches = async (mockReq, threshold = 60) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/buy-requirements/matches/custom`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({ requirement: mockReq, threshold })
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        return resData.matches || [];
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  };
+
   const getPropertyMatches = async (propId, propTarget = null) => {
     const target = propTarget || properties.find(p => p.id === propId || p.propertyId === propId || p._id === propId);
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const response = await fetch(`${API_BASE_URL}/properties/${propId}/matches`, {
         headers: getAuthHeaders(),
         credentials: 'include',
@@ -1571,7 +1612,7 @@ export const PropertyProvider = ({ children }) => {
     const target = reqTarget || requirements.find(r => r.id === reqId || r.requirementId === reqId || r._id === reqId);
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1500);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const response = await fetch(`${API_BASE_URL}/buy-requirements/${reqId}/matches`, {
         headers: getAuthHeaders(),
         credentials: 'include',

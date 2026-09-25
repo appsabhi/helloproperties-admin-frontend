@@ -2857,20 +2857,18 @@ export default function Properties() {
                   </div>
 
                   {/* Location / Locality */}
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 uppercase block mb-1">Location / Locality</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Kanjikode, Stadium Bye Pass"
-                      value={manualFilterForm.location}
-                      onKeyDown={(e) => e.key === 'Enter' && handleApplyManualFilter(manualFilterForm)}
-                      onChange={(e) => {
-                        const updated = { ...manualFilterForm, location: e.target.value };
-                        setManualFilterForm(updated);
-                      }}
-                      className="w-full text-xs font-medium bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-slate-800 focus:outline-none focus:border-[#B0004F]"
-                    />
-                  </div>
+                    <div>
+                      
+                      <LocationSelector
+                        formData={manualFilterForm}
+                        locationFieldName="location"
+                        allowMultiple={true}
+                        onChange={(updateObj) => {
+                          const updated = { ...manualFilterForm, ...updateObj };
+                          setManualFilterForm(updated);
+                        }}
+                      />
+                    </div>
 
                   {/* Price / Budget */}
                   <div>

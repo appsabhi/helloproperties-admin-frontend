@@ -295,9 +295,14 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       if (field.showIf && !field.showIf(formData)) return;
       if (field.type === "location_selector") {
         const locName = field.locationFieldName || "location";
-        if (!formData[locName] || !String(formData[locName]).trim()) newErrors[locName] = "Locality / Area is required.";
-        if (!formData.district || !String(formData.district).trim()) newErrors.district = "District is required.";
-        if (!formData.state || !String(formData.state).trim()) newErrors.state = "State / UT is required.";
+        const hasLocValue = formData[locName] && String(formData[locName]).trim().length > 0;
+        
+        if (!hasLocValue) newErrors[locName] = "Locality / Area is required.";
+        
+        if (!(field.allowMultiple && hasLocValue)) {
+          if (!formData.district || !String(formData.district).trim()) newErrors.district = "District is required.";
+          if (!formData.state || !String(formData.state).trim()) newErrors.state = "State / UT is required.";
+        }
         return;
       }
       const val = formData[field.id];

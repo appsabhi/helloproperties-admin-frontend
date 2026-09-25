@@ -523,10 +523,11 @@ export default function LocationSelector({
       </div>
 
       {/* State & District — two columns below Locality */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Column 1: State */}
-        <div className="flex flex-col gap-1">
-          <div className="relative">
+      {!(allowMultiple && formData[locationFieldName] && String(formData[locationFieldName]).trim().length > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Column 1: State */}
+          <div className="flex flex-col gap-1">
+            <div className="relative">
             <select
               id="state-select"
               value={stateValue}
@@ -586,6 +587,44 @@ export default function LocationSelector({
           {districtError && <span className="text-[11px] text-red-500 px-1">{districtError}</span>}
         </div>
       </div>
+      )}
+      
+      {!(allowMultiple && formData[locationFieldName] && String(formData[locationFieldName]).trim().length > 0) && (
+        <div className="mt-5 p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/50">
+          <div className="flex items-center justify-between mb-3">
+              <label className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-600">Manual Map Coordinates</label>
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query || 'Kerala, India')}`} target="_blank" rel="noreferrer" className="text-[11px] text-[#B0004F] hover:underline flex items-center gap-1">
+                <MapPin className="w-3 h-3" /> Pin on Google Maps
+              </a>
+          </div>
+          <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
+            If your location was not found in the search, pin it exactly on the map and paste the latitude and longitude below to ensure accurate geographic matching.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <input 
+                type="number" 
+                step="any"
+                placeholder="Latitude (e.g. 11.2587)"
+                value={formData.latitude || ''}
+                onChange={(e) => onChange({ latitude: parseFloat(e.target.value) || null })}
+                className="w-full px-3 py-2 rounded-lg text-[13px] text-slate-800 bg-white border border-slate-200 focus:border-[#B0004F]/30 focus:ring-2 focus:ring-[#B0004F]/10 transition-all outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <input 
+                type="number" 
+                step="any"
+                placeholder="Longitude (e.g. 75.7804)"
+                value={formData.longitude || ''}
+                onChange={(e) => onChange({ longitude: parseFloat(e.target.value) || null })}
+                className="w-full px-3 py-2 rounded-lg text-[13px] text-slate-800 bg-white border border-slate-200 focus:border-[#B0004F]/30 focus:ring-2 focus:ring-[#B0004F]/10 transition-all outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+     
     </div>
   );
 }

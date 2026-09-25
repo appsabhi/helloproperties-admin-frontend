@@ -606,7 +606,13 @@ export default function Properties() {
       buyerName: req.buyerName || '',
       phoneNumber: req.phoneNumber || req.buyerPhone || '',
       buyerAddress: req.buyerAddress || '',
+      buyerStatus: req.buyerStatus || 'Hot (Willing to buy)',
+      enquirySource: req.enquirySource || 'Phone Call',
+      otherEnquirySource: req.otherEnquirySource || '',
       status: req.status || 'Active',
+      buyerStatus: req.buyerStatus || req.buyer_status || 'Hot (Willing to buy)',
+      enquirySource: req.enquirySource || req.enquiry_source || 'Phone Call',
+      otherEnquirySource: req.otherEnquirySource || req.other_enquiry_source || '',
       requirementType: req.requirementType || 'Buy'
     });
     setEditReqError(null);
@@ -624,7 +630,10 @@ export default function Properties() {
       ...editReqForm,
       requiredArea: parseAreaWithUnit(editReqForm.requiredArea, editReqForm.requiredAreaUnit || 'Cent'),
       budget: parsePriceWithUnit(editReqForm.budget, editReqForm.budgetUnit || '/ Cent'),
-      maximumMonthlyRent: parsePriceWithUnit(editReqForm.maximumMonthlyRent, editReqForm.maximumMonthlyRentUnit || '/ Month')
+      maximumMonthlyRent: parsePriceWithUnit(editReqForm.maximumMonthlyRent, editReqForm.maximumMonthlyRentUnit || '/ Month'),
+      buyerStatus: editReqForm.buyerStatus,
+      enquirySource: editReqForm.enquirySource,
+      otherEnquirySource: editReqForm.otherEnquirySource
     };
 
     const res = await updateRequirement(editingRequirement.id, formattedPayload);
@@ -1349,10 +1358,12 @@ export default function Properties() {
 
                   {/* Tags / Chips Row */}
                   <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600 max-w-full">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{req.preferredLocation}, {req.district}{req.state ? `, ${req.state}` : ''}</span>
-                    </div>
+                    {(req.preferredLocation || '').split(',').map(l => l.trim()).filter(Boolean).map((loc, i) => (
+                        <div key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600 max-w-full">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate">{loc}, {req.district}{req.state ? `, ${req.state}` : ''}</span>
+                        </div>
+                      ))}
                     {req.requiredArea && (
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600 max-w-full">
                         <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -1385,18 +1396,7 @@ export default function Properties() {
 
                 {/* Bottom Action / Status Bar */}
                 <div className="pt-3 mt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center space-x-2 shrink-0">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                      req.status === 'Active' ? 'bg-emerald-50/80 border-emerald-200/80 text-emerald-700' :
-                      req.status === 'Fulfilled' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-red-50/80 border-red-200/80 text-red-700'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        req.status === 'Active' ? 'bg-emerald-500' :
-                        req.status === 'Fulfilled' ? 'bg-slate-400' : 'bg-red-500'
-                      }`} />
-                      <span>{req.status}</span>
-                    </span>
-                  </div>
+                  
 
                   <div className="flex items-center gap-1.5 justify-start sm:justify-end">
                     <button
@@ -1405,6 +1405,7 @@ export default function Properties() {
                       title="View full requirement details in popup"
                     >
                       <Eye className="w-3.5 h-3.5 text-slate-500" />
+
                       <span>View Details</span>
                     </button>
 
@@ -2284,7 +2285,119 @@ export default function Properties() {
                 </select>
               </div>
 
-              <div className="flex flex-col space-y-1.5">
+                              {/* Buyer Status / Rating */}
+                <div className="flex flex-col space-y-2 col-span-1 md:col-span-2">
+                  {(() => {
+                    const selectedOpt = editReqForm.buyerStatus || "";
+                    let fillWidth = "0%";
+                    let fillColor = "bg-slate-200";
+                    let currentLabel = "";
+                    let labelColor = "text-slate-400";
+                    
+                    if (selectedOpt.toLowerCase().includes("mild")) {
+                      fillWidth = "33.33%";
+                      fillColor = "bg-red-500";
+                      currentLabel = "mild";
+                      labelColor = "text-red-500";
+                    } else if (selectedOpt.toLowerCase().includes("cold")) {
+                      fillWidth = "66.66%";
+                      fillColor = "bg-amber-400";
+                      currentLabel = "cold";
+                      labelColor = "text-amber-500";
+                    } else if (selectedOpt.toLowerCase().includes("hot")) {
+                      fillWidth = "100%";
+                      fillColor = "bg-green-500";
+                      currentLabel = "hot";
+                      labelColor = "text-green-500";
+                    }
+                    
+                    const ratingOptions = ['Hot (Willing to buy)', 'Mild (Just enquired)', 'Cold (Small interest)'];
+                    const orderedOptions = [...ratingOptions].sort((a, b) => {
+                      const getVal = (s) => s.toLowerCase().includes('mild') ? 1 : s.toLowerCase().includes('cold') ? 2 : 3;
+                      return getVal(a) - getVal(b);
+                    });
+                    
+                    let thumbBorder = "border-slate-300";
+                    if (selectedOpt.toLowerCase().includes("mild")) thumbBorder = "border-red-500";
+                    else if (selectedOpt.toLowerCase().includes("cold")) thumbBorder = "border-amber-400";
+                    else if (selectedOpt.toLowerCase().includes("hot")) thumbBorder = "border-green-500";
+                    
+                    return (
+                      <div className="relative w-full min-h-[52px] bg-white border border-slate-200 rounded-[10px] flex flex-col justify-end overflow-visible pb-2 pt-6 px-4">
+                        <label className="absolute left-4 top-2 text-[10.5px] text-slate-400 font-semibold pointer-events-none">
+                          Buyer Status / Rating<span className="text-[#B0004F] ml-0.5">*</span>
+                        </label>
+                        <div className="w-full flex items-center gap-4 mt-2 mb-1">
+                          {/* The Editable Slider Bar */}
+                          <div className="relative flex-1 h-[6px] bg-slate-200 rounded-full flex items-center group cursor-pointer">
+                             {/* Fill layer */}
+                             <div className={`absolute top-0 left-0 h-full transition-all duration-300 rounded-full ${fillColor}`} style={{ width: fillWidth }}></div>
+                             
+                             {/* Slider Thumb */}
+                             {fillWidth !== "0%" && (
+                               <div 
+                                 className={`absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.3)] border-2 transition-all duration-300 pointer-events-none group-hover:scale-125 ${thumbBorder}`} 
+                                 style={{ left: `calc(${fillWidth} - ${fillWidth === '100%' ? '14px' : '7px'})` }}
+                               ></div>
+                             )}
+                             
+                             {/* Invisible Click Zones */}
+                             <div className="absolute inset-0 flex w-full h-full rounded-full overflow-hidden">
+                               {orderedOptions.map(opt => (
+                                 <button 
+                                   type="button"
+                                   key={opt}
+                                   className="flex-1 h-full z-10 focus:outline-none hover:bg-black/5 transition-colors cursor-pointer"
+                                   onClick={() => setEditReqForm({ ...editReqForm, buyerStatus: opt })}
+                                   title={opt}
+                                 ></button>
+                               ))}
+                             </div>
+                          </div>
+                          
+                          {/* The Status Label */}
+                          <div className={`w-10 text-right text-[12px] font-bold tracking-wide transition-colors duration-300 ${labelColor}`}>
+                            {currentLabel}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Enquiry Source */}
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                    Enquiry Source
+                  </label>
+                  <select
+                    value={editReqForm.enquirySource}
+                    onChange={(e) => setEditReqForm({ ...editReqForm, enquirySource: e.target.value })}
+                    className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+                  >
+                    {['Instagram Video', 'Phone Call', 'WhatsApp', 'Direct Visitor', 'Reference', 'Other'].map(src => (
+                      <option key={src} value={src}>{src}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {editReqForm.enquirySource === 'Other' && (
+                  <div className="flex flex-col space-y-1.5">
+                    <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                      Specify Other Source <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={editReqForm.otherEnquirySource || ''}
+                      onChange={(e) => setEditReqForm({ ...editReqForm, otherEnquirySource: e.target.value })}
+                      className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                      placeholder="e.g. Facebook"
+                    />
+                  </div>
+                )}
+
+<div className="flex flex-col space-y-1.5">
                 <label className="text-[14px] font-medium text-slate-800 flex items-center">
                   Buyer Name <span className="text-[#B0004F] ml-1 font-bold">*</span>
                 </label>
@@ -2457,20 +2570,7 @@ export default function Properties() {
                 </div>
               )}
 
-              <div className="flex flex-col space-y-1.5">
-                <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                  Status
-                </label>
-                <select
-                  value={editReqForm.status}
-                  onChange={(e) => setEditReqForm({ ...editReqForm, status: e.target.value })}
-                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
-                >
-                  {requirementStatuses.map(st => (
-                    <option key={st} value={st}>{st}</option>
-                  ))}
-                </select>
-              </div>
+              
 
               <div className="md:col-span-2 flex flex-col space-y-1.5">
                 <label className="text-[14px] font-medium text-slate-800">Description / Remarks</label>

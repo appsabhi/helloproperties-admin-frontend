@@ -231,6 +231,9 @@ export const PropertyProvider = ({ children }) => {
     phoneNumber: r.buyerPhone || r.phoneNumber || r.buyer_phone || '',
     buyerPhone: r.buyerPhone || r.phoneNumber || r.buyer_phone || '',
     buyerAddress: r.buyerAddress || r.buyer_address || '',
+    buyerStatus: r.buyerStatus || r.buyer_status || '',
+    enquirySource: r.enquirySource || r.enquiry_source || '',
+    otherEnquirySource: r.otherEnquirySource || r.other_enquiry_source || '',
     status: r.status || 'Active',
     createdAt: r.createdAt || r.created_at || new Date().toISOString()
   });
@@ -338,6 +341,9 @@ export const PropertyProvider = ({ children }) => {
         ownerPhone: propertyData.phoneNumber || propertyData.ownerPhone || '',
         ownerAddress: propertyData.ownerAddress || '',
         status: propertyData.status || 'Available',
+        latitude: propertyData.latitude || propertyData.lat || null,
+        longitude: propertyData.longitude || propertyData.lng || null,
+        preferredCoordinates: propertyData.preferredCoordinates || propertyData.preferred_coordinates || null,
         imageUrl: finalImageUrl || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80',
         videoUrl: finalVideoUrl || null,
         video: finalVideoUrl || null
@@ -399,8 +405,14 @@ export const PropertyProvider = ({ children }) => {
         buyerName: reqData.buyerName,
         buyerPhone: reqData.phoneNumber || reqData.buyerPhone || '',
         buyerAddress: reqData.buyerAddress || '',
-        status: reqData.status || 'Active'
-      };
+        buyerStatus: reqData.buyerStatus || 'Hot (Willing to buy)',
+        enquirySource: reqData.enquirySource || 'Phone Call',
+        otherEnquirySource: reqData.otherEnquirySource || '',
+        status: reqData.status || 'Active',
+          latitude: reqData.latitude || reqData.lat || null,
+          longitude: reqData.longitude || reqData.lng || null,
+          preferredCoordinates: reqData.preferredCoordinates || reqData.preferred_coordinates || null
+        };
 
       try {
         const response = await fetch(`${API_BASE_URL}/buy-requirements`, {
@@ -554,6 +566,9 @@ export const PropertyProvider = ({ children }) => {
         phoneNumber: updatedData.phoneNumber || updatedData.ownerPhone || '',
         ownerAddress: updatedData.ownerAddress || '',
         status: updatedData.status || 'Available',
+        latitude: updatedData.latitude !== undefined ? updatedData.latitude : (updatedData.lat !== undefined ? updatedData.lat : null),
+        longitude: updatedData.longitude !== undefined ? updatedData.longitude : (updatedData.lng !== undefined ? updatedData.lng : null),
+        preferredCoordinates: updatedData.preferredCoordinates !== undefined ? updatedData.preferredCoordinates : (updatedData.preferred_coordinates !== undefined ? updatedData.preferred_coordinates : null),
         ...(finalImageUrl !== undefined && { imageUrl: finalImageUrl }),
         ...(finalVideoUrl !== undefined && { videoUrl: finalVideoUrl || null, video: finalVideoUrl || null })
       };
@@ -700,8 +715,14 @@ export const PropertyProvider = ({ children }) => {
         buyerPhone: updatedData.phoneNumber || updatedData.buyerPhone || '',
         phoneNumber: updatedData.phoneNumber || updatedData.buyerPhone || '',
         buyerAddress: updatedData.buyerAddress || '',
-        status: updatedData.status || 'Active'
-      };
+        buyerStatus: updatedData.buyerStatus || 'Hot (Willing to buy)',
+        enquirySource: updatedData.enquirySource || 'Phone Call',
+        otherEnquirySource: updatedData.otherEnquirySource || '',
+        status: updatedData.status || 'Active',
+          latitude: updatedData.latitude !== undefined ? updatedData.latitude : (updatedData.lat !== undefined ? updatedData.lat : null),
+          longitude: updatedData.longitude !== undefined ? updatedData.longitude : (updatedData.lng !== undefined ? updatedData.lng : null),
+          preferredCoordinates: updatedData.preferredCoordinates !== undefined ? updatedData.preferredCoordinates : (updatedData.preferred_coordinates !== undefined ? updatedData.preferred_coordinates : null)
+        };
 
       try {
         const response = await fetch(`${API_BASE_URL}/buy-requirements/${id}`, {

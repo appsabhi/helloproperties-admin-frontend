@@ -401,19 +401,17 @@ export default function LocationSelector({
             type="text"
             id="location-input"
             value={query}
-            onChange={(e) => {
-              const val = e.target.value;
-              setQuery(val);
-              if (!allowMultiple) {
-                onChange(locationFieldName, val);
-              }
-              setIsOpen(true);
-              setHighlightedIndex(-1);
+            readOnly
+            onClick={(e) => {
+              e.preventDefault();
+              setIsMapModalOpen(true);
             }}
-            onFocus={() => { if (query.trim().length >= 2) setIsOpen(true); }}
-            onKeyDown={handleKeyDown}
+            onFocus={(e) => {
+              e.preventDefault();
+              setIsMapModalOpen(true);
+            }}
             placeholder=" "
-            className={`w-full pl-10 pr-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b focus:outline-none transition-colors duration-150 peer ${
+            className={`w-full pl-10 pr-4 pt-6 pb-2 rounded-xl text-[13.5px] text-slate-800 bg-[#F4F4F6] border-b focus:outline-none transition-colors duration-150 peer cursor-pointer ${
               locationError
                 ? "border-red-400"
                 : "border-transparent focus:border-slate-300"
@@ -462,7 +460,14 @@ export default function LocationSelector({
             ) : null}
             <button
               type="button"
-              onClick={() => setIsMapModalOpen(true)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsMapModalOpen(true);
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                setIsMapModalOpen(true);
+              }}
               onMouseEnter={() => setHighlightedIndex(suggestions.length)}
               className={`w-full text-left px-4 py-3 text-[12px] text-[#B0004F] font-medium flex items-center gap-2 border-t border-slate-100 cursor-pointer transition-colors ${
                 highlightedIndex === suggestions.length ? "bg-[#FFF1F6]" : "hover:bg-slate-50"

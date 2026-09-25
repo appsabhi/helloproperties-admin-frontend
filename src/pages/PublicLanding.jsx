@@ -105,6 +105,7 @@ export default function PublicLanding() {
             <form onSubmit={handlePropertySearch} className="bg-white p-2 sm:p-2.5 rounded-2xl shadow-2xl border border-slate-200/50 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <div className="relative flex-1 flex items-center">
                 <Search className="w-5 h-5 text-slate-400 absolute left-3.5 pointer-events-none" />
+               
                 <input
                   type="text"
                   placeholder="Enter Property ID or Reference Code (e.g. 101)"

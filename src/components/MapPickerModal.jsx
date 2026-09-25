@@ -69,6 +69,7 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  
   // Real-time location search
   useEffect(() => {
     if (!searchQuery || searchQuery.trim().length < 2) {
@@ -83,64 +84,76 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
       let results = [];
 
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
-          typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:5000/api'
-            : 'https://helloproperties-admin-backend.vercel.app/api'
-        );
-        const token = localStorage.getItem('hp_auth_token') || localStorage.getItem('auth_token');
-        const res = await fetch(`${API_BASE_URL}/locations/search?q=${encodeURIComponent(q)}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          credentials: 'include'
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-            results = [...json.data];
-          }
-        }
-      } catch (err) {
-        console.error("Backend search error:", err);
-      }
-
-      // If backend has no results, fallback to Nominatim
-      if (results.length === 0) {
-        try {
-          const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ', India')}&countrycodes=in&format=json&addressdetails=1&limit=6`);
-          if (nomRes.ok) {
-            const nomData = await nomRes.json();
-            if (Array.isArray(nomData)) {
-              for (const item of nomData) {
-                const addr = item.address || {};
-                const rawState = addr.state || 'Kerala';
-                const displayName = item.display_name || '';
-                const rawDistrict = addr.state_district || addr.county || addr.city || addr.district || addr.town || addr.suburb || '';
-                const districtName = rawDistrict.replace(/district/i, '').trim();
-                const name = item.name || (displayName ? displayName.split(',')[0].trim() : q);
-
-                results.push({
-                  locality: name,
-                  district: districtName,
-                  state: rawState,
-                  latitude: parseFloat(item.lat),
-                  longitude: parseFloat(item.lon)
-                });
+        // For map search, we rely purely on Nominatim for geographic results (Google Maps-like)
+        // We do NOT use the internal /locations/search endpoint because it only returns basic localities,
+        // and we want rich geographic places, roads, and full addresses.
+        
+        // Append ', Kerala' optionally if you want to bias it, but passing it clean is better for 'countrycodes=in'
+        const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&countrycodes=in&format=json&addressdetails=1&limit=8`);
+        if (nomRes.ok) {
+          const nomData = await nomRes.json();
+          if (Array.isArray(nomData)) {
+            // Filter to remove exact duplicates by lat/lon
+            const seen = new Set();
+            results = nomData.filter(item => {
+              const key = `${item.lat},${item.lon}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            }).map(item => {
+              const addr = item.address || {};
+              const rawState = addr.state || 'Kerala';
+              const displayName = item.display_name || '';
+              
+              // Extract best district
+              let rawDistrict = addr.state_district || addr.county || addr.city || addr.district || '';
+              if (!rawDistrict) {
+                // fallback to anything that looks like a district
+                rawDistrict = addr.town || addr.suburb || '';
               }
-            }
+              const districtName = rawDistrict.replace(/district/i, '').trim();
+              
+              const placeName = item.name || (displayName ? displayName.split(',')[0].trim() : q);
+              
+              let fullAddress = displayName;
+              if (fullAddress.toLowerCase().startsWith(placeName.toLowerCase() + ',')) {
+                 fullAddress = fullAddress.substring(placeName.length + 1).trim();
+              }
+
+              return {
+                locality: placeName,
+                fullAddress: fullAddress,
+                district: districtName,
+                state: rawState,
+                latitude: parseFloat(item.lat),
+                longitude: parseFloat(item.lon),
+                category: item.class, // e.g. 'highway', 'place', 'amenity'
+                type: item.type
+              };
+            });
+            
+            // Prioritize highways/places (roads/localities) over generic amenities if needed
+            results.sort((a, b) => {
+              const aIsPlace = a.category === 'highway' || a.category === 'place' || a.category === 'boundary';
+              const bIsPlace = b.category === 'highway' || b.category === 'place' || b.category === 'boundary';
+              if (aIsPlace && !bIsPlace) return -1;
+              if (!aIsPlace && bIsPlace) return 1;
+              return 0;
+            });
           }
-        } catch (nomErr) {
-          console.error("Nominatim search error:", nomErr);
         }
+      } catch (nomErr) {
+        console.error("Nominatim map search error:", nomErr);
       }
 
       setSuggestions(results);
       setIsSearching(false);
       setIsDropdownOpen(true);
-    }, 400);
+    }, 500);
 
     return () => clearTimeout(handler);
   }, [searchQuery]);
+
 
   const handleSelectSuggestion = (item) => {
     setIsDropdownOpen(false);
@@ -247,29 +260,61 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
                 }}
                 onFocus={() => { if (searchQuery.trim().length >= 2) setIsDropdownOpen(true); }}
                 placeholder="Search location (e.g. Kottaram Road, Mavoor Road)..."
-                className="w-full pl-11 pr-4 py-3.5 text-[13px] text-slate-800 bg-white border-none focus:outline-none focus:ring-2 focus:ring-[#B0004F]/20"
+                className="w-full pl-11 pr-10 py-3.5 text-[13px] text-slate-800 bg-white border-none focus:outline-none focus:ring-2 focus:ring-[#B0004F]/20"
               />
+            
+              {searchQuery && (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSuggestions([]);
+                    setIsDropdownOpen(false);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* Suggestions Dropdown */}
             {isDropdownOpen && suggestions.length > 0 && (
-              <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-60 overflow-y-auto z-[1000]">
+              <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-100 max-h-[300px] overflow-y-auto z-[1000] flex flex-col">
+                <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 sticky top-0 z-10">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Places</span>
+                </div>
                 {suggestions.map((item, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => handleSelectSuggestion(item)}
-                    className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 border-b last:border-b-0 border-slate-50 transition-colors"
+                    className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-[#FFF1F6] border-b last:border-b-0 border-slate-50 transition-colors group"
                   >
-                    <MapPin className="w-4 h-4 text-[#B0004F] flex-shrink-0 mt-0.5" />
-                    <div>
-                      <div className="text-[13px] font-semibold text-slate-800 leading-tight mb-1">{item.locality}</div>
-                      <div className="text-[11px] text-slate-400">{item.district}{item.district && item.state ? ', ' : ''}{item.state}</div>
+                    <div className="w-6 h-6 rounded-full bg-slate-100 group-hover:bg-[#B0004F]/10 flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#B0004F] transition-colors" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[13px] font-bold text-slate-800 leading-tight mb-0.5 truncate group-hover:text-[#B0004F] transition-colors">
+                        {item.locality}
+                      </div>
+                      <div className="text-[11.5px] text-slate-500 leading-snug line-clamp-2">
+                        {item.fullAddress}
+                      </div>
                     </div>
                   </button>
                 ))}
               </div>
             )}
+            
+            {/* No Results Fallback */}
+            {isDropdownOpen && suggestions.length === 0 && !isSearching && searchQuery.trim().length >= 2 && (
+              <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-xl border border-slate-100 p-4 z-[1000] text-center">
+                <span className="text-[13px] font-semibold text-slate-600 block mb-1">No places found</span>
+                <span className="text-[11px] text-slate-400 block">Try a different search term or click anywhere on the map to drop a pin.</span>
+              </div>
+            )}
+
           </div>
 
           {/* Loading Overlay */}

@@ -3054,12 +3054,27 @@ export default function Properties() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">
-                          {activeMatchTarget.type === 'property' ? `${matchItem.preferredLocation}, ${matchItem.district}` : `${matchItem.location}, ${matchItem.district}`}
-                        </span>
-                      </div>
+                      {matchItem.distanceKm != null ? (
+                          <>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="truncate">
+                                Nearest: {matchItem.nearestLocationName || (activeMatchTarget.type === 'property' ? matchItem.preferredLocation : matchItem.location)}
+                              </span>
+                            </div>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
+                              <span className="font-bold">??</span>
+                              <span className="font-semibold">Distance: {matchItem.distanceKm.toFixed(2)} km</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="truncate">
+                             {activeMatchTarget.type === 'property' ? `${matchItem.preferredLocation}, ${matchItem.district}` : `${matchItem.location}, ${matchItem.district}`}
+                            </span>
+                          </div>
+                        )}
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
                         <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span>

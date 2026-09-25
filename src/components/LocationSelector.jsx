@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Search, ChevronDown, Loader2, Compass, CheckCircle2, X } from 'lucide-react';
 import { ALL_INDIAN_STATES, getDistrictsForState, INDIA_LOCATION_DATA } from '../data/indiaLocationData';
+import MapPickerModal from './MapPickerModal';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
   typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -149,6 +150,7 @@ export default function LocationSelector({
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
   const [availableDistricts, setAvailableDistricts] = useState([]);
 
   const wrapperRef = useRef(null);
@@ -233,36 +235,6 @@ export default function LocationSelector({
       });
       let results = Array.from(combinedMap.values());
 
-      // 3. Fallback to OpenStreetMap Nominatim search if no results found yet
-      if (results.length === 0 && q.length >= 2) {
-        try {
-          const targetState = stateValue || 'Kerala';
-          const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ', ' + targetState + ', India')}&countrycodes=in&format=json&addressdetails=1&limit=6`);
-          if (nomRes.ok) {
-            const nomData = await nomRes.json();
-            if (Array.isArray(nomData)) {
-              for (const item of nomData) {
-                const addr = item.address || {};
-                const rawState = addr.state || targetState;
-                const displayName = item.display_name || '';
-
-                const rawDistrict = addr.state_district || addr.county || addr.city || addr.district || addr.town || addr.suburb || '';
-                const name = item.name || (displayName ? displayName.split(',')[0].trim() : query.trim());
-                const districtName = rawDistrict.replace(/district/i, '').trim() || districtValue || 'Kozhikode';
-
-                results.push({
-                  locality: name,
-                  district: districtName,
-                  state: rawState || targetState
-                });
-              }
-            }
-          }
-        } catch (nomClientErr) {
-          // OpenStreetMap search fallback error handling
-        }
-      }
-
       setSuggestions(results);
       setIsLoading(false);
       setIsOpen(true);
@@ -271,19 +243,31 @@ export default function LocationSelector({
     return () => clearTimeout(handler);
   }, [query, stateValue, districtValue]);
 
-  // Select a suggestion -> Auto-fill Locality, District & State
+  // Select a suggestion -> Auto-fill Locality, District, State & Coords
   const handleSelectSuggestion = (item) => {
     const selectedLocality = item.locality || query;
     const selectedDistrict = item.district || districtValue;
     const selectedState = item.state || stateValue || 'Kerala';
+    const lat = item.latitude || null;
+    const lon = item.longitude || null;
 
     if (allowMultiple) {
       const currentLocs = formData[locationFieldName] ? String(formData[locationFieldName]).split(',').map(s => s.trim()).filter(Boolean) : [];
+      const currentCoords = Array.isArray(formData.preferred_coordinates) ? [...formData.preferred_coordinates] : [];
+      
       if (!currentLocs.includes(selectedLocality)) {
         currentLocs.push(selectedLocality);
+        currentCoords.push({
+           locality: selectedLocality,
+           district: selectedDistrict,
+           state: selectedState,
+           latitude: lat,
+           longitude: lon
+        });
       }
       onChange({
         [locationFieldName]: currentLocs.join(', '),
+        preferred_coordinates: currentCoords,
         district: selectedDistrict,
         state: selectedState
       });
@@ -295,49 +279,16 @@ export default function LocationSelector({
       onChange({
         [locationFieldName]: selectedLocality,
         district: selectedDistrict,
-        state: selectedState
+        state: selectedState,
+        latitude: lat,
+        longitude: lon
       });
     }
   };
 
-  // Custom locality fallback -> Auto-detect District & State if possible
-  const handleCustomLocation = () => {
-    const customText = query.trim();
-    const qNorm = customText.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    let detectedDistrict = districtValue;
-    let detectedState = stateValue || 'Kerala';
-
-    // Smart auto-detect
-    for (const [key, info] of Object.entries(CLIENT_LOCATION_LOOKUP)) {
-      const normKey = key.replace(/[^a-z0-9]/g, '');
-      if (normKey.includes(qNorm) || qNorm.includes(normKey)) {
-        detectedDistrict = info.district;
-        detectedState = info.state;
-        break;
-      }
-    }
-
-    setIsOpen(false);
-
-    if (allowMultiple) {
-      const currentLocs = formData[locationFieldName] ? String(formData[locationFieldName]).split(',').map(s => s.trim()).filter(Boolean) : [];
-      if (!currentLocs.includes(customText)) {
-        currentLocs.push(customText);
-      }
-      onChange({
-        [locationFieldName]: currentLocs.join(', '),
-        ...(detectedDistrict ? { district: detectedDistrict } : {}),
-        ...(detectedState ? { state: detectedState } : {})
-      });
-      setQuery('');
-    } else {
-      onChange({
-        [locationFieldName]: customText,
-        ...(detectedDistrict ? { district: detectedDistrict } : {}),
-        ...(detectedState ? { state: detectedState } : {})
-      });
-    }
+  const handleMapConfirm = (details) => {
+    handleSelectSuggestion(details);
+    setIsMapModalOpen(false);
   };
 
   // State Change handler -> Update districts list & reset district if invalid
@@ -391,11 +342,11 @@ export default function LocationSelector({
       if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
         handleSelectSuggestion(suggestions[highlightedIndex]);
       } else if (highlightedIndex === suggestions.length) {
-        handleCustomLocation();
+        setIsMapModalOpen(true);
       } else if (suggestions.length > 0) {
         handleSelectSuggestion(suggestions[0]);
       } else {
-        handleCustomLocation();
+        setIsMapModalOpen(true);
       }
     } else if (e.key === 'Escape') {
       setIsOpen(false);
@@ -428,7 +379,9 @@ export default function LocationSelector({
                     e.stopPropagation();
                     const currentLocs = String(formData[locationFieldName]).split(',').map(s => s.trim()).filter(Boolean);
                     const newLocs = currentLocs.filter(l => l !== loc);
-                    onChange({ [locationFieldName]: newLocs.join(', ') });
+                    const currentCoords = Array.isArray(formData.preferred_coordinates) ? [...formData.preferred_coordinates] : [];
+                    const newCoords = currentCoords.filter(c => c.locality !== loc);
+                    onChange({ [locationFieldName]: newLocs.join(', '), preferred_coordinates: newCoords });
                   }}
                   className="hover:bg-[#B0004F]/20 rounded-full p-0.5 transition-colors cursor-pointer text-[#B0004F]"
                 >
@@ -509,14 +462,14 @@ export default function LocationSelector({
             ) : null}
             <button
               type="button"
-              onClick={handleCustomLocation}
+              onClick={() => setIsMapModalOpen(true)}
               onMouseEnter={() => setHighlightedIndex(suggestions.length)}
-              className={`w-full text-left px-4 py-2 text-[12px] text-[#B0004F] font-medium flex items-center gap-2 border-t border-slate-100 cursor-pointer transition-colors ${
+              className={`w-full text-left px-4 py-3 text-[12px] text-[#B0004F] font-medium flex items-center gap-2 border-t border-slate-100 cursor-pointer transition-colors ${
                 highlightedIndex === suggestions.length ? "bg-[#FFF1F6]" : "hover:bg-slate-50"
               }`}
             >
-              <Compass className="w-3 h-3 flex-shrink-0" />
-              <span>Use "{query.trim()}" as locality</span>
+              <MapPin className="w-4 h-4 flex-shrink-0" />
+              <span>Select Location on Map</span>
             </button>
           </div>
         )}
@@ -589,41 +542,11 @@ export default function LocationSelector({
       </div>
       )}
       
-      {!(allowMultiple && formData[locationFieldName] && String(formData[locationFieldName]).trim().length > 0) && (
-        <div className="mt-5 p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/50">
-          <div className="flex items-center justify-between mb-3">
-              <label className="text-[11px] font-bold uppercase tracking-[0.1em] text-slate-600">Manual Map Coordinates</label>
-              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query || 'Kerala, India')}`} target="_blank" rel="noreferrer" className="text-[11px] text-[#B0004F] hover:underline flex items-center gap-1">
-                <MapPin className="w-3 h-3" /> Pin on Google Maps
-              </a>
-          </div>
-          <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
-            If your location was not found in the search, pin it exactly on the map and paste the latitude and longitude below to ensure accurate geographic matching.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <input 
-                type="number" 
-                step="any"
-                placeholder="Latitude (e.g. 11.2587)"
-                value={formData.latitude || ''}
-                onChange={(e) => onChange({ latitude: parseFloat(e.target.value) || null })}
-                className="w-full px-3 py-2 rounded-lg text-[13px] text-slate-800 bg-white border border-slate-200 focus:border-[#B0004F]/30 focus:ring-2 focus:ring-[#B0004F]/10 transition-all outline-none"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <input 
-                type="number" 
-                step="any"
-                placeholder="Longitude (e.g. 75.7804)"
-                value={formData.longitude || ''}
-                onChange={(e) => onChange({ longitude: parseFloat(e.target.value) || null })}
-                className="w-full px-3 py-2 rounded-lg text-[13px] text-slate-800 bg-white border border-slate-200 focus:border-[#B0004F]/30 focus:ring-2 focus:ring-[#B0004F]/10 transition-all outline-none"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <MapPickerModal
+        isOpen={isMapModalOpen}
+        onClose={() => setIsMapModalOpen(false)}
+        onConfirm={handleMapConfirm}
+      />
      
     </div>
   );

@@ -60,7 +60,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
 
     setFormData(defaultData);
     setErrors({});
-    setImagePreviews({});
+    if (initialValues.imageUrl) { setImagePreviews({ images: initialValues.imageUrl.split(',').filter(Boolean) }); } else { setImagePreviews({}); }
   }, [schema, initialValues]);
 
   const handleChange = (eOrFieldName, fieldIdOrValue) => {
@@ -106,13 +106,42 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
   };
 
   const handleImageChange = (e, fieldId) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreviews(prev => ({ ...prev, [fieldId]: previewUrl }));
-      setFormData(prev => ({ ...prev, [fieldId]: file, imageFile: file, imageUrl: previewUrl }));
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const newPreviews = files.map(f => URL.createObjectURL(f));
+      setImagePreviews(prev => {
+        const existing = prev[fieldId] ? (Array.isArray(prev[fieldId]) ? prev[fieldId] : [prev[fieldId]]) : [];
+        return { ...prev, [fieldId]: [...existing, ...newPreviews] };
+      });
+      setFormData(prev => {
+        const existingFiles = prev.imageFiles || [];
+        const existingUrlStr = prev.imageUrl || (prev[fieldId] && typeof prev[fieldId] === 'string' ? prev[fieldId] : '');
+        const existingUrls = typeof existingUrlStr === 'string' ? existingUrlStr.split(',').filter(Boolean) : [];
+        const newUrlStr = [...existingUrls, ...newPreviews].join(',');
+        return { ...prev, [fieldId]: newUrlStr, imageFiles: [...existingFiles, ...files], imageUrl: newUrlStr };
+      });
       if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
     }
+  };
+
+  const handleRemoveImage = (fieldId, indexToRemove) => {
+    setImagePreviews(prev => {
+      const existing = prev[fieldId] ? (Array.isArray(prev[fieldId]) ? prev[fieldId] : [prev[fieldId]]) : [];
+      const newPreviews = existing.filter((_, idx) => idx !== indexToRemove);
+      return { ...prev, [fieldId]: newPreviews.length > 0 ? newPreviews : null };
+    });
+    setFormData(prev => {
+      const existingFiles = prev.imageFiles || [];
+      const existingUrlStr = prev.imageUrl || (prev[fieldId] && typeof prev[fieldId] === 'string' ? prev[fieldId] : '');
+      const existingUrls = typeof existingUrlStr === 'string' ? existingUrlStr.split(',').filter(Boolean) : [];
+      
+      // We assume new files are appended at the end. We only keep files that are NOT being removed.
+      // This is a simplified approach, but works for the current flow.
+      const newUrls = existingUrls.filter((_, idx) => idx !== indexToRemove);
+      const newUrlStr = newUrls.join(',');
+      
+      return { ...prev, [fieldId]: newUrlStr, imageUrl: newUrlStr };
+    });
   };
 
   const handleVideoSelect = async (e, fieldId) => {
@@ -341,7 +370,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
 
   const getSectionHeader = (fieldId) => {
     if (fieldId === "title" || fieldId === "listingType") return "Property Information";
-    if (fieldId === "requirementTitle" || fieldId === "requirementType") return "Requirement Information";
+    if (fieldId === "requirementType") return "Requirement Information";
     if (fieldId === "area") return "Specifications & Pricing";
     if (fieldId === "requiredArea") return "Specifications & Budget";
     if (fieldId === "ownerName") return "Owner & Contact";
@@ -447,6 +476,86 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                     )}
                   </div>
 
+                ) : field.type === "rating_bar" ? (
+                  (() => {
+                    const selectedOpt = formData[field.id] || "";
+                    let fillWidth = "0%";
+                    let fillColor = "bg-slate-200";
+                    let currentLabel = "";
+                    let labelColor = "text-slate-400";
+
+                    // Map values to password-strength style: Mild (Weak/Red) -> Cold (Medium/Yellow) -> Hot (Strong/Green)
+                    if (selectedOpt.toLowerCase().includes("mild")) {
+                      fillWidth = "33.33%";
+                      fillColor = "bg-red-500";
+                      currentLabel = "mild";
+                      labelColor = "text-red-500";
+                    } else if (selectedOpt.toLowerCase().includes("cold")) {
+                      fillWidth = "66.66%";
+                      fillColor = "bg-amber-400";
+                      currentLabel = "cold";
+                      labelColor = "text-amber-500";
+                    } else if (selectedOpt.toLowerCase().includes("hot")) {
+                      fillWidth = "100%";
+                      fillColor = "bg-green-500";
+                      currentLabel = "hot";
+                      labelColor = "text-green-500";
+                    }
+
+                    // Order: Mild -> Cold -> Hot for the click zones
+                    const orderedOptions = [...field.options].sort((a, b) => {
+                      const getVal = (s) => s.toLowerCase().includes('mild') ? 1 : s.toLowerCase().includes('cold') ? 2 : 3;
+                      return getVal(a) - getVal(b);
+                    });
+
+                    let thumbBorder = "border-slate-300";
+                    if (selectedOpt.toLowerCase().includes("mild")) thumbBorder = "border-red-500";
+                    else if (selectedOpt.toLowerCase().includes("cold")) thumbBorder = "border-amber-400";
+                    else if (selectedOpt.toLowerCase().includes("hot")) thumbBorder = "border-green-500";
+
+                    return (
+                      <div className={`relative ${inputBase(hasError)} flex flex-col justify-end overflow-visible pb-2 pt-6`}>
+                        <label className="absolute left-4 top-2 text-[10.5px] text-slate-400 font-semibold pointer-events-none">
+                          {field.label}{field.required && <span className="text-[#B0004F] ml-0.5">*</span>}
+                        </label>
+
+                        <div className="w-full flex items-center gap-4 mt-2 mb-1">
+                          {/* The Editable Slider Bar */}
+                          <div className="relative flex-1 h-[6px] bg-slate-200 rounded-full flex items-center group cursor-pointer">
+                             {/* Fill layer */}
+                             <div className={`absolute top-0 left-0 h-full transition-all duration-300 rounded-full ${fillColor}`} style={{ width: fillWidth }}></div>
+                             
+                             {/* Slider Thumb (makes it look editable) */}
+                             {fillWidth !== "0%" && (
+                               <div 
+                                 className={`absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.3)] border-2 transition-all duration-300 pointer-events-none group-hover:scale-125 ${thumbBorder}`} 
+                                 style={{ left: `calc(${fillWidth} - ${fillWidth === '100%' ? '14px' : '7px'})` }}
+                               ></div>
+                             )}
+                             
+                             {/* Invisible Click Zones */}
+                             <div className="absolute inset-0 flex w-full h-full rounded-full overflow-hidden">
+                               {orderedOptions.map(opt => (
+                                 <button 
+                                   type="button"
+                                   key={opt}
+                                   className="flex-1 h-full z-10 focus:outline-none hover:bg-black/5 transition-colors cursor-pointer"
+                                   onClick={() => handleChange(field.id, opt)}
+                                   title={opt}
+                                 ></button>
+                               ))}
+                             </div>
+                          </div>
+                          
+                          {/* The Status Label */}
+                          <div className={`w-10 text-right text-[12px] font-bold tracking-wide transition-colors duration-300 ${labelColor}`}>
+                            {currentLabel}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
+
                 ) : field.type === "select" ? (
                   /* Select — controlled label position */
                   <div className="relative">
@@ -485,8 +594,9 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                         <input
                           type="file"
                           accept="image/*"
+                          multiple
                           onChange={(e) => handleImageChange(e, field.id)}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                         />
                         <ImagePlus className="w-4 h-4 text-slate-400 group-hover:text-[#B0004F] transition-colors flex-shrink-0" />
                         <div>
@@ -496,20 +606,21 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                           <span className="text-[11px] text-slate-400">PNG, JPG or WEBP · Max 5 MB</span>
                         </div>
                       </label>
-                      {imagePreviews[field.id] && (
-                        <div className="relative w-[54px] h-[54px] flex-shrink-0 rounded-xl overflow-hidden ring-1 ring-slate-200">
-                          <img src={imagePreviews[field.id]} alt="Preview" className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setImagePreviews(prev => ({ ...prev, [field.id]: null }));
-                              setFormData(prev => ({ ...prev, [field.id]: "", imageUrl: "" }));
-                            }}
-                            className="absolute top-0.5 right-0.5 bg-white/90 hover:bg-red-500 hover:text-white text-slate-500 rounded-full p-0.5 shadow transition-colors cursor-pointer"
-                            title="Remove"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                      {imagePreviews[field.id] && Array.isArray(imagePreviews[field.id]) && imagePreviews[field.id].length > 0 && (
+                        <div className="flex gap-2 flex-wrap max-w-full z-20">
+                          {imagePreviews[field.id].map((previewUrl, idx) => (
+                            <div key={idx} className="relative w-[54px] h-[54px] flex-shrink-0 rounded-xl overflow-hidden ring-1 ring-slate-200">
+                              <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={(e) => { e.preventDefault(); handleRemoveImage(field.id, idx); }}
+                                className="absolute top-0.5 right-0.5 bg-white/90 hover:bg-red-500 hover:text-white text-slate-500 rounded-full p-0.5 shadow transition-colors cursor-pointer z-30"
+                                title="Remove"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>

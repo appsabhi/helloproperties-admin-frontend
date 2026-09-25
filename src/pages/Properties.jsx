@@ -1161,7 +1161,7 @@ export default function Properties() {
                   title="Click to view full property details"
                 >
                   <MediaThumbnail 
-                    imageUrl={prop.imageUrl} 
+                    imageUrl={prop.imageUrl && typeof prop.imageUrl === 'string' ? prop.imageUrl.split(',')[0] : prop.imageUrl} 
                     videoUrl={prop.videoUrl}
                     video={prop.video}
                     video_url={prop.video_url}
@@ -1359,6 +1359,21 @@ export default function Properties() {
                         <span className="truncate">{formatDisplayArea(req.requiredArea, req.requiredAreaUnit)}</span>
                       </div>
                     )}
+                    {req.buyerStatus && (
+                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold max-w-full ${
+                        req.buyerStatus.toLowerCase().includes('hot') ? 'bg-green-50 border-green-200 text-green-700' :
+                        req.buyerStatus.toLowerCase().includes('cold') ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                        req.buyerStatus.toLowerCase().includes('mild') ? 'bg-red-50 border-red-200 text-red-700' :
+                        'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}>
+                         <span className="truncate">{req.buyerStatus.split(' (')[0]} Lead</span>
+                      </div>
+                    )}
+                    {req.enquirySource && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700 max-w-full">
+                        <span className="truncate">Src: {req.enquirySource === 'Other' ? req.otherEnquirySource : req.enquirySource}</span>
+                      </div>
+                    )}
                   </div>
 
                   {req.description && (
@@ -1536,7 +1551,7 @@ export default function Properties() {
                     {(hasImage || (!hasImage && !hasVideo)) && (
                       <div className="h-48 sm:h-56 max-h-[30vh] w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
                         <img 
-                          src={item.imageUrl || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'} 
+                          src={(item.imageUrl && typeof item.imageUrl === 'string' ? item.imageUrl.split(',')[0] : item.imageUrl) || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'} 
                           alt={item.title || "Property"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -1650,6 +1665,31 @@ export default function Properties() {
               </span>
             </div>
           </div>
+
+          {/* Lead Info for Requirements */}
+          {viewingDetailTarget.type === 'requirement' && (viewingDetailTarget.item.buyerStatus || viewingDetailTarget.item.enquirySource) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-2.5">
+              {viewingDetailTarget.item.buyerStatus && (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Buyer Status</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    viewingDetailTarget.item.buyerStatus.toLowerCase().includes('hot') ? 'bg-green-100 text-green-700' :
+                    viewingDetailTarget.item.buyerStatus.toLowerCase().includes('cold') ? 'bg-amber-100 text-amber-700' :
+                    viewingDetailTarget.item.buyerStatus.toLowerCase().includes('mild') ? 'bg-red-100 text-red-700' :
+                    'bg-slate-200 text-slate-700'
+                  }`}>{viewingDetailTarget.item.buyerStatus.split(' (')[0]} Lead</span>
+                </div>
+              )}
+              {viewingDetailTarget.item.enquirySource && (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Source</span>
+                  <span className="text-xs font-bold text-slate-800 truncate pl-2 text-right">
+                    {viewingDetailTarget.item.enquirySource === 'Other' ? viewingDetailTarget.item.otherEnquirySource : viewingDetailTarget.item.enquirySource}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Description & Remarks */}
           {viewingDetailTarget.item.description && (
@@ -1984,7 +2024,7 @@ export default function Properties() {
                         </div>
                       ) : (
                         <img
-                          src={editPropForm.imageUrl}
+                          src={editPropForm.imageUrl && typeof editPropForm.imageUrl === 'string' ? editPropForm.imageUrl.split(',')[0] : editPropForm.imageUrl}
                           alt="Property Preview"
                           className="w-full h-full object-cover"
                           onError={() => setImageLoadError(true)}

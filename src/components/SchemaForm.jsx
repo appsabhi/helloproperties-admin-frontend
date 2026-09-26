@@ -567,8 +567,10 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                     >
                       <option value=""></option>
                       {field.options && field.options.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
+                          <option key={typeof opt === 'object' ? opt.value : opt} value={typeof opt === 'object' ? opt.value : opt}>
+                            {typeof opt === 'object' ? opt.label : opt}
+                          </option>
+                        ))}
                     </select>
                     <label
                       htmlFor={`input-${field.id}`}

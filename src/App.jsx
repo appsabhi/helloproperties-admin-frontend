@@ -184,7 +184,23 @@ export default function App() {
                 }
               />
               <Route
-                path="/settings"
+                  path="/properties/:id"
+                  element={
+                    <ProtectedRoute>
+                      <Properties />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/requirements/:id"
+                  element={
+                    <ProtectedRoute>
+                      <Properties />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
                 element={
                   <ProtectedRoute>
                     <Settings />

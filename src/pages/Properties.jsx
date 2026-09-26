@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
 import { sellPropertySchema, buyRequirementSchema } from '../schemas/formSchemas';
@@ -62,6 +62,7 @@ export default function Properties() {
   } = useContext(PropertyContext);
 
   const location = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
 
   // Active tab state: 'sale' | 'rent' | 'requirements'
@@ -79,6 +80,25 @@ export default function Properties() {
 
   // Full Details Popup Modal State: { type: 'property' | 'requirement', item: any }
   const [viewingDetailTarget, setViewingDetailTarget] = useState(null);
+
+  useEffect(() => {
+    if (id) {
+      if (location.pathname.startsWith('/requirements/')) {
+        const req = requirements.find(r => String(r.id) === id || r.requirementId === id);
+        if (req) {
+          setViewingDetailTarget({ type: 'requirement', item: req });
+        }
+      } else if (location.pathname.startsWith('/properties/')) {
+        const prop = properties.find(p => String(p.id) === id || p.propertyId === id);
+        if (prop) {
+          setViewingDetailTarget({ type: 'property', item: prop });
+        }
+      }
+    } else {
+      setViewingDetailTarget(null);
+    }
+  }, [id, properties, requirements, location.pathname]);
+
 
   useEffect(() => {
     if (location.pathname.includes('/requirements') || location.pathname.includes('/buy')) {
@@ -102,7 +122,6 @@ export default function Properties() {
     setExpandedBreakdowns({});
     setMatchFilter('all');
     setSharingTarget(null);
-    setViewingDetailTarget(null);
     
     const currentParams = new URLSearchParams(location.search);
     const q = currentParams.get('search') || '';
@@ -609,6 +628,7 @@ export default function Properties() {
       buyerStatus: req.buyerStatus || 'Hot (Willing to buy)',
       enquirySource: req.enquirySource || 'Phone Call',
       otherEnquirySource: req.otherEnquirySource || '',
+      interestedPropertyId: req.interestedPropertyId || '',
       status: req.status || 'Active',
       buyerStatus: req.buyerStatus || req.buyer_status || 'Hot (Willing to buy)',
       enquirySource: req.enquirySource || req.enquiry_source || 'Phone Call',
@@ -633,7 +653,8 @@ export default function Properties() {
       maximumMonthlyRent: parsePriceWithUnit(editReqForm.maximumMonthlyRent, editReqForm.maximumMonthlyRentUnit || '/ Month'),
       buyerStatus: editReqForm.buyerStatus,
       enquirySource: editReqForm.enquirySource,
-      otherEnquirySource: editReqForm.otherEnquirySource
+      otherEnquirySource: editReqForm.otherEnquirySource,
+      interestedPropertyId: editReqForm.interestedPropertyId || null
     };
 
     const res = await updateRequirement(editingRequirement.id, formattedPayload);
@@ -900,7 +921,7 @@ export default function Properties() {
         </div>
 
         {/* Primary Action Button */}
-        {view === 'list' && (
+        {view === 'list' && !viewingDetailTarget && (
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleOpenSmartMatchSearch}
@@ -962,7 +983,7 @@ export default function Properties() {
       </div>
 
       {/* Filters Panel — only on list view */}
-      {view === 'list' && (
+      {view === 'list' && !viewingDetailTarget && (
       <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-4 items-center">
         {/* Search */}
         <div className="relative w-full md:flex-1">
@@ -1151,7 +1172,7 @@ export default function Properties() {
               </div>
             ) : (
               <SchemaForm
-                schema={buyRequirementSchema}
+                schema={buyRequirementSchema.map(f => f.id === 'interestedPropertyId' ? { ...f, options: properties.map(p => ({ label: `${p.propertyId} - ${p.title}`, value: p.id })) } : f)}
                 onSubmit={handleAddRequirementSubmit}
                 onCancel={() => { setView('list'); setAddRequirementResult(null); }}
                 submitLabel={isSubmittingAddReq ? 'Saving...' : 'Register Requirement'}
@@ -1163,7 +1184,7 @@ export default function Properties() {
       )}
 
       {/* ── GRID LIST ── only shown on list view */}
-      {view === 'list' && (<>
+      {view === 'list' && !viewingDetailTarget && (<>
       {activeTab === 'sale' || activeTab === 'rent' ? (
         filteredProperties.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 border-dashed text-slate-400">
@@ -1175,7 +1196,7 @@ export default function Properties() {
               <div key={prop.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.08)] hover:border-slate-300/80 transition-all duration-200 overflow-hidden flex flex-col group">
                 {/* Image */}
                 <div 
-                  onClick={() => setViewingDetailTarget({ type: 'property', item: prop })}
+                  onClick={() => navigate(`/properties/${prop.id}`)}
                   className="h-44 w-full relative bg-slate-100 overflow-hidden flex-shrink-0 cursor-pointer"
                   title="Click to view full property details"
                 >
@@ -1208,7 +1229,7 @@ export default function Properties() {
                   <div className="space-y-2.5">
                     <div className="flex items-start justify-between gap-3">
                       <h3 
-                        onClick={() => setViewingDetailTarget({ type: 'property', item: prop })}
+                        onClick={() => navigate(`/properties/${prop.id}`)}
                         className="font-bold text-base sm:text-[17px] text-slate-900 leading-snug flex-1 min-w-0 hover:text-[#B0004F] transition-colors cursor-pointer"
                         title="Click to view full property details"
                       >
@@ -1287,7 +1308,7 @@ export default function Properties() {
 
                     <div className="flex items-center gap-1.5 justify-start sm:justify-end flex-wrap">
                       <button
-                        onClick={() => setViewingDetailTarget({ type: 'property', item: prop })}
+                        onClick={() => navigate(`/properties/${prop.id}`)}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-all cursor-pointer"
                         title="View full property details in popup"
                       >
@@ -1332,7 +1353,7 @@ export default function Properties() {
                   {/* Card Header: Type Badge, Property Type & Budget */}
                   <div className="flex items-center justify-between gap-3">
                     <div 
-                      onClick={() => setViewingDetailTarget({ type: 'requirement', item: req })}
+                      onClick={() => navigate(`/requirements/${req.id}`)}
                       className="flex items-center gap-2.5 min-w-0 cursor-pointer"
                       title="Click to view full requirement details"
                     >
@@ -1427,7 +1448,7 @@ export default function Properties() {
 
                   <div className="flex items-center gap-1.5 justify-start sm:justify-end">
                     <button
-                      onClick={() => setViewingDetailTarget({ type: 'requirement', item: req })}
+                      onClick={() => navigate(`/requirements/${req.id}`)}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-all cursor-pointer"
                       title="View full requirement details in popup"
                     >
@@ -1455,107 +1476,51 @@ export default function Properties() {
       {/* ADD PROPERTY MODAL — replaced by inline view */}
       </>)}
 
-      {/* FULL DETAILS POPUP MODAL */}
-      {viewingDetailTarget && (
-        <Modal
-          isOpen={!!viewingDetailTarget}
-          onClose={() => setViewingDetailTarget(null)}
-          title={viewingDetailTarget.type === 'property'
-            ? viewingDetailTarget.item.title
-            : (viewingDetailTarget.item.requirementTitle || `${viewingDetailTarget.item.propertyType} Requirement`)}
-          icon={Building2}
-          badge={
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
-                (viewingDetailTarget.item.requirementType === 'Rent' || viewingDetailTarget.item.listingType === 'Rent')
-                  ? 'bg-violet-50 text-violet-700 border border-violet-100'
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-              }`}>
-                {viewingDetailTarget.type === 'property'
-                  ? (viewingDetailTarget.item.listingType || 'Sale')
-                  : (viewingDetailTarget.item.requirementType === 'Rent' ? 'Rent Requirement' : 'Buy Requirement')}
-              </span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${
-                viewingDetailTarget.item.status === 'Available' || viewingDetailTarget.item.status === 'Active'
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : viewingDetailTarget.item.status === 'Under Negotiation'
-                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : 'bg-slate-100 text-slate-600 border-slate-200'
-              }`}>
-                {viewingDetailTarget.item.status}
-              </span>
-            </div>
-          }
-          size="xl"
-          footer={
-            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    const target = viewingDetailTarget;
-                    setViewingDetailTarget(null);
-                    handleOpenMatches(target.type, target.item);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-rose-50 text-[#B0004F] hover:bg-[#B0004F] hover:text-white transition-all cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{viewingDetailTarget.type === 'property' ? 'View Matching Buyers' : 'View Matching Properties'}</span>
-                </button>
-
-                {viewingDetailTarget.type === 'property' && (
+              {/* FULL DETAILS DEDICATED VIEW */}
+        {viewingDetailTarget && (
+          <div className="flex-1 overflow-y-auto bg-white">
+            <div className="max-w-[1200px] mx-auto w-full flex flex-col min-h-full">
+              
+              {/* HEADER AREA */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-8 border-b border-slate-100 gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#B0004F]/10 flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-[#B0004F]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                      {viewingDetailTarget.type === 'property'
+                        ? viewingDetailTarget.item.title
+                        : (viewingDetailTarget.item.requirementTitle || `${viewingDetailTarget.item.propertyType} Requirement`)}
+                    </h2>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        (viewingDetailTarget.item.requirementType === 'Rent' || viewingDetailTarget.item.listingType === 'Rent')
+                          ? 'bg-violet-50 text-violet-700 border border-violet-100'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                      }`}>
+                        {viewingDetailTarget.type === 'property'
+                          ? (viewingDetailTarget.item.listingType || 'Sale')
+                          : (viewingDetailTarget.item.requirementType === 'Rent' ? 'Rent Requirement' : 'Buy Requirement')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* ACTION BUTTONS */}
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => {
-                      const propObj = viewingDetailTarget.item;
-                      setViewingDetailTarget(null);
-                      setSharingTarget({ property: propObj, buyer: null });
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200/80 transition-all cursor-pointer"
+                    onClick={() => navigate(viewingDetailTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings')}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Share Public Link</span>
+                    Back to List
                   </button>
-                )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    const target = viewingDetailTarget;
-                    setViewingDetailTarget(null);
-                    if (target.type === 'property') {
-                      handleOpenEditProperty(target.item);
-                    } else {
-                      handleOpenEditRequirement(target.item);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Edit</span>
-                </button>
-                {(user?.role === 'Admin' || user?.role === 'Staff') && (
-                  <button
-                    onClick={() => {
-                      const target = viewingDetailTarget;
-                      setViewingDetailTarget(null);
-                      setDeletingTarget({ type: target.type, item: target.item });
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete</span>
-                  </button>
-                )}
-                <button
-                  onClick={() => setViewingDetailTarget(null)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          }
-        >
+              {/* BODY CONTENT */}
+              <div className="p-5 sm:p-7 space-y-6">
+
           {/* Media Container: Image or Video */}
           {viewingDetailTarget.type === 'property' && (
             <div className="space-y-3">
@@ -1859,10 +1824,81 @@ export default function Properties() {
               </div>
             </div>
           </div>
-        </Modal>
-      )}
+        
+              </div>
+              
+              {/* FOOTER ACTIONS */}
+              <div className="p-5 sm:p-8 bg-slate-50/50 border-t border-slate-100 mt-auto">
+                
+            <div className="flex flex-wrap items-center justify-between gap-2 w-full">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const target = viewingDetailTarget;
+                      handleOpenMatches(target.type, target.item);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-rose-50 text-[#B0004F] hover:bg-[#B0004F] hover:text-white transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{viewingDetailTarget.type === 'property' ? 'View Matching Buyers' : 'View Matching Properties'}</span>
+                </button>
 
-      {/* EDIT PROPERTY MODAL */}
+                {viewingDetailTarget.type === 'property' && (
+                  <button
+                    onClick={() => {
+                      const propObj = viewingDetailTarget.item;
+                      setSharingTarget({ property: propObj, buyer: null });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200/80 transition-all cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Share Public Link</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const target = viewingDetailTarget;
+                      if (target.type === 'property') {
+                      handleOpenEditProperty(target.item);
+                    } else {
+                      handleOpenEditRequirement(target.item);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-100 transition-all cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
+                {(user?.role === 'Admin' || user?.role === 'Staff') && (
+                  <button
+                    onClick={() => {
+                      const target = viewingDetailTarget;
+                      setDeletingTarget({ type: target.type, item: target.item });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate(viewingDetailTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings')}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Back to List
+                </button>
+              </div>
+            </div>
+          
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* EDIT PROPERTY MODAL */}{/* EDIT PROPERTY MODAL */}
       {editingProperty && (
         <Modal
           isOpen={!!editingProperty}
@@ -3065,11 +3101,9 @@ export default function Properties() {
                   <div 
                       key={idx} 
                       onClick={() => {
-                        setViewingDetailTarget({ 
-                          type: activeMatchTarget.type === 'property' ? 'requirement' : 'property', 
-                          item: matchItem 
-                        });
-                      }}
+                          setActiveMatchTarget(null);
+                          navigate(`/${activeMatchTarget.type === 'property' ? 'requirements' : 'properties'}/${matchItem.id}`);
+                        }}
                       className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-slate-300 transition-all duration-200 space-y-3.5 cursor-pointer"
                     >
                     <div className="flex items-start justify-between gap-3">

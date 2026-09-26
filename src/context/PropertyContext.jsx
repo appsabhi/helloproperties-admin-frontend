@@ -234,7 +234,8 @@ export const PropertyProvider = ({ children }) => {
     buyerStatus: r.buyerStatus || r.buyer_status || '',
     enquirySource: r.enquirySource || r.enquiry_source || '',
     otherEnquirySource: r.otherEnquirySource || r.other_enquiry_source || '',
-    status: r.status || 'Active',
+      interestedPropertyId: r.interestedPropertyId || r.interested_property_id || null,
+      status: r.status || 'Active',
     createdAt: r.createdAt || r.created_at || new Date().toISOString()
   });
 
@@ -408,7 +409,8 @@ export const PropertyProvider = ({ children }) => {
         buyerStatus: reqData.buyerStatus || 'Hot (Willing to buy)',
         enquirySource: reqData.enquirySource || 'Phone Call',
         otherEnquirySource: reqData.otherEnquirySource || '',
-        status: reqData.status || 'Active',
+          interestedPropertyId: reqData.interestedPropertyId || null,
+          status: reqData.status || 'Active',
           latitude: reqData.latitude || reqData.lat || null,
           longitude: reqData.longitude || reqData.lng || null,
           preferredCoordinates: reqData.preferredCoordinates || reqData.preferred_coordinates || null
@@ -718,7 +720,8 @@ export const PropertyProvider = ({ children }) => {
         buyerStatus: updatedData.buyerStatus || 'Hot (Willing to buy)',
         enquirySource: updatedData.enquirySource || 'Phone Call',
         otherEnquirySource: updatedData.otherEnquirySource || '',
-        status: updatedData.status || 'Active',
+          interestedPropertyId: updatedData.interestedPropertyId || null,
+          status: updatedData.status || 'Active',
           latitude: updatedData.latitude !== undefined ? updatedData.latitude : (updatedData.lat !== undefined ? updatedData.lat : null),
           longitude: updatedData.longitude !== undefined ? updatedData.longitude : (updatedData.lng !== undefined ? updatedData.lng : null),
           preferredCoordinates: updatedData.preferredCoordinates !== undefined ? updatedData.preferredCoordinates : (updatedData.preferred_coordinates !== undefined ? updatedData.preferred_coordinates : null)

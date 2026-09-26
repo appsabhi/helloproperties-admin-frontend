@@ -18,6 +18,7 @@ export const sellPropertySchema = [
 ];
 
 export const buyRequirementSchema = [
+    { id: 'interestedPropertyId', label: 'Interested Property (Optional)', type: 'select', options: [], required: false },
   { id: 'buyerStatus', label: 'Buyer Status / Rating', type: 'rating_bar', options: ['Hot (Willing to buy)', 'Mild (Just enquired)', 'Cold (Small interest)'], defaultValue: 'Hot (Willing to buy)', required: true },
   { id: 'enquirySource', label: 'Enquiry Source', type: 'select', options: ['Instagram Video', 'Phone Call', 'WhatsApp', 'Direct Visitor', 'Reference', 'Other'], defaultValue: 'Phone Call', required: false },
   { id: 'otherEnquirySource', label: 'Please specify other source', type: 'text', placeholder: 'e.g. Facebook', required: true, showIf: (data) => data.enquirySource === 'Other' },

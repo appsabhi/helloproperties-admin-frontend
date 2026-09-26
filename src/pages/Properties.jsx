@@ -1214,7 +1214,13 @@ export default function Properties() {
                       >
                         {prop.title}
                       </h3>
-                      <div className="shrink-0 bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex flex-col items-end min-w-[110px]">
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        {prop.createdAt && (
+                          <span className="text-[10px] text-slate-400 font-semibold tracking-wide">
+                            Added {new Date(prop.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                        )}
+                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex flex-col items-end min-w-[110px] w-full">
                         {(() => {
                           const unitText = getItemUnitText(prop, 'property');
                           return prop.listingType === 'Rent' ? (
@@ -1243,6 +1249,7 @@ export default function Properties() {
                             </>
                           );
                         })()}
+                        </div>
                       </div>
                     </div>
                     
@@ -1337,15 +1344,14 @@ export default function Properties() {
                           }`}>
                             {req.requirementType === 'Rent' ? 'Rent' : 'Buy'}
                           </span>
-                          {req.status && (
+                          {req.buyerStatus && (
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                              req.status === 'Available' || req.status === 'Active'
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : req.status === 'Under Negotiation'
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-slate-100 text-slate-600 border-slate-200'
+                              req.buyerStatus.toLowerCase().includes('hot') ? 'bg-green-50 text-green-700 border-green-200' :
+                              req.buyerStatus.toLowerCase().includes('cold') ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              req.buyerStatus.toLowerCase().includes('mild') ? 'bg-red-50 text-red-700 border-red-200' :
+                              'bg-slate-100 text-slate-600 border-slate-200'
                             }`}>
-                              {req.status}
+                              {req.buyerStatus.split(' (')[0]} Lead
                             </span>
                           )}
                         </div>
@@ -1359,7 +1365,13 @@ export default function Properties() {
                       )}
                     </div>
 
-                    <div className="shrink-0 bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex flex-col items-end min-w-[110px]">
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      {req.createdAt && (
+                        <span className="text-[10px] text-slate-400 font-semibold tracking-wide">
+                          Added {new Date(req.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </span>
+                      )}
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 flex flex-col items-end min-w-[110px] w-full">
                       <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider mb-0.5">
                         {req.requirementType === 'Rent' ? 'Max Rent' : 'Price / Budget'}
                       </span>
@@ -1376,6 +1388,7 @@ export default function Properties() {
                           </span>
                         ) : null;
                       })()}
+                      </div>
                     </div>
                   </div>
 
@@ -1393,16 +1406,7 @@ export default function Properties() {
                         <span className="truncate">{formatDisplayArea(req.requiredArea, req.requiredAreaUnit)}</span>
                       </div>
                     )}
-                    {req.buyerStatus && (
-                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold max-w-full ${
-                        req.buyerStatus.toLowerCase().includes('hot') ? 'bg-green-50 border-green-200 text-green-700' :
-                        req.buyerStatus.toLowerCase().includes('cold') ? 'bg-amber-50 border-amber-200 text-amber-700' :
-                        req.buyerStatus.toLowerCase().includes('mild') ? 'bg-red-50 border-red-200 text-red-700' :
-                        'bg-slate-50 border-slate-200 text-slate-700'
-                      }`}>
-                         <span className="truncate">{req.buyerStatus.split(' (')[0]} Lead</span>
-                      </div>
-                    )}
+
                     {req.enquirySource && (
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700 max-w-full">
                         <span className="truncate">Src: {req.enquirySource === 'Other' ? req.otherEnquirySource : req.enquirySource}</span>
@@ -2838,6 +2842,7 @@ export default function Properties() {
                             price: priceVal || '',
                             area: resetInitArea,
                             areaUnit: resetInitAreaUnit,
+
                             minScore: 50
                           };
                           setManualFilterForm(resetForm);
@@ -3057,7 +3062,16 @@ export default function Properties() {
             ) : (
               <div className="space-y-3">
                 {(matchFilter === 'top' ? matchResults.filter(m => m.matchScore >= 90) : matchResults).map((matchItem, idx) => (
-                  <div key={idx} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-slate-300 transition-all duration-200 space-y-3.5">
+                  <div 
+                      key={idx} 
+                      onClick={() => {
+                        setViewingDetailTarget({ 
+                          type: activeMatchTarget.type === 'property' ? 'requirement' : 'property', 
+                          item: matchItem 
+                        });
+                      }}
+                      className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-slate-300 transition-all duration-200 space-y-3.5 cursor-pointer"
+                    >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -3094,7 +3108,10 @@ export default function Properties() {
                         </h4>
                       </div>
                       <div className="text-right shrink-0 flex flex-col items-end">
-                        <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider mb-0.5">
+                          <span className="text-[10px] text-slate-500 font-semibold mb-1 bg-slate-100 px-1.5 py-0.5 rounded">
+                                Added {matchItem.createdAt || matchItem.created_at ? new Date(matchItem.createdAt || matchItem.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Unknown Date'}
+                              </span>
+                          <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider mb-0.5">
                           {activeMatchTarget.type === 'property' 
                             ? (matchItem.requirementType === 'Rent' ? 'Max Rent' : 'Budget')
                             : (matchItem.listingType === 'Rent' ? 'Rent' : 'Price')}
@@ -3130,10 +3147,7 @@ export default function Properties() {
                                 Nearest: {matchItem.nearestLocationName || (activeMatchTarget.type === 'property' ? matchItem.preferredLocation : matchItem.location)}
                               </span>
                             </div>
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">
-                              <span className="font-bold">??</span>
-                              <span className="font-semibold">Distance: {matchItem.distanceKm.toFixed(2)} km</span>
-                            </div>
+                            
                           </>
                         ) : (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">

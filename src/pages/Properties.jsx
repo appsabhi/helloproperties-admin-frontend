@@ -799,14 +799,24 @@ export default function Properties() {
 
     const isRent = ((item?.listingType || item?.requirementType) || '').toLowerCase() === 'rent';
     const priceVal = item?.expectedPrice || item?.monthlyRent || item?.budget || item?.maximumMonthlyRent || '';
+    let initArea = item?.area || item?.requiredArea || '';
+    let initAreaUnit = 'Cent';
+    if (initArea) {
+      const match = String(initArea).match(/^([\d.]+)\s*(.*)$/);
+      if (match) {
+        initArea = match[1];
+        if (match[2]) initAreaUnit = match[2].trim();
+      }
+    }
+
     const initFilter = {
       listingType: isRent ? 'Rent' : 'Sale',
       district: item?.district || '',
       location: item?.location || item?.preferredLocation || '',
       propertyType: item?.propertyType || '',
       price: priceVal || '',
-      area: item?.area || item?.requiredArea || '',
-      areaUnit: 'Cent',
+      area: initArea,
+      areaUnit: initAreaUnit,
       minScore: 50
     };
     setManualFilterForm(initFilter);
@@ -1319,13 +1329,26 @@ export default function Properties() {
                       className="flex items-center gap-2.5 min-w-0 cursor-pointer"
                       title="Click to view full requirement details"
                     >
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                        req.requirementType === 'Rent'
-                          ? 'bg-violet-50 text-violet-700 border border-violet-100'
-                          : 'bg-rose-50 text-[#B0004F] border border-rose-100'
-                      }`}>
-                        {req.requirementType === 'Rent' ? 'Rent' : 'Buy'}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                            req.requirementType === 'Rent'
+                              ? 'bg-violet-50 text-violet-700 border border-violet-100'
+                              : 'bg-rose-50 text-[#B0004F] border border-rose-100'
+                          }`}>
+                            {req.requirementType === 'Rent' ? 'Rent' : 'Buy'}
+                          </span>
+                          {req.status && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                              req.status === 'Available' || req.status === 'Active'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : req.status === 'Under Negotiation'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}>
+                              {req.status}
+                            </span>
+                          )}
+                        </div>
                       <h3 className="font-bold text-base sm:text-[17px] text-slate-900 tracking-tight truncate hover:text-[#B0004F] transition-colors">
                         {req.buyerName || req.requirementTitle || req.propertyType}
                       </h3>
@@ -1436,9 +1459,6 @@ export default function Properties() {
           title={viewingDetailTarget.type === 'property'
             ? viewingDetailTarget.item.title
             : (viewingDetailTarget.item.requirementTitle || `${viewingDetailTarget.item.propertyType} Requirement`)}
-          subtitle={viewingDetailTarget.type === 'property'
-            ? `${viewingDetailTarget.item.location}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`
-            : `${viewingDetailTarget.item.preferredLocation}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`}
           icon={Building2}
           badge={
             <div className="flex items-center gap-2">
@@ -1594,14 +1614,36 @@ export default function Properties() {
                   ? viewingDetailTarget.item.title
                   : (viewingDetailTarget.item.requirementTitle || `${viewingDetailTarget.item.propertyType} Requirement`)}
               </h3>
-              <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>
-                  {viewingDetailTarget.type === 'property'
-                    ? `${viewingDetailTarget.item.location}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`
-                    : `${viewingDetailTarget.item.preferredLocation}, ${viewingDetailTarget.item.district}${viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}`}
-                </span>
-              </div>
+              <div className="flex items-start gap-1.5 mt-1.5 text-xs text-slate-500">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                  <div>
+                    {viewingDetailTarget.type === 'property' ? (
+                      <span>
+                        {viewingDetailTarget.item.location}
+                        {(viewingDetailTarget.item.district || viewingDetailTarget.item.state) && (
+                          <span className="ml-1">
+                            {viewingDetailTarget.item.district ? `, ${viewingDetailTarget.item.district}` : ''}
+                            {viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1 items-center">
+                        {(viewingDetailTarget.item.preferredLocation)?.split(',').map((loc, i) => loc.trim() ? (
+                          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                            {loc.trim()}
+                            {(viewingDetailTarget.item.district || viewingDetailTarget.item.state) && (
+                              <span className="font-normal text-slate-500 ml-1">
+                                {viewingDetailTarget.item.district ? `, ${viewingDetailTarget.item.district}` : ''}
+                                {viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}
+                              </span>
+                            )}
+                          </span>
+                        ) : null)}
+                      </div>
+                    )}
+                  </div>
+                </div>
             </div>
 
             <div className="bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-xl text-left sm:text-right shrink-0">
@@ -1643,12 +1685,30 @@ export default function Properties() {
                   : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
               </span>
             </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Location / City</span>
-              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                {viewingDetailTarget.type === 'property' ? viewingDetailTarget.item.location : viewingDetailTarget.item.preferredLocation}
-              </span>
-            </div>
+            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 sm:col-span-2 lg:col-span-1">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Location / City</span>
+                <div>
+                  {viewingDetailTarget.type === 'property' ? (
+                    <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                      {viewingDetailTarget.item.location || '—'}
+                    </span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(viewingDetailTarget.item.preferredLocation)?.split(',').map((loc, i) => loc.trim() ? (
+                        <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200/70 text-slate-700">
+                          {loc.trim()}
+                          {(viewingDetailTarget.item.district || viewingDetailTarget.item.state) && (
+                            <span className="font-normal text-slate-500 ml-1">
+                              {viewingDetailTarget.item.district ? `, ${viewingDetailTarget.item.district}` : ''}
+                              {viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}
+                            </span>
+                          )}
+                        </span>
+                      ) : null) || <span className="text-xs font-bold text-slate-800">—</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">District</span>
               <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.district || '—'}</span>
@@ -2760,14 +2820,24 @@ export default function Properties() {
                         onClick={() => {
                           const isRent = ((activeMatchTarget.data?.listingType || activeMatchTarget.data?.requirementType) || '').toLowerCase() === 'rent';
                           const priceVal = activeMatchTarget.data?.expectedPrice || activeMatchTarget.data?.monthlyRent || activeMatchTarget.data?.budget || activeMatchTarget.data?.maximumMonthlyRent || '';
+                          let resetInitArea = activeMatchTarget.data?.area || activeMatchTarget.data?.requiredArea || '';
+                          let resetInitAreaUnit = 'Cent';
+                          if (resetInitArea) {
+                            const match = String(resetInitArea).match(/^([\d.]+)\s*(.*)$/);
+                            if (match) {
+                              resetInitArea = match[1];
+                              if (match[2]) resetInitAreaUnit = match[2].trim();
+                            }
+                          }
+
                           const resetForm = {
                             listingType: isRent ? 'Rent' : 'Sale',
                             district: activeMatchTarget.data?.district || '',
                             location: activeMatchTarget.data?.location || activeMatchTarget.data?.preferredLocation || '',
                             propertyType: activeMatchTarget.data?.propertyType || '',
                             price: priceVal || '',
-                            area: activeMatchTarget.data?.area || activeMatchTarget.data?.requiredArea || '',
-                            areaUnit: 'Cent',
+                            area: resetInitArea,
+                            areaUnit: resetInitAreaUnit,
                             minScore: 50
                           };
                           setManualFilterForm(resetForm);

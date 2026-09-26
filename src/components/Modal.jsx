@@ -89,7 +89,7 @@ export default function Modal({
                   {badge && <div className="shrink-0">{badge}</div>}
                 </div>
                 {subtitle && (
-                  <p className="text-xs text-slate-500 truncate mt-0.5">{subtitle}</p>
+                  <div className="text-xs text-slate-500 mt-0.5">{subtitle}</div>
                 )}
               </div>
             </div>
@@ -141,3 +141,4 @@ export function ModalFooter({ children, className = '' }) {
     </div>
   );
 }
+

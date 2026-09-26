@@ -1524,23 +1524,10 @@ export const PropertyProvider = ({ children }) => {
       const itemState = (item.state || '').toLowerCase().trim();
       if (targetState && itemState && targetState !== itemState) return false;
 
-      // 3. Hard filter: District matching
-      const itemDist = (item.district || '').toLowerCase().trim();
-      const itemLoc = (item.location || item.preferredLocation || '').toLowerCase().trim();
-
-      // Only apply this string-based filter if we don't have exact coordinate distance confirmed by the backend
-      if (targetDist && itemDist && targetDist !== itemDist && item.distanceKm == null) {
-        return false; // Disqualify cross-district items (e.g. Kannur for Palakkad)
-      }
-
-      // 4. Hard filter: Locality matching if both specify locality
-      // Only apply this string-based filter if we don't have exact coordinate distance confirmed by the backend
-      if (targetLoc && itemLoc && item.distanceKm == null) {
-        const locRes = computeLocalityScore(targetLoc, itemLoc, targetDist, itemDist);
-        if (locRes.isOverlap === false) return false;
-      }
-
-      return (item.matchScore || 0) >= 60;
+      // 3. Trust the backend's matchScore for District, State, and Locality.
+        // The backend might match Malayalam "കോഴിക്കോട് ജില്ല" with English "Kozhikode".
+        // If the backend gave it a score of 50 or higher, we allow it to be displayed.
+        return (item.matchScore || 0) >= 50;
     });
   }, []);
 

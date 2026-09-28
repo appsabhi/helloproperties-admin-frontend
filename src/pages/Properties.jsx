@@ -1526,7 +1526,14 @@ export default function Properties() {
                 {/* ACTION BUTTONS */}
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => navigate(viewingDetailTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings')}
+                    onClick={() => {
+                      if (location.state?.returnToMatch) {
+                        navigate(-1);
+                        setTimeout(() => handleOpenMatches(location.state.returnToMatch.type, location.state.returnToMatch.data), 50);
+                      } else {
+                        navigate(viewingDetailTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings');
+                      }
+                    }}
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                   >
                     Back to List
@@ -1865,7 +1872,14 @@ export default function Properties() {
                   </button>
                 )}
                 <button
-                  onClick={() => navigate(viewingDetailTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings')}
+                  onClick={() => {
+                    if (location.state?.returnToMatch) {
+                      navigate(-1);
+                      setTimeout(() => handleOpenMatches(location.state.returnToMatch.type, location.state.returnToMatch.data), 50);
+                    } else {
+                      navigate(viewingDetailTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings');
+                    }
+                  }}
                   className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                 >
                   Back to List
@@ -3100,8 +3114,9 @@ export default function Properties() {
                   <div 
                       key={idx} 
                       onClick={() => {
+                          const currentMatch = activeMatchTarget;
                           setActiveMatchTarget(null);
-                          navigate(`/${activeMatchTarget.type === 'property' ? 'requirements' : 'properties'}/${matchItem.id}`);
+                          navigate(`/${currentMatch.type === 'property' ? 'requirements' : 'properties'}/${matchItem.id}`, { state: { returnToMatch: currentMatch } });
                         }}
                       className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-slate-300 transition-all duration-200 space-y-3.5 cursor-pointer"
                     >
@@ -3252,7 +3267,8 @@ export default function Properties() {
                       <div className="flex items-center justify-end border-t border-slate-100 pt-3 text-xs">
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             const propObj = activeMatchTarget.type === 'property' ? activeMatchTarget.data : matchItem;
                             const buyerObj = activeMatchTarget.type === 'property' ? matchItem : activeMatchTarget.data;
                             setSharingTarget({ property: propObj, buyer: buyerObj });

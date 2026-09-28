@@ -6,7 +6,7 @@ import MapPickerModal from './MapPickerModal';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
   typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:5000/api'
-    : 'https://helloproperties-admin-backend.vercel.app/api'
+    : 'https://helloproperties-backend.vercel.app/api'
 );
 
 // Client-side fallback dictionary for instant offline lookup & common localities
@@ -556,3 +556,4 @@ export default function LocationSelector({
     </div>
   );
 }
+

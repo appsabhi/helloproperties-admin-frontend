@@ -98,9 +98,10 @@ export default function PublicPropertyDetail() {
 
     // 1. Check local context properties
     const found = properties.find(p => 
-      String(p.id) === String(decodedId) || 
+      (String(p.id) === String(decodedId) || 
       String(p.propertyId) === String(decodedId) || 
-      String(p._id) === String(decodedId)
+      String(p._id) === String(decodedId)) &&
+      p.status !== 'Inactive'
     );
 
     if (found) {
@@ -114,16 +115,19 @@ export default function PublicPropertyDetail() {
       
       const timer = setTimeout(() => {
         // 2. Fetch directly from backend public endpoint
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
-          typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:5000/api'
-            : 'https://helloproperties-admin-backend.vercel.app/api'
-        );
+        let baseUrl = 'https://helloproperties-backend.vercel.app/api';
+        if (typeof window !== 'undefined') {
+          const hostname = window.location.hostname;
+          if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) {
+            baseUrl = `http://${hostname}:5000/api`;
+          }
+        }
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || baseUrl;
 
         fetch(`${API_BASE_URL}/properties/${decodedId}`)
           .then(res => res.json())
           .then(data => {
-            if (data.success && data.property) {
+            if (data.success && data.property && data.property.status !== 'Inactive') {
               setProperty(data.property);
             }
           })
@@ -347,3 +351,4 @@ export default function PublicPropertyDetail() {
     </div>
   );
 }
+

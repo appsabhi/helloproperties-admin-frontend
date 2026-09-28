@@ -1368,7 +1368,7 @@ export default function Properties() {
                         </span>
                         {req.buyerStatus && (
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                            req.buyerStatus.toLowerCase().includes('hot') ? 'bg-red-50 text-red-700 border-red-200' :
+                            req.buyerStatus.toLowerCase().includes('hot') ? 'bg-red-600 text-white border-transparent' :
                             req.buyerStatus.toLowerCase().includes('cold') ? 'bg-amber-50 text-amber-700 border-amber-200' :
                             req.buyerStatus.toLowerCase().includes('mild') ? 'bg-green-50 text-green-700 border-green-200' :
                             'bg-slate-100 text-slate-600 border-slate-200'

@@ -8,7 +8,7 @@ export const PropertyContext = createContext();
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
   typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://localhost:5000/api'
-    : 'https://helloproperties-admin-backend.vercel.app/api'
+    : 'https://helloproperties-backend.vercel.app/api'
 );
 
 const getAuthHeaders = () => {
@@ -1484,6 +1484,7 @@ export const PropertyProvider = ({ children }) => {
     if (!prop) return [];
 
     return requirements.map(req => {
+      if (req.status === "Inactive" || req.isActive === false) return null;
       const result = computeMatchScore(prop, req);
       if (!result) return null;
       return { ...req, matchScore: result.matchScore, matchQuality: result.matchQuality, matchReasons: result.matchReasons };
@@ -1504,6 +1505,7 @@ export const PropertyProvider = ({ children }) => {
     if (!req) return [];
 
     return properties.map(prop => {
+      if (prop.status === "Inactive" || prop.isActive === false) return null;
       const result = computeMatchScore(prop, req);
       if (!result) return null;
       return { ...prop, matchScore: result.matchScore, matchQuality: result.matchQuality, matchReasons: result.matchReasons };
@@ -1656,5 +1658,7 @@ export const PropertyProvider = ({ children }) => {
 };
 
 export const usePropertyContext = () => React.useContext(PropertyContext);
+
+
 
 

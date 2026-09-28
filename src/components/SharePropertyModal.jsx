@@ -37,6 +37,8 @@ function formatDisplayArea(areaStr) {
   return `${num} ${rest}`;
 }
 
+export const encodeId = (str) => Array.from(String(str)).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+
 export function buildCleanWhatsAppText(property) {
   const isRent = property?.listingType === 'Rent';
   const priceLines = [];
@@ -64,8 +66,9 @@ export function buildCleanWhatsAppText(property) {
     : null;
 
   const propId = property.id || property.propertyId || property._id;
+  const maskedId = encodeId(propId);
   const baseUrl = import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin;
-  const publicShareUrl = `${baseUrl}/p/${propId}`;
+  const publicShareUrl = `${baseUrl}/p/${maskedId}`;
 
   const messageLines = [
     `Hello! 👋`,
@@ -232,13 +235,18 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
       <div className="pt-2 border-t border-slate-100 space-y-1.5">
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Public Shareable Product Link</span>
         <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
-          <span className="text-xs font-mono text-slate-700 truncate flex-1 select-all font-medium">
-            {`${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${property.id || property.propertyId || property._id}`}
-          </span>
+          <a 
+            href={`${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline truncate flex-1 font-medium cursor-pointer"
+          >
+            {`${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`}
+          </a>
           <button
             type="button"
             onClick={() => {
-              const link = `${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${property.id || property.propertyId || property._id}`;
+              const link = `${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`;
               navigator.clipboard.writeText(link);
               setCopied(true);
               setTimeout(() => setCopied(false), 3000);

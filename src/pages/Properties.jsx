@@ -1364,9 +1364,9 @@ export default function Properties() {
                         </span>
                         {req.buyerStatus && (
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                            req.buyerStatus.toLowerCase().includes('hot') ? 'bg-green-50 text-green-700 border-green-200' :
+                            req.buyerStatus.toLowerCase().includes('hot') ? 'bg-red-50 text-red-700 border-red-200' :
                             req.buyerStatus.toLowerCase().includes('cold') ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                            req.buyerStatus.toLowerCase().includes('mild') ? 'bg-red-50 text-red-700 border-red-200' :
+                            req.buyerStatus.toLowerCase().includes('mild') ? 'bg-green-50 text-green-700 border-green-200' :
                             'bg-slate-100 text-slate-600 border-slate-200'
                           }`}>
                             {req.buyerStatus.split(' (')[0]} Lead
@@ -1378,18 +1378,25 @@ export default function Properties() {
                           </span>
                         )}
                       </div>
-                      <h3 
+                      <div 
                         onClick={() => navigate(`/requirements/${req.id}`)}
-                        className="font-bold text-base sm:text-[18px] text-slate-900 tracking-tight truncate hover:text-[#B0004F] transition-colors cursor-pointer"
+                        className="cursor-pointer group"
                         title="Click to view full requirement details"
                       >
-                        {req.buyerName || req.requirementTitle || req.propertyType}
-                        {req.buyerName && (
-                          <span className="text-sm font-medium text-slate-500 ml-1.5">
-                            ({req.propertyType})
-                          </span>
+                        <h3 className="font-bold text-base sm:text-[18px] text-slate-900 tracking-tight truncate group-hover:text-[#B0004F] transition-colors">
+                          {req.buyerName || req.propertyType}
+                          {req.buyerName && (
+                            <span className="text-sm font-medium text-slate-500 ml-1.5">
+                              ({req.propertyType})
+                            </span>
+                          )}
+                        </h3>
+                        {req.requirementTitle && (
+                          <div className="text-[13px] font-semibold text-slate-600 mt-0.5 truncate leading-tight group-hover:text-[#B0004F]/80 transition-colors">
+                            {req.requirementTitle}
+                          </div>
                         )}
-                      </h3>
+                      </div>
                     </div>
 
                     {/* Price Box */}
@@ -1593,7 +1600,7 @@ export default function Properties() {
                       <span>
                         {viewingDetailTarget.item.location}
                         {(viewingDetailTarget.item.district || viewingDetailTarget.item.state) && (
-                          <span className="ml-1">
+                          <span>
                             {viewingDetailTarget.item.district ? `, ${viewingDetailTarget.item.district}` : ''}
                             {viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}
                           </span>
@@ -1605,7 +1612,7 @@ export default function Properties() {
                           <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
                             {loc.trim()}
                             {(viewingDetailTarget.item.district || viewingDetailTarget.item.state) && (
-                              <span className="font-normal text-slate-500 ml-1">
+                              <span className="font-normal text-slate-500">
                                 {viewingDetailTarget.item.district ? `, ${viewingDetailTarget.item.district}` : ''}
                                 {viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}
                               </span>
@@ -1642,60 +1649,63 @@ export default function Properties() {
           </div>
 
           {/* Specifications Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
-              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.propertyType}</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
-              </span>
-              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                {viewingDetailTarget.type === 'property' 
-                  ? formatDisplayArea(viewingDetailTarget.item.area) 
-                  : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
-              </span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 sm:col-span-2 lg:col-span-1">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Location / City</span>
-                <div>
-                  {viewingDetailTarget.type === 'property' ? (
-                    <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                      {viewingDetailTarget.item.location || '—'}
-                    </span>
-                  ) : (
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {(viewingDetailTarget.item.preferredLocation)?.split(',').map((loc, i) => loc.trim() ? (
-                        <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200/70 text-slate-700">
-                          {loc.trim()}
-                          {(viewingDetailTarget.item.district || viewingDetailTarget.item.state) && (
-                            <span className="font-normal text-slate-500 ml-1">
-                              {viewingDetailTarget.item.district ? `, ${viewingDetailTarget.item.district}` : ''}
-                              {viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}
-                            </span>
-                          )}
-                        </span>
-                      ) : null) || <span className="text-xs font-bold text-slate-800">—</span>}
-                    </div>
-                  )}
-                </div>
+          <div className="space-y-1.5">
+            <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Specifications</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.propertyType}</span>
               </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">District</span>
-              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.district || '—'}</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">State</span>
-              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.state || '—'}</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Registered Date</span>
-              <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                {viewingDetailTarget.item.createdAt 
-                  ? new Date(viewingDetailTarget.item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                  : 'Recently'}
-              </span>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                  {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
+                </span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                  {viewingDetailTarget.type === 'property' 
+                    ? formatDisplayArea(viewingDetailTarget.item.area) 
+                    : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 sm:col-span-2 lg:col-span-1">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Location / City</span>
+                  <div>
+                    {viewingDetailTarget.type === 'property' ? (
+                      <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                        {viewingDetailTarget.item.location || '—'}
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(viewingDetailTarget.item.preferredLocation)?.split(',').map((loc, i) => loc.trim() ? (
+                          <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-200/70 text-slate-700">
+                            {loc.trim()}
+                            {(viewingDetailTarget.item.district || viewingDetailTarget.item.state) && (
+                              <span className="font-normal text-slate-500 ml-1">
+                                {viewingDetailTarget.item.district ? `, ${viewingDetailTarget.item.district}` : ''}
+                                {viewingDetailTarget.item.state ? `, ${viewingDetailTarget.item.state}` : ''}
+                              </span>
+                            )}
+                          </span>
+                        ) : null) || <span className="text-xs font-bold text-slate-800">—</span>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">District</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.district || '—'}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">State</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.state || '—'}</span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Registered Date</span>
+                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                  {viewingDetailTarget.item.createdAt 
+                    ? new Date(viewingDetailTarget.item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                    : 'Recently'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -1706,9 +1716,9 @@ export default function Properties() {
                 <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Buyer Status</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    viewingDetailTarget.item.buyerStatus.toLowerCase().includes('hot') ? 'bg-green-100 text-green-700' :
+                    viewingDetailTarget.item.buyerStatus.toLowerCase().includes('hot') ? 'bg-red-100 text-red-700' :
                     viewingDetailTarget.item.buyerStatus.toLowerCase().includes('cold') ? 'bg-amber-100 text-amber-700' :
-                    viewingDetailTarget.item.buyerStatus.toLowerCase().includes('mild') ? 'bg-red-100 text-red-700' :
+                    viewingDetailTarget.item.buyerStatus.toLowerCase().includes('mild') ? 'bg-green-100 text-green-700' :
                     'bg-slate-200 text-slate-700'
                   }`}>{viewingDetailTarget.item.buyerStatus.split(' (')[0]} Lead</span>
                 </div>
@@ -1786,47 +1796,6 @@ export default function Properties() {
             </div>
           </div>
 
-
-          {/* Hello Properties Contact Details Box */}
-          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-2.5">
-            <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">
-              Hello Properties Support
-            </h4>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-[#B0004F] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-                  HP
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">
-                    Hello Properties Support
-                  </p>
-                  <p className="text-xs text-slate-500 font-medium">
-                    +91 98765 43210
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <a 
-                  href="tel:9876543210"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 text-xs font-semibold transition-colors"
-                >
-                  <Phone className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Call</span>
-                </a>
-                <a 
-                  href="https://wa.me/919876543210"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-600 hover:text-white text-xs font-semibold transition-all"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>WhatsApp</span>
-                </a>
-              </div>
-            </div>
-          </div>
         
               </div>
               

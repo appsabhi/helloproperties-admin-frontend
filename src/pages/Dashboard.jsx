@@ -1,9 +1,8 @@
-import React, { useContext, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
 import ActivityLogView from '../components/ActivityLogView';
-import Modal from '../components/Modal';
 import MediaThumbnail from '../components/MediaThumbnail';
 import { 
   Building2, 
@@ -18,9 +17,7 @@ import {
 export default function Dashboard() {
   const { properties, requirements } = useContext(PropertyContext);
   const { user } = useContext(AuthContext);
-
-  const [selectedProperty, setSelectedProperty] = useState(null);
-
+  const navigate = useNavigate();
   const totalProps = properties.length;
   const availableProps = properties.filter(p => p.status === 'Available').length;
   const soldProps = properties.filter(p => p.status === 'Sold').length;
@@ -123,7 +120,7 @@ export default function Dashboard() {
             {recentProperties.map((prop) => (
               <div 
                 key={prop.id}
-                onClick={() => setSelectedProperty(prop)}
+                onClick={() => navigate(`/properties/${prop.id}`)}
                 className="group bg-white rounded-2xl border border-slate-200/80 p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-[#C4005A]/40 transition-all duration-200 cursor-pointer flex items-center space-x-4"
               >
                 <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-200 relative">
@@ -153,7 +150,20 @@ export default function Dashboard() {
                     {prop.title}
                   </h4>
 
-                  <div className="flex items-center space-x-1 text-xs text-slate-500 truncate">
+                  <div className="flex items-center gap-2 mt-1">
+                    {prop.propertyType && (
+                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60 truncate">
+                        {prop.propertyType}
+                      </span>
+                    )}
+                    {prop.area && (
+                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60 truncate">
+                        {prop.area}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-1 text-xs text-slate-500 truncate mt-1.5">
                     <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="truncate">{prop.location ? `${prop.location}, ${prop.district}` : prop.district || 'Location N/A'}</span>
                   </div>
@@ -178,7 +188,7 @@ export default function Dashboard() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedProperty(prop);
+                        navigate(`/properties/${prop.id}`);
                       }}
                       className="inline-flex items-center gap-1 text-2xs font-bold text-[#C4005A] hover:text-[#B0004F] bg-[#FFF1F6] px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
                     >
@@ -192,173 +202,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-
-      {/* Property Details Popup Modal (Exact Popup matching Properties view) */}
-      {selectedProperty && (
-        <Modal
-          isOpen={!!selectedProperty}
-          onClose={() => setSelectedProperty(null)}
-          title="Property Details"
-          subtitle={`Viewing record ID: ${selectedProperty.id || 'N/A'}`}
-          icon={Building2}
-          badge={
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
-              selectedProperty.listingType === 'Rent'
-                ? 'bg-violet-50 text-violet-700 border border-violet-100'
-                : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-            }`}>
-              {selectedProperty.listingType === 'Rent' ? 'Rent' : 'Sale'}
-            </span>
-          }
-          size="xl"
-          footer={
-            <div className="flex items-center justify-end space-x-2 w-full">
-              <button
-                onClick={() => setSelectedProperty(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          }
-        >
-          <div className="space-y-4 font-sans text-xs text-slate-700">
-            {/* Media Container: Image or Video */}
-            <div className="space-y-3">
-              {(() => {
-                const item = selectedProperty;
-                const vUrl = item.videoUrl || item.video || item.video_url;
-                const isFallbackOrInvalid = !item.imageUrl || 
-                                            item.imageUrl === 'null' || 
-                                            item.imageUrl === 'undefined' || 
-                                            String(item.imageUrl).trim() === '' || 
-                                            (typeof item.imageUrl === 'string' && item.imageUrl.includes('images.unsplash.com'));
-                
-                const hasImage = !isFallbackOrInvalid;
-                const hasVideo = !!vUrl;
-
-                return (
-                  <>
-                    {(hasImage || (!hasImage && !hasVideo)) && (
-                      <div className="h-48 sm:h-56 max-h-[30vh] w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
-                        <img 
-                          src={item.imageUrl || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'} 
-                          alt={item.title || "Property"}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
-                          }}
-                        />
-                      </div>
-                    )}
-
-                    {hasVideo && (
-                      <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
-                        {vUrl.includes('youtu') || vUrl.includes('embed') ? (
-                          <iframe
-                            src={vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                            title="Property Video"
-                            className="w-full h-44 sm:h-56 rounded-xl border-0"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <video
-                            src={vUrl}
-                            controls
-                            className="w-full h-44 sm:h-56 object-cover rounded-xl"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-
-            {/* Title & Financials */}
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
-              <div className="min-w-0 flex-1">
-                <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-                  {selectedProperty.title}
-                </h3>
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span>
-                    {`${selectedProperty.location || ''}, ${selectedProperty.district || ''}${selectedProperty.state ? `, ${selectedProperty.state}` : ''}`}
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-100 px-3.5 py-2 rounded-xl text-left sm:text-right shrink-0">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  {selectedProperty.listingType === 'Rent' ? 'Rent' : 'Price / Budget'}
-                </span>
-                <span className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight block">
-                  {selectedProperty.listingType === 'Rent'
-                    ? formatPrice(selectedProperty.monthlyRent)
-                    : formatPrice(selectedProperty.expectedPrice)}
-                </span>
-              </div>
-            </div>
-
-            {/* Specifications Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{selectedProperty.propertyType || '—'}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Area / Size</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{selectedProperty.area || '—'}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Location / City</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{selectedProperty.location || '—'}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">District</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{selectedProperty.district || '—'}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">State</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{selectedProperty.state || '—'}</span>
-              </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Registered Date</span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                  {selectedProperty.createdAt 
-                    ? new Date(selectedProperty.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                    : 'Recently'}
-                </span>
-              </div>
-            </div>
-
-            {/* Keywords Section */}
-            {Array.isArray(selectedProperty.keywords) && selectedProperty.keywords.length > 0 && (
-              <div className="space-y-1.5">
-                <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Property Keywords</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {selectedProperty.keywords.map((kw, kIdx) => (
-                    <span key={kIdx} className="px-2.5 py-1 rounded-lg bg-rose-50 text-[#B0004F] border border-rose-100/80 text-xs font-semibold">
-                      {kw}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Description & Remarks */}
-            {selectedProperty.description && (
-              <div className="space-y-1.5">
-                <h4 className="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Description & Remarks</h4>
-                <p className="text-xs text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-100 leading-relaxed whitespace-pre-wrap">
-                  {selectedProperty.description}
-                </p>
-              </div>
-            )}
-          </div>
-        </Modal>
-      )}
 
       {/* Recent User Activity Feed (Admin Only) */}
       {user?.role === 'Admin' && (

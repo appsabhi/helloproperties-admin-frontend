@@ -72,7 +72,7 @@ function formatArea(areaStr) {
 
 export default function PublicPropertyDetail() {
   const { id } = useParams();
-  const { properties } = useContext(PropertyContext);
+  const { properties, isApiLoading } = useContext(PropertyContext);
   
   const [property, setProperty] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -107,24 +107,33 @@ export default function PublicPropertyDetail() {
       setProperty(found);
       setLoading(false);
     } else {
-      // 2. Fetch directly from backend public endpoint
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
-        typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-          ? 'http://localhost:5000/api'
-          : 'https://helloproperties-admin-backend.vercel.app/api'
-      );
+      if (isApiLoading) {
+        // Wait for PropertyContext to finish its initial data fetch
+        return;
+      }
+      
+      const timer = setTimeout(() => {
+        // 2. Fetch directly from backend public endpoint
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (
+          typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:5000/api'
+            : 'https://helloproperties-admin-backend.vercel.app/api'
+        );
 
-      fetch(`${API_BASE_URL}/properties/${decodedId}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.property) {
-            setProperty(data.property);
-          }
-        })
-        .catch(err => console.warn('Public property fetch error:', err))
-        .finally(() => setLoading(false));
+        fetch(`${API_BASE_URL}/properties/${decodedId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.success && data.property) {
+              setProperty(data.property);
+            }
+          })
+          .catch(err => console.warn('Public property fetch error:', err))
+          .finally(() => setLoading(false));
+      }, 500);
+
+      return () => clearTimeout(timer);
     }
-  }, [id, properties]);
+  }, [id, properties, isApiLoading]);
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -333,35 +342,6 @@ export default function PublicPropertyDetail() {
               </div>
             )}
           </div>
-
-          {/* HelloProperties Official Contact Footer Banner */}
-          <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="space-y-1 text-center sm:text-left">
-              <h4 className="font-bold text-base">Interested in this property?</h4>
-              <p className="text-xs text-slate-300">Contact HelloProperties directly for verified site visits, document checks & deal closure.</p>
-            </div>
-            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-              <button
-                onClick={handleWhatsAppInquiry}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
-              >
-                <MessageCircle className="w-4 h-4 fill-white" />
-                <span>WhatsApp</span>
-              </button>
-              <a
-                href="tel:+919876543210"
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#B0004F] hover:bg-[#C4005A] text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
-              >
-                <Phone className="w-4 h-4" />
-                <span>Call Us</span>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Note */}
-        <div className="text-center text-xs text-slate-400 font-medium">
-          © {new Date().getFullYear()} HelloProperties Real Estate Portal. All rights reserved.
         </div>
       </main>
     </div>

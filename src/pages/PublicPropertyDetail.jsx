@@ -127,8 +127,9 @@ export default function PublicPropertyDetail() {
         fetch(`${API_BASE_URL}/properties/${decodedId}`)
           .then(res => res.json())
           .then(data => {
-            if (data.success && data.property && data.property.status !== 'Inactive') {
-              setProperty(data.property);
+            const propData = data.property || data.data || data;
+            if ((data.success || propData) && propData && propData.status !== 'Inactive') {
+              setProperty(propData);
             }
           })
           .catch(err => console.warn('Public property fetch error:', err))

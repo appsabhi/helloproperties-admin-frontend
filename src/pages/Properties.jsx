@@ -85,14 +85,10 @@ export default function Properties() {
     if (id) {
       if (location.pathname.startsWith('/requirements/')) {
         const req = requirements.find(r => String(r.id) === id || r.requirementId === id);
-        if (req) {
-          setViewingDetailTarget({ type: 'requirement', item: req });
-        }
+        setViewingDetailTarget(req ? { type: 'requirement', item: req } : null);
       } else if (location.pathname.startsWith('/properties/')) {
         const prop = properties.find(p => String(p.id) === id || p.propertyId === id);
-        if (prop) {
-          setViewingDetailTarget({ type: 'property', item: prop });
-        }
+        setViewingDetailTarget(prop ? { type: 'property', item: prop } : null);
       }
     } else {
       setViewingDetailTarget(null);
@@ -689,6 +685,10 @@ export default function Properties() {
 
     if (res && res.success) {
       setDeletingTarget(null);
+      if (id) {
+        setViewingDetailTarget(null);
+        navigate(deletingTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings', { replace: true });
+      }
       showToast(`${deletingTarget.type === 'property' ? 'Property' : 'Buyer requirement'} deleted successfully!`, 'success');
     } else {
       setDeleteError(res?.error || 'Failed to delete record. Please try again.');
@@ -1417,9 +1417,9 @@ export default function Properties() {
                           </span>
                           {(() => {
                             const unitText = getItemUnitText(req, 'requirement');
-                            return unitText && unitText !== 'All Properties' ? (
+                            return unitText ? (
                               <span className="inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F]">
-                                {unitText.startsWith('/') ? unitText : `/ ${unitText}`}
+                                {unitText}
                               </span>
                             ) : null;
                           })()}

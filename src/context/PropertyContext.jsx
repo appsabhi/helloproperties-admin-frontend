@@ -444,11 +444,11 @@ export const PropertyProvider = ({ children }) => {
 
         if (response.ok && resData.success && resData.data) {
           const formatted = formatBackendRequirement(resData.data);
+          formatted.budgetUnit = reqData.budgetUnit || formatted.budgetUnit;
           try {
             const patchedUnits = JSON.parse(localStorage.getItem('hp_patched_units') || '{}');
-            patchedUnits[formatted.id] = { budgetUnit: updatedData.budgetUnit };
+            patchedUnits[formatted.id] = { budgetUnit: formatted.budgetUnit };
             localStorage.setItem('hp_patched_units', JSON.stringify(patchedUnits));
-            formatted.budgetUnit = updatedData.budgetUnit || formatted.budgetUnit;
           } catch(e) {}
           formatted.matches = resData.matches || [];
           setRequirements(prev => [formatted, ...prev]);
@@ -772,11 +772,11 @@ export const PropertyProvider = ({ children }) => {
 
         if (response.ok && resData.success) {
           const formatted = formatBackendRequirement(resData.data);
+          formatted.budgetUnit = updatedData.budgetUnit || formatted.budgetUnit;
           try {
             const patchedUnits = JSON.parse(localStorage.getItem('hp_patched_units') || '{}');
             patchedUnits[formatted.id] = { budgetUnit: updatedData.budgetUnit };
             localStorage.setItem('hp_patched_units', JSON.stringify(patchedUnits));
-            formatted.budgetUnit = updatedData.budgetUnit || formatted.budgetUnit;
           } catch(e) {}
           formatted.matches = resData.matches || [];
           setRequirements(prev => prev.map(r => (r.id === id || r.requirementId === id || r._id === id || String(r.id) === String(id)) ? { ...r, ...formatted } : r));
@@ -827,7 +827,14 @@ export const PropertyProvider = ({ children }) => {
           credentials: 'include'
         });
 
-        setRequirements(prev => prev.filter(r => r.id !== id && r.requirementId !== id));
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.success === false) {
+          return { success: false, error: result?.message || 'Failed to delete requirement. Please try again.' };
+        }
+
+        setRequirements(prev => prev.filter(r =>
+          ![r.id, r.requirementId, r._id].some(value => value != null && String(value) === String(id))
+        ));
 
         if (logActivity) {
           logActivity({
@@ -843,18 +850,7 @@ export const PropertyProvider = ({ children }) => {
         return { success: true };
       } catch (err) {
         console.error('Failed to delete buy requirement from API:', err.message);
-        setRequirements(prev => prev.filter(r => r.id !== id && r.requirementId !== id));
-        if (logActivity) {
-          logActivity({
-            category: 'Buyer Requirements',
-            action: 'DELETE_REQUIREMENT',
-            actionLabel: 'Deleted Requirement',
-            details: `Deleted Buyer Requirement (ID: ${id})`,
-            targetId: id,
-            badgeColor: 'red'
-          });
-        }
-        return { success: true };
+        return { success: false, error: err.message || 'Network error deleting requirement. Please try again.' };
       }
     }, 'Deleting requirement...');
   };

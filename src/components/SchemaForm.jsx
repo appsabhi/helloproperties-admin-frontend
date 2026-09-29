@@ -94,7 +94,10 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       } else if (fieldId === "areaUnit") {
         // Removed auto-sync to allow manual selection of 'All Properties'
       } else if (fieldId === "requiredAreaUnit") {
-        // Removed auto-sync to allow manual selection of 'All Properties'
+        // Sync only when the area unit changes, so the budget can still be overridden manually.
+        const budgetUnit = `/ ${String(value).replace(/^\/\s*/, '').trim()}`;
+        next.budgetUnit = budgetUnit;
+        next.maximumMonthlyRentUnit = budgetUnit;
       }
       return next;
     });

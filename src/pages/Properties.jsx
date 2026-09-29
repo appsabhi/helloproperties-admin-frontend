@@ -1949,11 +1949,10 @@ export default function Properties() {
 
               <div className="md:col-span-2 flex flex-col space-y-1.5">
                 <label className="text-[14px] font-medium text-slate-800 flex items-center">
-                  Property Title <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                  Property Title (Optional)
                 </label>
                 <input
                   type="text"
-                  required
                   value={editPropForm.title}
                   onChange={(e) => setEditPropForm({ ...editPropForm, title: e.target.value })}
                   className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
@@ -2377,6 +2376,17 @@ export default function Properties() {
                   <option value="Buy">Buy</option>
                   <option value="Rent">Rent</option>
                 </select>
+              </div>
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Requirement Title (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={editReqForm.requirementTitle}
+                  onChange={(e) => setEditReqForm({ ...editReqForm, requirementTitle: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
               </div>
 
                               {/* Buyer Status / Rating */}

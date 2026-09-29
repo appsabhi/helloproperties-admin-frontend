@@ -2,7 +2,7 @@ export const sellPropertySchema = [
   { id: 'enquirySource', label: 'Enquiry Source', type: 'select', options: ['Instagram Video', 'Phone Call', 'WhatsApp', 'Direct Visitor', 'Reference', 'Other'], defaultValue: 'Phone Call', required: false },
   { id: 'otherEnquirySource', label: 'Please specify other source', type: 'text', placeholder: 'e.g. Facebook', required: true, showIf: (data) => data.enquirySource === 'Other' },
   { id: 'listingType', label: 'Listing Type', type: 'select', options: ['Sale', 'Rent'], defaultValue: 'Sale', required: true },
-  { id: 'title', label: 'Property Title', type: 'text', placeholder: 'e.g. BHK Modern Villa in Town', required: true },
+  { id: 'title', label: 'Property Title (Optional)', type: 'text', placeholder: 'e.g. BHK Modern Villa in Town', required: false },
   { id: 'propertyType', label: 'Property Type', type: 'select', options: ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Commercial Building', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'], defaultValue: 'House/Villa', required: true },
   { id: 'locationSelector', label: 'Location & Region Selection', type: 'location_selector', locationFieldName: 'location', required: true },
   { id: 'area', label: 'Area / Size', type: 'text', placeholder: 'e.g. 45 or 3', required: true, hasUnit: true, unitId: 'areaUnit', unitOptions: ['Cent', 'Sq. Ft.', 'Acre', 'BHK', 'Sq. Meter', 'Sq. Yard'], defaultUnit: 'Cent' },

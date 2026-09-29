@@ -211,7 +211,11 @@ export const PropertyProvider = ({ children }) => {
     createdAt: p.createdAt || p.created_at || new Date().toISOString()
   });
 
-  const formatBackendRequirement = (r) => ({
+  const formatBackendRequirement = (r) => {
+    const patchedUnits = (() => { try { return JSON.parse(localStorage.getItem('hp_patched_units') || '{}'); } catch(e) { return {}; }})();
+    const reqId = r._id || r.id || r.requirementId;
+    const patch = patchedUnits[reqId] || {};
+    return {
     id: r._id || r.id || r.requirementId || `req-${Date.now()}`,
     requirementId: r.requirementId || 'HP-B000',
     requirementTitle: r.requirementTitle || r.requirement_title,
@@ -223,7 +227,7 @@ export const PropertyProvider = ({ children }) => {
     requiredArea: r.requiredArea || r.required_area,
     requiredAreaUnit: r.requiredAreaUnit || r.required_area_unit,
     budget: Number(r.budget || 0),
-    budgetUnit: r.budgetUnit || r.budget_unit || r.priceUnit || r.price_unit,
+    budgetUnit: r.budgetUnit || r.budget_unit || r.priceUnit || r.price_unit || patch.budgetUnit,
     maximumMonthlyRent: Number(r.maximumMonthlyRent || r.maximum_monthly_rent || 0),
     maximumMonthlyRentUnit: r.maximumMonthlyRentUnit || r.maximum_monthly_rent_unit,
     description: r.description || '',
@@ -237,7 +241,8 @@ export const PropertyProvider = ({ children }) => {
       interestedPropertyId: r.interestedPropertyId || r.interested_property_id || null,
       status: r.status || 'Active',
     createdAt: r.createdAt || r.created_at || new Date().toISOString()
-  });
+  };
+};
 
   // Fetch properties & buy requirements from API
   const fetchFromBackend = useCallback(async () => {
@@ -336,6 +341,7 @@ export const PropertyProvider = ({ children }) => {
         areaUnit: propertyData.areaUnit,
         expectedPrice: listingType === 'Sale' ? Number(propertyData.expectedPrice || 0) : 0,
         expectedPriceUnit: propertyData.expectedPriceUnit,
+        priceUnit: propertyData.expectedPriceUnit || propertyData.monthlyRentUnit,
         monthlyRent: listingType === 'Rent' ? Number(propertyData.monthlyRent || 0) : 0,
         monthlyRentUnit: propertyData.monthlyRentUnit,
         securityDeposit: listingType === 'Rent' ? Number(propertyData.securityDeposit || 0) : 0,
@@ -407,6 +413,9 @@ export const PropertyProvider = ({ children }) => {
         requiredAreaUnit: reqData.requiredAreaUnit,
         budget: requirementType === 'Buy' ? Number(reqData.budget || 0) : 0,
         budgetUnit: reqData.budgetUnit,
+        budget_unit: reqData.budgetUnit,
+        priceUnit: reqData.budgetUnit || reqData.maximumMonthlyRentUnit,
+        price_unit: reqData.budgetUnit || reqData.maximumMonthlyRentUnit,
         maximumMonthlyRent: requirementType === 'Rent' ? Number(reqData.maximumMonthlyRent || 0) : 0,
         maximumMonthlyRentUnit: reqData.maximumMonthlyRentUnit,
         description: reqData.description || '',
@@ -435,6 +444,12 @@ export const PropertyProvider = ({ children }) => {
 
         if (response.ok && resData.success && resData.data) {
           const formatted = formatBackendRequirement(resData.data);
+          try {
+            const patchedUnits = JSON.parse(localStorage.getItem('hp_patched_units') || '{}');
+            patchedUnits[formatted.id] = { budgetUnit: updatedData.budgetUnit };
+            localStorage.setItem('hp_patched_units', JSON.stringify(patchedUnits));
+            formatted.budgetUnit = updatedData.budgetUnit || formatted.budgetUnit;
+          } catch(e) {}
           formatted.matches = resData.matches || [];
           setRequirements(prev => [formatted, ...prev]);
 
@@ -568,6 +583,7 @@ export const PropertyProvider = ({ children }) => {
         areaUnit: updatedData.areaUnit,
         expectedPrice: listingType === 'Sale' ? Number(updatedData.expectedPrice || 0) : 0,
         expectedPriceUnit: updatedData.expectedPriceUnit,
+        priceUnit: updatedData.expectedPriceUnit || updatedData.monthlyRentUnit,
         monthlyRent: listingType === 'Rent' ? Number(updatedData.monthlyRent || 0) : 0,
         monthlyRentUnit: updatedData.monthlyRentUnit,
         securityDeposit: listingType === 'Rent' ? Number(updatedData.securityDeposit || 0) : 0,
@@ -724,6 +740,9 @@ export const PropertyProvider = ({ children }) => {
         requiredAreaUnit: updatedData.requiredAreaUnit,
         budget: requirementType === 'Buy' ? Number(updatedData.budget || 0) : 0,
         budgetUnit: updatedData.budgetUnit,
+        budget_unit: updatedData.budgetUnit,
+        priceUnit: updatedData.budgetUnit || updatedData.maximumMonthlyRentUnit,
+        price_unit: updatedData.budgetUnit || updatedData.maximumMonthlyRentUnit,
         maximumMonthlyRent: requirementType === 'Rent' ? Number(updatedData.maximumMonthlyRent || 0) : 0,
         maximumMonthlyRentUnit: updatedData.maximumMonthlyRentUnit,
         description: updatedData.description || '',
@@ -753,6 +772,12 @@ export const PropertyProvider = ({ children }) => {
 
         if (response.ok && resData.success) {
           const formatted = formatBackendRequirement(resData.data);
+          try {
+            const patchedUnits = JSON.parse(localStorage.getItem('hp_patched_units') || '{}');
+            patchedUnits[formatted.id] = { budgetUnit: updatedData.budgetUnit };
+            localStorage.setItem('hp_patched_units', JSON.stringify(patchedUnits));
+            formatted.budgetUnit = updatedData.budgetUnit || formatted.budgetUnit;
+          } catch(e) {}
           formatted.matches = resData.matches || [];
           setRequirements(prev => prev.map(r => (r.id === id || r.requirementId === id || r._id === id || String(r.id) === String(id)) ? { ...r, ...formatted } : r));
 

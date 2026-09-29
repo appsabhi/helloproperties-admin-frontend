@@ -1,13 +1,20 @@
 const fs = require('fs');
-const path = 'e:/Fragmentree_/Website/Helloproperties/Admin-frontend/src/pages/Properties.jsx';
-let content = fs.readFileSync(path, 'utf8');
+const path = require('path');
 
-const search = `{(matchFilter === 'top' ? matchResults.filter(m => m.matchScore >= 90) : matchResults).map((matchItem, idx) => {
-                  console.log("MATCH ITEM:", matchItem);
-                  return (`
+const filePath = path.join(__dirname, 'src', 'context', 'PropertyContext.jsx');
+let content = fs.readFileSync(filePath, 'utf8');
 
-const replace = `{(matchFilter === 'top' ? matchResults.filter(m => m.matchScore >= 90) : matchResults).map((matchItem, idx) => (`
+content = content.replace(
+  /status: r\.status \|\| 'Active',\n\s*createdAt: r\.createdAt \|\| r\.created_at \|\| new Date\(\)\.toISOString\(\)\n\s*\};\n\s*\};/g,
+  "NO"
+); // check if already replaced
 
-content = content.replace(search, replace);
-fs.writeFileSync(path, content, 'utf8');
-console.log("Success");
+content = content.replace(
+  /status: r\.status \|\| 'Active',\n\s*createdAt: r\.createdAt \|\| r\.created_at \|\| new Date\(\)\.toISOString\(\)\n\s*\}\);/g,
+  `status: r.status || 'Active',
+    createdAt: r.createdAt || r.created_at || new Date().toISOString()
+  };
+};`
+);
+
+fs.writeFileSync(filePath, content, 'utf8');

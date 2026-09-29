@@ -1,13 +1,18 @@
 const fs = require('fs');
-const path = 'e:/Fragmentree_/Website/Helloproperties/Admin-frontend/src/pages/Properties.jsx';
-let content = fs.readFileSync(path, 'utf8');
+const path = require('path');
 
-const search = `                  )})}
-                </div>`;
+const filePath = path.join(__dirname, 'src', 'context', 'PropertyContext.jsx');
+let content = fs.readFileSync(filePath, 'utf8');
 
-const replace = `                  ))}
-                </div>`;
+const target = "    createdAt: r.createdAt || r.created_at || new Date().toISOString()\r\n  });";
+const replacement = "    createdAt: r.createdAt || r.created_at || new Date().toISOString()\r\n  };\r\n};";
 
-content = content.replace(search, replace);
-fs.writeFileSync(path, content, 'utf8');
-console.log("Success");
+if (content.includes(target)) {
+  content = content.replace(target, replacement);
+} else {
+  const target2 = "    createdAt: r.createdAt || r.created_at || new Date().toISOString()\n  });";
+  const replacement2 = "    createdAt: r.createdAt || r.created_at || new Date().toISOString()\n  };\n};";
+  content = content.replace(target2, replacement2);
+}
+
+fs.writeFileSync(filePath, content, 'utf8');

@@ -92,13 +92,9 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
         if (value === "Buy") { next.maximumMonthlyRent = ""; }
         else if (value === "Rent") { next.budget = ""; }
       } else if (fieldId === "areaUnit") {
-        let cleanUnit = String(value).replace(/^\/\s*/, '').trim();
-        next.expectedPriceUnit = `/ ${cleanUnit}`;
-        next.monthlyRentUnit = `/ ${cleanUnit}`;
+        // Removed auto-sync to allow manual selection of 'All Properties'
       } else if (fieldId === "requiredAreaUnit") {
-        let cleanUnit = String(value).replace(/^\/\s*/, '').trim();
-        next.budgetUnit = `/ ${cleanUnit}`;
-        next.maximumMonthlyRentUnit = `/ ${cleanUnit}`;
+        // Removed auto-sync to allow manual selection of 'All Properties'
       }
       return next;
     });

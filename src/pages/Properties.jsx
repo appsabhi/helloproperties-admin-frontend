@@ -1430,17 +1430,18 @@ export default function Properties() {
 
                   {/* Tags / Chips Row */}
                   <div className="flex flex-wrap items-center gap-2 pt-1">
-                    {(req.district || req.state) && (
+                    {(req.preferredLocation || '').split(',').map(l => l.trim()).filter(Boolean).map((loc, i) => (
+                      <div key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-xs font-medium text-indigo-700 max-w-[200px]">
+                        <MapPin className="w-3.5 h-3.5 opacity-70 shrink-0" />
+                        <span className="truncate">{loc}{req.district ? `, ${req.district}` : ''}{req.state ? `, ${req.state}` : ''}</span>
+                      </div>
+                    ))}
+                    {!(req.preferredLocation) && (req.district || req.state) && (
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-100 text-xs font-medium text-indigo-700">
                         <MapPin className="w-3.5 h-3.5 opacity-70 shrink-0" />
                         <span>{req.district}{req.state ? `, ${req.state}` : ''}</span>
                       </div>
                     )}
-                    {(req.preferredLocation || '').split(',').map(l => l.trim()).filter(Boolean).map((loc, i) => (
-                        <div key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">
-                          <span className="truncate">{loc}</span>
-                        </div>
-                      ))}
                     {req.requiredArea && (
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">
                         <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />

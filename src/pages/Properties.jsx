@@ -124,6 +124,8 @@ export default function Properties() {
     setSearchQuery(q);
     
     setStatusFilter('');
+    setPropertyTypeFilter('');
+    setDateFilter('');
   }, [location.pathname, location.search]);
 
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -131,6 +133,8 @@ export default function Properties() {
     return params.get('search') || '';
   });
   const [statusFilter, setStatusFilter] = useState('');
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   // Expandable cards state: { [id]: boolean }
   const [expandedCards, setExpandedCards] = useState({});
@@ -435,7 +439,21 @@ export default function Properties() {
                           (prop.state || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (prop.ownerName || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter ? prop.status === statusFilter : true;
-    return matchesSearch && matchesStatus;
+    const matchesType = propertyTypeFilter ? prop.propertyType === propertyTypeFilter : true;
+    
+    let matchesDate = true;
+    if (dateFilter && prop.createdAt) {
+      const propDate = new Date(prop.createdAt);
+      const now = new Date();
+      const diffTime = Math.abs(now - propDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      if (dateFilter === '7' && diffDays > 7) matchesDate = false;
+      if (dateFilter === '30' && diffDays > 30) matchesDate = false;
+      if (dateFilter === '90' && diffDays > 90) matchesDate = false;
+      if (dateFilter === '180' && diffDays > 180) matchesDate = false;
+    }
+
+    return matchesSearch && matchesStatus && matchesType && matchesDate;
   });
 
   // Filtering requirements
@@ -445,7 +463,21 @@ export default function Properties() {
                           (req.state || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (req.buyerName || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter ? req.status === statusFilter : true;
-    return matchesSearch && matchesStatus;
+    const matchesType = propertyTypeFilter ? req.propertyType === propertyTypeFilter : true;
+    
+    let matchesDate = true;
+    if (dateFilter && req.createdAt) {
+      const reqDate = new Date(req.createdAt);
+      const now = new Date();
+      const diffTime = Math.abs(now - reqDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      if (dateFilter === '7' && diffDays > 7) matchesDate = false;
+      if (dateFilter === '30' && diffDays > 30) matchesDate = false;
+      if (dateFilter === '90' && diffDays > 90) matchesDate = false;
+      if (dateFilter === '180' && diffDays > 180) matchesDate = false;
+    }
+
+    return matchesSearch && matchesStatus && matchesType && matchesDate;
   });
 
   // Handle Add Property Submission
@@ -984,9 +1016,9 @@ export default function Properties() {
 
       {/* Filters Panel — only on list view */}
       {view === 'list' && !viewingDetailTarget && (
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-4 items-center flex-wrap">
         {/* Search */}
-        <div className="relative w-full md:flex-1">
+        <div className="relative w-full md:flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -995,6 +1027,37 @@ export default function Properties() {
             placeholder={activeTab === 'sale' || activeTab === 'rent' ? 'Search by title, location, owner...' : 'Search requirements, buyer, location...'}
             className="w-full pl-9 pr-4 py-2 border border-[#E8E8E8] rounded-lg text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] transition-colors"
           />
+        </div>
+
+        {/* Property Type Filter */}
+        <div className="relative w-full md:w-48">
+          <Building2 className="absolute left-3 top-3 w-3.5 h-3.5 text-slate-400" />
+          <select
+            value={propertyTypeFilter}
+            onChange={(e) => setPropertyTypeFilter(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-[#E8E8E8] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] transition-colors cursor-pointer"
+          >
+            <option value="">All Types</option>
+            {propertyTypes.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+        
+        {/* Date Filter */}
+        <div className="relative w-full md:w-48">
+          <Calendar className="absolute left-3 top-3 w-3.5 h-3.5 text-slate-400" />
+          <select
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-[#E8E8E8] rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] transition-colors cursor-pointer"
+          >
+            <option value="">Any Time</option>
+            <option value="7">Last 7 Days</option>
+            <option value="30">Last 30 Days</option>
+            <option value="90">Last 3 Months</option>
+            <option value="180">Last 6 Months</option>
+          </select>
         </div>
 
         {/* Status Filter */}

@@ -874,15 +874,8 @@ export default function Properties() {
     };
     setManualFilterForm(initFilter);
 
-    // 1. Instantly calculate and display matches with 0ms delay directly from item
-    const instantMatches = type === 'property'
-      ? (computePropertyMatchesLocally ? computePropertyMatchesLocally(item) : [])
-      : (computeRequirementMatchesLocally ? computeRequirementMatchesLocally(item) : []);
+    setIsLoadingMatches(true);
 
-    setMatchResults(instantMatches || []);
-    setIsLoadingMatches(false);
-
-    // 2. Fetch from backend in background without locking modal
     try {
       let results = [];
       if (type === 'property') {
@@ -892,9 +885,21 @@ export default function Properties() {
       }
       if (results && results.length > 0) {
         setMatchResults(results);
+      } else {
+        // Fallback to local
+        const instantMatches = type === 'property'
+          ? (computePropertyMatchesLocally ? computePropertyMatchesLocally(item) : [])
+          : (computeRequirementMatchesLocally ? computeRequirementMatchesLocally(item) : []);
+        setMatchResults(instantMatches || []);
       }
     } catch (err) {
       console.warn('Matching check error:', err);
+      const instantMatches = type === 'property'
+          ? (computePropertyMatchesLocally ? computePropertyMatchesLocally(item) : [])
+          : (computeRequirementMatchesLocally ? computeRequirementMatchesLocally(item) : []);
+      setMatchResults(instantMatches || []);
+    } finally {
+      setIsLoadingMatches(false);
     }
   };
 
@@ -3183,7 +3188,7 @@ export default function Properties() {
                 <p className="text-xs text-slate-500">Switch to "All Matches" to see strong matches between 60% and 89%.</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 pb-20">
                 {(matchFilter === 'top' ? matchResults.filter(m => m.matchScore >= 90) : matchResults).map((matchItem, idx) => (
                   <div 
                       key={idx} 
@@ -3226,7 +3231,7 @@ export default function Properties() {
                         <h4 className="font-bold text-slate-900 text-base mt-1.5 truncate">
                           {activeMatchTarget.type === 'property' 
                             ? (matchItem.propertyType || matchItem.requirementTitle || 'Requirement') 
-                            : matchItem.title}
+                            : (matchItem.title || 'Unnamed Property')}
                         </h4>
                       </div>
                       <div className="text-right shrink-0 flex flex-col items-end">

@@ -1568,8 +1568,21 @@ export const PropertyProvider = ({ children }) => {
         // The backend might match Malayalam "കോഴിക്കോട് ജില്ല" with English "Kozhikode".
         // If the backend gave it a score of 50 or higher, we allow it to be displayed.
         return (item.matchScore || 0) >= 50;
+    }).map(item => {
+      if (!item.matchReasons || item.matchReasons.length === 0) {
+        const isTargetProperty = target.expectedPrice !== undefined || target.monthlyRent !== undefined || target.listingType !== undefined;
+        const prop = isTargetProperty ? target : item;
+        const req = isTargetProperty ? item : target;
+        try {
+          const localResult = computeMatchScore(prop, req);
+          if (localResult && localResult.matchReasons) {
+            return { ...item, matchReasons: localResult.matchReasons };
+          }
+        } catch(e) {}
+      }
+      return item;
     });
-  }, []);
+  }, [computeMatchScore]);
 
   // Get Property Matches from API (with fast timeout and local fallback)
   

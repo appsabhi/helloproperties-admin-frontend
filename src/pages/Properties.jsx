@@ -2084,6 +2084,7 @@ export default function Properties() {
               </div>
 
               {editPropForm.listingType === 'Rent' ? (
+                <>
                 <div className="flex flex-col space-y-1.5">
                   <label className="text-[14px] font-medium text-slate-800 flex items-center">
                     Rent (₹) <span className="text-[#B0004F] ml-1 font-bold">*</span>
@@ -2120,6 +2121,35 @@ export default function Properties() {
                     </div>
                   </div>
                 </div>
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                    Security Deposit (₹)
+                  </label>
+                  <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={editPropForm.securityDeposit}
+                      onChange={(e) => setEditPropForm({ ...editPropForm, securityDeposit: e.target.value })}
+                      placeholder="e.g. 100000"
+                      className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                    />
+                    <div className="h-6 w-px bg-slate-200 shrink-0" />
+                    <div className="relative w-[115px] shrink-0 h-full flex items-center">
+                      <select
+                        value={editPropForm.securityDepositUnit || 'All Properties'}
+                        onChange={(e) => setEditPropForm({ ...editPropForm, securityDepositUnit: e.target.value })}
+                        className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                      >
+                        <option value="All Properties">Fixed Amount</option>
+                        <option value="Months">Months of Rent</option>
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+              </>
               ) : (
                 <div className="flex flex-col space-y-1.5">
                   <label className="text-[14px] font-medium text-slate-800 flex items-center">
@@ -2353,6 +2383,44 @@ export default function Properties() {
                     </label>
                   </div>
                 )}
+              </div>
+
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Owner Name <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editPropForm.ownerName}
+                  onChange={(e) => setEditPropForm({ ...editPropForm, ownerName: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+              </div>
+
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Owner Phone <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={editPropForm.phoneNumber}
+                  onChange={(e) => setEditPropForm({ ...editPropForm, phoneNumber: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+              </div>
+
+              <div className="md:col-span-2 flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Owner Address
+                </label>
+                <textarea
+                  rows={2}
+                  value={editPropForm.ownerAddress}
+                  onChange={(e) => setEditPropForm({ ...editPropForm, ownerAddress: e.target.value })}
+                  className="w-full p-3.5 border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
               </div>
 
               <div className="flex flex-col space-y-1.5">
@@ -2612,6 +2680,18 @@ export default function Properties() {
                   value={editReqForm.phoneNumber}
                   onChange={(e) => setEditReqForm({ ...editReqForm, phoneNumber: e.target.value })}
                   className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                />
+              </div>
+
+              <div className="md:col-span-2 flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Buyer Address
+                </label>
+                <textarea
+                  rows={2}
+                  value={editReqForm.buyerAddress}
+                  onChange={(e) => setEditReqForm({ ...editReqForm, buyerAddress: e.target.value })}
+                  className="w-full p-3.5 border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
                 />
               </div>
 

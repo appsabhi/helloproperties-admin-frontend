@@ -85,11 +85,16 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
 
       try {
         // For map search, we rely purely on Nominatim for geographic results (Google Maps-like)
-        // We do NOT use the internal /locations/search endpoint because it only returns basic localities,
-        // and we want rich geographic places, roads, and full addresses.
         
-        // Append ', Kerala' optionally if you want to bias it, but passing it clean is better for 'countrycodes=in'
-        const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&countrycodes=in&format=json&addressdetails=1&limit=8`);
+        // Nominatim struggles with bare road names across all of India.
+        // We append ', Kerala' to heavily bias it for local searches if a broader region isn't specified.
+        let searchQ = q;
+        const lowerQ = q.toLowerCase();
+        if (!lowerQ.includes('kerala') && !lowerQ.includes('kozhikode') && !lowerQ.includes('calicut') && !lowerQ.includes('india')) {
+           searchQ = `${q}, Kerala`;
+        }
+
+        const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQ)}&countrycodes=in&format=json&addressdetails=1&limit=8`);
         if (nomRes.ok) {
           const nomData = await nomRes.json();
           if (Array.isArray(nomData)) {

@@ -656,10 +656,10 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                           {(() => {
                             const currentVideoSrc = videoPreviews[field.id] || formData.videoUrl || (typeof formData[field.id] === 'string' ? formData[field.id] : '');
 
-                            if (currentVideoSrc && (currentVideoSrc.includes('youtu') || currentVideoSrc.includes('embed'))) {
+                            if (currentVideoSrc && (currentVideoSrc.includes('youtu') || currentVideoSrc.includes('embed') || currentVideoSrc.includes('instagram.com'))) {
                               return (
                                 <iframe
-                                  src={currentVideoSrc.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                                  src={currentVideoSrc.includes('instagram.com') ? (currentVideoSrc.split('?')[0].endsWith('/') ? currentVideoSrc.split('?')[0] + 'embed/' : currentVideoSrc.split('?')[0] + '/embed/') : currentVideoSrc.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
                                   title="Video Preview"
                                   className="w-full h-48 sm:h-56 rounded-2xl border-0"
                                   allowFullScreen

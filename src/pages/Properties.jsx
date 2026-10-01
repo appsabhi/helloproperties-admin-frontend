@@ -1631,11 +1631,11 @@ export default function Properties() {
                 return (
                   <>
                     {(hasImage || (!hasImage && !hasVideo)) && (
-                      <div className="h-48 sm:h-56 max-h-[30vh] w-full rounded-xl overflow-hidden bg-slate-100 relative shadow-inner">
+                      <div className="h-[400px] sm:h-[600px] w-full sm:w-1/2 mx-auto rounded-xl overflow-hidden bg-slate-950 relative shadow-inner flex items-center justify-center">
                         <img 
                           src={(item.imageUrl && typeof item.imageUrl === 'string' ? item.imageUrl.split(',')[0] : item.imageUrl) || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'} 
                           alt={item.title || "Property"}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                           onError={(e) => {
                             e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
                           }}
@@ -1644,19 +1644,19 @@ export default function Properties() {
                     )}
 
                     {hasVideo && (
-                      <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
-                        {vUrl.includes('youtu') || vUrl.includes('embed') ? (
+                      <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md h-[400px] sm:h-[600px] w-full sm:w-1/2 mx-auto flex items-center justify-center">
+                        {vUrl.includes('youtu') || vUrl.includes('embed') || vUrl.includes('instagram.com') ? (
                           <iframe
-                            src={vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                            src={vUrl.includes('instagram.com') ? (vUrl.split('?')[0].endsWith('/') ? vUrl.split('?')[0] + 'embed/' : vUrl.split('?')[0] + '/embed/') : vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
                             title="Property Video"
-                            className="w-full h-44 sm:h-56 rounded-xl border-0"
+                            className="w-full h-full rounded-xl border-0"
                             allowFullScreen
                           />
                         ) : (
                           <video
                             src={vUrl}
                             controls
-                            className="w-full h-44 sm:h-56 object-cover rounded-xl"
+                            className="w-full h-full object-contain rounded-xl"
                           />
                         )}
                       </div>
@@ -2308,10 +2308,10 @@ export default function Properties() {
                         </div>
                       ) : (() => {
                         const vUrl = editPropForm.videoUrl || editPropForm.video || '';
-                        if (vUrl.includes('youtu') || vUrl.includes('embed')) {
+                        if (vUrl.includes('youtu') || vUrl.includes('embed') || vUrl.includes('instagram.com')) {
                           return (
                             <iframe
-                              src={vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                              src={vUrl.includes('instagram.com') ? (vUrl.split('?')[0].endsWith('/') ? vUrl.split('?')[0] + 'embed/' : vUrl.split('?')[0] + '/embed/') : vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
                               title="Video Preview"
                               className="w-full h-full rounded-lg border-0"
                               allowFullScreen

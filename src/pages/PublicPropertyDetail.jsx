@@ -327,12 +327,12 @@ export default function PublicPropertyDetail() {
                   <Video className="w-4 h-4 text-[#B0004F]" />
                   <span>Property Video Tour</span>
                 </h4>
-                <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 shadow-md overflow-hidden">
-                  {typeof (property.video || property.videoUrl) === 'string' && (property.video || property.videoUrl).includes('youtu') ? (
+                <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 shadow-md overflow-hidden h-[400px] sm:h-[600px] w-full sm:w-1/2 mx-auto flex items-center justify-center">
+                  {typeof (property.video || property.videoUrl) === 'string' && ((property.video || property.videoUrl).includes('youtu') || (property.video || property.videoUrl).includes('embed') || (property.video || property.videoUrl).includes('instagram.com')) ? (
                     <iframe
-                      src={(property.video || property.videoUrl).replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                      src={(property.video || property.videoUrl).includes('instagram.com') ? ((property.video || property.videoUrl).split('?')[0].endsWith('/') ? (property.video || property.videoUrl).split('?')[0] + 'embed/' : (property.video || property.videoUrl).split('?')[0] + '/embed/') : (property.video || property.videoUrl).replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
                       title="Property Video"
-                      className="w-full h-64 sm:h-80 rounded-xl border-0"
+                      className="w-full h-full rounded-xl border-0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                     />
@@ -340,7 +340,7 @@ export default function PublicPropertyDetail() {
                     <video
                       src={typeof (property.video || property.videoUrl) === 'string' ? (property.video || property.videoUrl) : URL.createObjectURL(property.video || property.videoUrl)}
                       controls
-                      className="w-full h-64 sm:h-80 rounded-xl object-cover"
+                      className="w-full h-full rounded-xl object-contain"
                     />
                   )}
                 </div>

@@ -65,6 +65,12 @@ export default function MediaThumbnail({
               e.target.src = fallbackSrc;
             }}
           />
+        ) : (actualVideoUrl.includes('instagram.com') || actualVideoUrl.includes('embed')) ? (
+          <img 
+            src={fallbackSrc}
+            alt={title || "Property Video"} 
+            className={className}
+          />
         ) : (
           <video 
             src={actualVideoUrl}

@@ -1,49 +1,61 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Loader2, MapPin, Search } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
-// Fix Leaflet's default icon path issues in React
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+const libraries = ['places'];
 
-function MapClickHandler({ onLocationSelect }) {
-  useMapEvents({
-    click(e) {
-      onLocationSelect(e.latlng.lat, e.latlng.lng);
-    },
-  });
-  return null;
-}
-
-function MapController({ center }) {
-  const map = useMap();
-  useEffect(() => {
-    if (center) {
-      map.flyTo(center, 15, { animate: true, duration: 1.5 });
-    }
-  }, [center, map]);
-  return null;
-}
+const containerStyle = {
+  width: '100%',
+  height: '100%'
+};
 
 export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCenter = [11.2587, 75.7804] }) {
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "YOUR_GOOGLE_MAPS_API_KEY", 
+    libraries
+  });
+
+  const [map, setMap] = useState(null);
+  
+  // Transform initialCenter [lat, lng] to Google Maps {lat, lng}
+  const defaultCenter = { lat: initialCenter[0], lng: initialCenter[1] };
+  
   const [selectedPos, setSelectedPos] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [locationDetails, setLocationDetails] = useState(null);
-  const [mapCenter, setMapCenter] = useState(initialCenter);
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  // New Places API state
+  const [placesLib, setPlacesLib] = useState(null);
+  const [sessionToken, setSessionToken] = useState(null);
+
+  useEffect(() => {
+    if (isLoaded && window.google && !placesLib) {
+      window.google.maps.importLibrary("places")
+        .then((lib) => {
+          setPlacesLib(lib);
+          setSessionToken(new lib.AutocompleteSessionToken());
+        })
+        .catch(err => console.error("Error loading places library:", err));
+    }
+  }, [isLoaded, placesLib]);
   
   const searchWrapperRef = useRef(null);
+
+  const onLoad = useCallback(function callback(mapInstance) {
+    setMap(mapInstance);
+  }, []);
+
+  const onUnmount = useCallback(function callback() {
+    setMap(null);
+  }, []);
 
   // Reset on open
   useEffect(() => {
@@ -54,7 +66,7 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
       setSearchQuery('');
       setSuggestions([]);
       setIsDropdownOpen(false);
-      setMapCenter(initialCenter);
+      setMapCenter(defaultCenter);
     }
   }, [isOpen]);
 
@@ -69,9 +81,10 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  
-  // Real-time location search
+  // Real-time location search using Google Places Autocomplete Data API (New)
   useEffect(() => {
+    if (!placesLib || !sessionToken) return;
+    
     if (!searchQuery || searchQuery.trim().length < 2) {
       setSuggestions([]);
       setIsSearching(false);
@@ -80,137 +93,137 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
 
     const handler = setTimeout(async () => {
       setIsSearching(true);
-      const q = searchQuery.trim();
-      let results = [];
-
       try {
-        // For map search, we rely purely on Nominatim for geographic results (Google Maps-like)
+        const request = {
+          input: searchQuery,
+          includedRegionCodes: ["IN"], // Restrict to India
+          sessionToken: sessionToken,
+        };
         
-        // Nominatim struggles with bare road names across all of India.
-        // We append ', Kerala' to heavily bias it for local searches if a broader region isn't specified.
-        let searchQ = q;
-        const lowerQ = q.toLowerCase();
-        if (!lowerQ.includes('kerala') && !lowerQ.includes('kozhikode') && !lowerQ.includes('calicut') && !lowerQ.includes('india')) {
-           searchQ = `${q}, Kerala`;
+        const { suggestions: apiSuggestions } = await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+        
+        if (apiSuggestions && apiSuggestions.length > 0) {
+          setSuggestions(apiSuggestions.map(s => ({
+            suggestionObj: s,
+            place_id: s.placePrediction.placeId,
+            main_text: s.placePrediction.mainText.text,
+            secondary_text: s.placePrediction.secondaryText ? s.placePrediction.secondaryText.text : ''
+          })));
+          setIsDropdownOpen(true);
+        } else {
+          setSuggestions([]);
         }
-
-        const nomRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQ)}&countrycodes=in&format=json&addressdetails=1&limit=8`);
-        if (nomRes.ok) {
-          const nomData = await nomRes.json();
-          if (Array.isArray(nomData)) {
-            // Filter to remove exact duplicates by lat/lon
-            const seen = new Set();
-            results = nomData.filter(item => {
-              const key = `${item.lat},${item.lon}`;
-              if (seen.has(key)) return false;
-              seen.add(key);
-              return true;
-            }).map(item => {
-              const addr = item.address || {};
-              const rawState = addr.state || 'Kerala';
-              const displayName = item.display_name || '';
-              
-              // Extract best district
-              let rawDistrict = addr.state_district || addr.county || addr.city || addr.district || '';
-              if (!rawDistrict) {
-                // fallback to anything that looks like a district
-                rawDistrict = addr.town || addr.suburb || '';
-              }
-              const districtName = rawDistrict.replace(/district/i, '').trim();
-              
-              const placeName = item.name || (displayName ? displayName.split(',')[0].trim() : q);
-              
-              let fullAddress = displayName;
-              if (fullAddress.toLowerCase().startsWith(placeName.toLowerCase() + ',')) {
-                 fullAddress = fullAddress.substring(placeName.length + 1).trim();
-              }
-
-              return {
-                locality: placeName,
-                fullAddress: fullAddress,
-                district: districtName,
-                state: rawState,
-                latitude: parseFloat(item.lat),
-                longitude: parseFloat(item.lon),
-                category: item.class, // e.g. 'highway', 'place', 'amenity'
-                type: item.type
-              };
-            });
-            
-            // Prioritize highways/places (roads/localities) over generic amenities if needed
-            results.sort((a, b) => {
-              const aIsPlace = a.category === 'highway' || a.category === 'place' || a.category === 'boundary';
-              const bIsPlace = b.category === 'highway' || b.category === 'place' || b.category === 'boundary';
-              if (aIsPlace && !bIsPlace) return -1;
-              if (!aIsPlace && bIsPlace) return 1;
-              return 0;
-            });
-          }
-        }
-      } catch (nomErr) {
-        console.error("Nominatim map search error:", nomErr);
+      } catch (err) {
+        console.error("Google Places API (New) Error:", err);
+        setSuggestions([]);
+      } finally {
+        setIsSearching(false);
       }
-
-      setSuggestions(results);
-      setIsSearching(false);
-      setIsDropdownOpen(true);
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [searchQuery]);
+  }, [searchQuery, placesLib, sessionToken]);
 
-
-  const handleSelectSuggestion = (item) => {
+  const handleSelectSuggestion = async (item) => {
     setIsDropdownOpen(false);
-    setSearchQuery(item.locality || '');
+    setSearchQuery(item.main_text);
+    setIsLoading(true);
 
-    const lat = parseFloat(item.latitude || item.lat);
-    const lon = parseFloat(item.longitude || item.lon || item.lng);
+    if (!map || !placesLib) {
+      setIsLoading(false);
+      return;
+    }
 
-    if (!isNaN(lat) && !isNaN(lon)) {
-      setMapCenter([lat, lon]);
-      setSelectedPos([lat, lon]);
-      setLocationDetails({
-        locality: item.locality || '',
-        district: item.district || '',
-        state: item.state || 'Kerala',
-        latitude: lat,
-        longitude: lon
+    try {
+      const place = item.suggestionObj.placePrediction.toPlace();
+      await place.fetchFields({
+        fields: ['displayName', 'formattedAddress', 'location', 'addressComponents']
       });
+
+      if (place.location) {
+        const lat = place.location.lat();
+        const lng = place.location.lng();
+        
+        map.panTo(place.location);
+        map.setZoom(15);
+        
+        setSelectedPos({ lat, lng });
+        
+        // Extract address components
+        let district = '';
+        let state = 'Kerala';
+        let locality = item.main_text;
+
+        if (place.addressComponents) {
+          place.addressComponents.forEach(component => {
+            if (component.types.includes('administrative_area_level_3') || component.types.includes('administrative_area_level_2')) {
+              district = component.longText;
+            }
+            if (component.types.includes('administrative_area_level_1')) {
+              state = component.longText;
+            }
+          });
+        }
+
+        setLocationDetails({
+          locality,
+          district: district.replace(/district/i, '').trim(),
+          state,
+          latitude: lat,
+          longitude: lng
+        });
+
+        // Reset session token for the next search
+        setSessionToken(new placesLib.AutocompleteSessionToken());
+      }
+    } catch (err) {
+      console.error("Google Places API Details Error:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleLocationSelect = async (lat, lng) => {
-    setSelectedPos([lat, lng]);
+  const handleMapClick = (e) => {
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    
+    setSelectedPos({ lat, lng });
     setIsLoading(true);
     setLocationDetails(null);
 
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`);
-      if (res.ok) {
-        const data = await res.json();
-        const addr = data.address || {};
-        const rawState = addr.state || 'Kerala';
-        const rawDistrict = addr.state_district || addr.county || addr.city || addr.district || addr.town || addr.suburb || '';
-        const districtName = rawDistrict.replace(/district/i, '').trim();
-        const displayName = data.display_name || '';
-        
-        let locality = addr.neighbourhood || addr.suburb || addr.village || addr.town || addr.city || data.name || (displayName ? displayName.split(',')[0].trim() : '');
-        
+    const geocoder = new window.google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      setIsLoading(false);
+      if (status === 'OK' && results[0]) {
+        const place = results[0];
+        let district = '';
+        let state = 'Kerala';
+        let locality = '';
+
+        place.address_components.forEach(component => {
+          if (component.types.includes('locality') || component.types.includes('sublocality')) {
+            if (!locality) locality = component.long_name;
+          }
+          if (component.types.includes('administrative_area_level_3') || component.types.includes('administrative_area_level_2')) {
+            district = component.long_name;
+          }
+          if (component.types.includes('administrative_area_level_1')) {
+            state = component.long_name;
+          }
+        });
+
+        if (!locality) locality = place.formatted_address.split(',')[0];
+
         setLocationDetails({
           locality,
-          district: districtName,
-          state: rawState,
+          district: district.replace(/district/i, '').trim(),
+          state,
           latitude: lat,
           longitude: lng
         });
         setSearchQuery(locality);
       }
-    } catch (err) {
-      console.error("Reverse geocoding error:", err);
-    } finally {
-      setIsLoading(false);
-    }
+    });
   };
 
   const handleConfirm = () => {
@@ -238,18 +251,33 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
         </div>
         
         <div className="flex-1 relative">
-          <MapContainer center={initialCenter} zoom={7} className="w-full h-full z-0">
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapClickHandler onLocationSelect={handleLocationSelect} />
-            <MapController center={mapCenter} />
-            {selectedPos && <Marker position={selectedPos} />}
-          </MapContainer>
+          {!isLoaded ? (
+            <div className="w-full h-full flex items-center justify-center bg-slate-50">
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-8 h-8 animate-spin text-[#B0004F]" />
+                <span className="text-[13px] font-medium text-slate-600">Loading Maps...</span>
+              </div>
+            </div>
+          ) : (
+            <GoogleMap
+              mapContainerStyle={containerStyle}
+              center={mapCenter}
+              zoom={7}
+              onLoad={onLoad}
+              onUnmount={onUnmount}
+              onClick={handleMapClick}
+              options={{
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: false,
+              }}
+            >
+              {selectedPos && <Marker position={selectedPos} />}
+            </GoogleMap>
+          )}
 
           {/* Search Bar Overlay */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 w-11/12 sm:w-[400px] z-[1000]" ref={searchWrapperRef}>
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 w-11/12 sm:w-[400px] z-[10]" ref={searchWrapperRef}>
             <div className="relative shadow-lg rounded-xl overflow-hidden bg-white">
               {isSearching ? (
                 <Loader2 className="w-4 h-4 animate-spin text-[#B0004F] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -301,10 +329,10 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-bold text-slate-800 leading-tight mb-0.5 truncate group-hover:text-[#B0004F] transition-colors">
-                        {item.locality}
+                        {item.main_text}
                       </div>
                       <div className="text-[11.5px] text-slate-500 leading-snug line-clamp-2">
-                        {item.fullAddress}
+                        {item.secondary_text}
                       </div>
                     </div>
                   </button>
@@ -324,7 +352,7 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
 
           {/* Loading Overlay */}
           {isLoading && (
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-[1000]">
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-[10]">
               <Loader2 className="w-4 h-4 animate-spin text-[#B0004F]" />
               <span className="text-[12px] font-medium text-slate-700">Identifying location...</span>
             </div>
@@ -332,7 +360,7 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
 
           {/* Confirmation Overlay */}
           {locationDetails && !isLoading && (
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white p-4 rounded-xl shadow-xl border border-slate-100 w-11/12 sm:w-[400px] z-[1000] transition-all">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white p-4 rounded-xl shadow-xl border border-slate-100 w-11/12 sm:w-[400px] z-[10] transition-all">
               <h3 className="text-[14px] font-bold text-slate-800 mb-1">{locationDetails.locality || 'Unknown Area'}</h3>
               <p className="text-[12px] text-slate-500 mb-4">
                 {locationDetails.district}{locationDetails.district && locationDetails.state ? ', ' : ''}{locationDetails.state}

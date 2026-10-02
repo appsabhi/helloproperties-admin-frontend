@@ -82,16 +82,15 @@ function RootOrPublicRoute() {
 }
 
 export default function App() {
-  const isPublicMode = import.meta.env.VITE_APP_MODE === 'public';
+  const isPublicShareDomain = window.location.hostname === 'share.helloproperties.in' || import.meta.env.VITE_APP_MODE === 'public';
 
-  if (isPublicMode) {
+  if (isPublicShareDomain) {
     return (
       <PropertyProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/property/:id" element={<PublicPropertyDetail />} />
             <Route path="/p/:id" element={<PublicPropertyDetail />} />
-            <Route path="/share/:id" element={<PublicPropertyDetail />} />
+            <Route path="/" element={<PublicNotice />} />
             <Route path="*" element={<PublicNotice />} />
           </Routes>
         </BrowserRouter>
@@ -108,9 +107,6 @@ export default function App() {
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/admin" element={<Login />} />
-              <Route path="/property/:id" element={<PublicPropertyDetail />} />
-              <Route path="/p/:id" element={<PublicPropertyDetail />} />
-              <Route path="/share/:id" element={<PublicPropertyDetail />} />
 
               {/* Root Domain & Non-ID Public Routes */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

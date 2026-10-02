@@ -92,7 +92,10 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
         if (value === "Buy") { next.maximumMonthlyRent = ""; }
         else if (value === "Rent") { next.budget = ""; }
       } else if (fieldId === "areaUnit") {
-        // Removed auto-sync to allow manual selection of 'All Properties'
+        // Sync expected price unit with area unit
+        const priceUnit = `/ ${String(value).replace(/^\/\s*/, '').trim()}`;
+        next.expectedPriceUnit = priceUnit;
+        next.monthlyRentUnit = priceUnit;
       } else if (fieldId === "requiredAreaUnit") {
         // Sync only when the area unit changes, so the budget can still be overridden manually.
         const budgetUnit = `/ ${String(value).replace(/^\/\s*/, '').trim()}`;

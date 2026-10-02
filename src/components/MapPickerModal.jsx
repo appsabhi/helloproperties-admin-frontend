@@ -35,6 +35,8 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
   // New Places API state
   const [placesLib, setPlacesLib] = useState(null);
   const [sessionToken, setSessionToken] = useState(null);
+  const isSelectingPlaceRef = useRef(false);
+  const searchRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (isLoaded && window.google && !placesLib) {
@@ -84,6 +86,11 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
   // Real-time location search using Google Places Autocomplete Data API (New)
   useEffect(() => {
     if (!placesLib || !sessionToken) return;
+
+    if (isSelectingPlaceRef.current) {
+      // Do not search if we are in the middle of a selection
+      return;
+    }
     
     if (!searchQuery || searchQuery.trim().length < 2) {
       setSuggestions([]);
@@ -91,7 +98,11 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
       return;
     }
 
+    const currentRequestId = ++searchRequestIdRef.current;
+
     const handler = setTimeout(async () => {
+      if (isSelectingPlaceRef.current || searchRequestIdRef.current !== currentRequestId) return;
+      
       setIsSearching(true);
       try {
         const request = {
@@ -102,6 +113,8 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
         
         const { suggestions: apiSuggestions } = await placesLib.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
         
+        if (isSelectingPlaceRef.current || searchRequestIdRef.current !== currentRequestId) return;
+
         if (apiSuggestions && apiSuggestions.length > 0) {
           setSuggestions(apiSuggestions.map(s => ({
             suggestionObj: s,
@@ -115,9 +128,13 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
         }
       } catch (err) {
         console.error("Google Places API (New) Error:", err);
-        setSuggestions([]);
+        if (searchRequestIdRef.current === currentRequestId) {
+          setSuggestions([]);
+        }
       } finally {
-        setIsSearching(false);
+        if (searchRequestIdRef.current === currentRequestId) {
+          setIsSearching(false);
+        }
       }
     }, 500);
 
@@ -125,6 +142,9 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
   }, [searchQuery, placesLib, sessionToken]);
 
   const handleSelectSuggestion = async (item) => {
+    if (document.activeElement) document.activeElement.blur();
+    isSelectingPlaceRef.current = true;
+    setSuggestions([]);
     setIsDropdownOpen(false);
     setSearchQuery(item.main_text);
     setIsLoading(true);
@@ -163,6 +183,10 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
               state = component.longText;
             }
           });
+        }
+        
+        if (state && state.toLowerCase() === 'keralam') {
+          state = 'Kerala';
         }
 
         setLocationDetails({
@@ -212,6 +236,10 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
           }
         });
 
+        if (state && state.toLowerCase() === 'keralam') {
+          state = 'Kerala';
+        }
+
         if (!locality) locality = place.formatted_address.split(',')[0];
 
         setLocationDetails({
@@ -221,6 +249,9 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
           latitude: lat,
           longitude: lng
         });
+        isSelectingPlaceRef.current = true;
+        setSuggestions([]);
+        setIsDropdownOpen(false);
         setSearchQuery(locality);
       }
     });
@@ -288,10 +319,13 @@ export default function MapPickerModal({ isOpen, onClose, onConfirm, initialCent
                 type="text"
                 value={searchQuery}
                 onChange={(e) => {
+                  isSelectingPlaceRef.current = false;
                   setSearchQuery(e.target.value);
                   setIsDropdownOpen(true);
                 }}
-                onFocus={() => { if (searchQuery.trim().length >= 2) setIsDropdownOpen(true); }}
+                onFocus={() => { 
+                  if (searchQuery.trim().length >= 2 && !isSelectingPlaceRef.current) setIsDropdownOpen(true); 
+                }}
                 placeholder="Search location (e.g. Kottaram Road, Mavoor Road)..."
                 className="w-full pl-11 pr-10 py-3.5 text-[13px] text-slate-800 bg-white border-none focus:outline-none focus:ring-2 focus:ring-[#B0004F]/20"
               />

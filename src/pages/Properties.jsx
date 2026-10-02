@@ -58,7 +58,8 @@ export default function Properties() {
     getRequirementMatches,
     computeMatchScore,
     computePropertyMatchesLocally,
-    computeRequirementMatchesLocally
+    computeRequirementMatchesLocally,
+    uploadImageFile
   } = useContext(PropertyContext);
 
   const location = useLocation();
@@ -484,13 +485,35 @@ export default function Properties() {
   const handleAddPropertySubmit = async (formData) => {
     setIsSubmittingAddProp(true);
     try {
+      let finalImageUrl = formData.imageUrl || '';
+      
+      // Filter out blob URLs (previews)
+      if (finalImageUrl) {
+        finalImageUrl = finalImageUrl.split(',').map(u => u.trim()).filter(u => u && !u.startsWith('blob:')).join(',');
+      }
+
+      // Upload new files
+      if (formData.imageFiles && formData.imageFiles.length > 0) {
+        const uploadPromises = formData.imageFiles.map(file => uploadImageFile(file));
+        const uploadedUrls = await Promise.all(uploadPromises);
+        const validUrls = uploadedUrls.filter(url => url);
+        
+        if (finalImageUrl) {
+           finalImageUrl = finalImageUrl.split(',').filter(u=>u).concat(validUrls).join(',');
+        } else {
+           finalImageUrl = validUrls.join(',');
+        }
+      }
+
       const formattedData = {
         ...formData,
+        imageUrl: finalImageUrl,
+        imageFile: null,
+        imageFiles: null,
         area: parseAreaWithUnit(formData.area, formData.areaUnit || 'Cent'),
         expectedPrice: parsePriceWithUnit(formData.expectedPrice, formData.expectedPriceUnit || '/ Cent', formData.area),
         monthlyRent: parsePriceWithUnit(formData.monthlyRent, formData.monthlyRentUnit || '/ Month', formData.area),
-        securityDeposit: parseDepositVal(formData.securityDeposit, formData.securityDepositUnit, formData.monthlyRent),
-        imageUrl: formData.imageUrl || ''
+        securityDeposit: parseDepositVal(formData.securityDeposit, formData.securityDepositUnit, formData.monthlyRent)
       };
       const res = await addProperty(formattedData);
 
@@ -592,8 +615,26 @@ export default function Properties() {
     setEditPropError(null);
 
     try {
+      let finalImageUrl = editPropForm.imageUrl || '';
+      
+      // Upload new files
+      if (editPropForm.imageFiles && editPropForm.imageFiles.length > 0) {
+        const uploadPromises = editPropForm.imageFiles.map(file => uploadImageFile(file));
+        const uploadedUrls = await Promise.all(uploadPromises);
+        const validUrls = uploadedUrls.filter(url => url);
+        
+        if (finalImageUrl) {
+           finalImageUrl = finalImageUrl.split(',').map(u=>u.trim()).filter(u=>u).concat(validUrls).join(',');
+        } else {
+           finalImageUrl = validUrls.join(',');
+        }
+      }
+
       const formattedPayload = {
         ...editPropForm,
+        imageUrl: finalImageUrl,
+        imageFile: null, // clear this so context doesn't upload again
+        imageFiles: null, 
         videoUrl: editPropForm.videoUrl || editPropForm.video || '',
         video: editPropForm.videoUrl || editPropForm.video || '',
         area: parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
@@ -904,10 +945,12 @@ export default function Properties() {
   };
 
   const handleImageFileChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setEditPropForm(prev => ({ ...prev, imageUrl: previewUrl, imageFile: file }));
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setEditPropForm(prev => ({
+        ...prev,
+        imageFiles: [...(prev.imageFiles || []), ...files]
+      }));
     }
   };
 
@@ -1631,32 +1674,47 @@ export default function Properties() {
                 return (
                   <>
                     {(hasImage || (!hasImage && !hasVideo)) && (
-                      <div className="h-[400px] sm:h-[600px] w-full sm:w-1/2 mx-auto rounded-xl overflow-hidden bg-slate-950 relative shadow-inner flex items-center justify-center">
-                        <img 
-                          src={(item.imageUrl && typeof item.imageUrl === 'string' ? item.imageUrl.split(',')[0] : item.imageUrl) || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'} 
-                          alt={item.title || "Property"}
-                          className="w-full h-full object-contain"
-                          onError={(e) => {
-                            e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
-                          }}
-                        />
+                      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-2 w-full mx-auto" style={{ scrollbarWidth: 'thin' }}>
+                        {(() => {
+                          let imageUrls = [];
+                          if (item.imageUrl && typeof item.imageUrl === 'string') {
+                            imageUrls = item.imageUrl.split(',').map(u => u.trim()).filter(u => u);
+                          } else if (item.imageUrl) {
+                            imageUrls = [item.imageUrl];
+                          }
+                          if (imageUrls.length === 0) {
+                            imageUrls = ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'];
+                          }
+                          return imageUrls.map((url, idx) => (
+                            <div key={idx} className="h-64 w-64 sm:h-80 sm:w-80 shrink-0 snap-center rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-md flex items-center justify-center">
+                              <img 
+                                src={url} 
+                                alt={item.title || "Property"}
+                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                                onError={(e) => {
+                                  e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
+                                }}
+                              />
+                            </div>
+                          ));
+                        })()}
                       </div>
                     )}
 
                     {hasVideo && (
-                      <div className="relative rounded-xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md h-[400px] sm:h-[600px] w-full sm:w-1/2 mx-auto flex items-center justify-center">
+                      <div className="relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-md h-64 w-64 sm:h-80 sm:w-80 shrink-0 flex items-center justify-center">
                         {vUrl.includes('youtu') || vUrl.includes('embed') || vUrl.includes('instagram.com') ? (
                           <iframe
                             src={vUrl.includes('instagram.com') ? (vUrl.split('?')[0].endsWith('/') ? vUrl.split('?')[0] + 'embed/' : vUrl.split('?')[0] + '/embed/') : vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
                             title="Property Video"
-                            className="w-full h-full rounded-xl border-0"
+                            className="w-full h-full border-0"
                             allowFullScreen
                           />
                         ) : (
                           <video
                             src={vUrl}
                             controls
-                            className="w-full h-full object-contain rounded-xl"
+                            className="w-full h-full object-cover"
                           />
                         )}
                       </div>
@@ -2189,95 +2247,63 @@ export default function Properties() {
                 </div>
               )}
 
-              {/* Image URL / Upload Image */}
+              {/* Property Images */}
               <div className="flex flex-col space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-[13.5px] font-semibold text-slate-800 flex items-center">
-                    Image URL / Upload Image
+                    Property Images
                   </label>
-                  {editPropForm.imageUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setEditPropForm(prev => ({ ...prev, imageUrl: '', imageFile: null }))}
-                      className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove Image</span>
-                    </button>
-                  )}
                 </div>
 
-                {editPropForm.imageUrl ? (
-                  <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center gap-3 p-3">
-                    <div className="relative w-full sm:w-36 h-28 shrink-0 rounded-lg overflow-hidden bg-slate-100 border border-slate-200/80 shadow-xs">
-                      {imageLoadError ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-slate-100 text-slate-400">
-                          <ImagePlus className="w-6 h-6 mb-1 text-slate-300" />
-                          <span className="text-[11px] font-medium text-slate-500">Preview unavailable</span>
-                        </div>
-                      ) : (
-                        <img
-                          src={editPropForm.imageUrl && typeof editPropForm.imageUrl === 'string' ? editPropForm.imageUrl.split(',')[0] : editPropForm.imageUrl}
-                          alt="Property Preview"
-                          className="w-full h-full object-cover"
-                          onError={() => setImageLoadError(true)}
-                          onLoad={() => setImageLoadError(false)}
-                        />
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
-                      <input
-                        type="text"
-                        value={editPropForm.imageUrl}
-                        onChange={(e) => {
-                          setImageLoadError(false);
-                          setEditPropForm({ ...editPropForm, imageUrl: e.target.value });
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {/* Existing Images */}
+                  {editPropForm.imageUrl && typeof editPropForm.imageUrl === 'string' && editPropForm.imageUrl.split(',').map((url, idx) => url.trim() && (
+                    <div key={`existing-${idx}`} className="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 group bg-slate-100 shrink-0">
+                      <img src={url.trim()} alt="" className="w-full h-full object-cover" />
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const newUrls = editPropForm.imageUrl.split(',').map(u => u.trim()).filter((u, i) => i !== idx && u);
+                          setEditPropForm(prev => ({ ...prev, imageUrl: newUrls.join(',') }));
                         }}
-                        placeholder="https://..."
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#B0004F]"
-                      />
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-slate-400 truncate">
-                          {editPropForm.imageFile ? editPropForm.imageFile.name : 'Image URL linked'}
-                        </span>
-                        <label className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0">
-                          <Upload className="w-3.5 h-3.5 text-slate-600" />
-                          <span>Replace</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageFileChange}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
+                        className="absolute top-1 right-1 bg-red-500/90 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <input
-                      type="text"
-                      value={editPropForm.imageUrl || ''}
-                      onChange={(e) => {
-                        setImageLoadError(false);
-                        setEditPropForm({ ...editPropForm, imageUrl: e.target.value });
-                      }}
-                      placeholder="Paste Image URL (https://...)"
-                      className="flex-1 px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
+                  ))}
+
+                  {/* Newly selected files */}
+                  {editPropForm.imageFiles?.map((file, idx) => (
+                    <div key={`new-${idx}`} className="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 group bg-slate-100 shrink-0">
+                      <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          const newFiles = [...editPropForm.imageFiles];
+                          newFiles.splice(idx, 1);
+                          setEditPropForm(prev => ({ ...prev, imageFiles: newFiles }));
+                        }}
+                        className="absolute top-1 right-1 bg-red-500/90 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add more button */}
+                  <label className="w-24 h-24 shrink-0 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors">
+                    <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                    <span className="text-[10px] font-medium text-slate-500">Add Image</span>
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept="image/*" 
+                      className="hidden"
+                      onChange={handleImageFileChange}
                     />
-                    <label className="h-[52px] px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-[10px] text-xs font-semibold text-slate-700 flex items-center justify-center space-x-2 cursor-pointer transition-colors whitespace-nowrap shrink-0">
-                      <Upload className="w-4 h-4 text-slate-600" />
-                      <span>Upload Image</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageFileChange}
-                        className="hidden"
-                      />
-                    </label>
-                  </div>
-                )}
+                  </label>
+                </div>
               </div>
 
               {/* Video URL / Upload Video */}

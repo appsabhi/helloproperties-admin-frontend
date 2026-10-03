@@ -1713,6 +1713,7 @@ export default function Properties() {
                         ) : (
                           <video
                             src={vUrl}
+                            preload="none"
                             controls
                             className="w-full h-full object-cover"
                           />
@@ -2348,6 +2349,7 @@ export default function Properties() {
                         return (
                           <video
                             src={vUrl}
+                            preload="none"
                             controls
                             className="w-full h-full object-cover rounded-lg"
                             onError={() => setVideoLoadError(true)}

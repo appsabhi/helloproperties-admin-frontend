@@ -673,6 +673,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                             return (
                               <video
                                 src={currentVideoSrc}
+                                preload="none"
                                 controls
                                 className="w-full max-h-56 object-cover rounded-2xl"
                               />

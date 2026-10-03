@@ -339,6 +339,8 @@ export default function PublicPropertyDetail() {
                   ) : (
                     <video
                       src={typeof (property.video || property.videoUrl) === 'string' ? (property.video || property.videoUrl) : URL.createObjectURL(property.video || property.videoUrl)}
+                      preload="none"
+                      poster={imageUrl}
                       controls
                       className="w-full h-full rounded-xl object-contain"
                     />

@@ -67,7 +67,7 @@ export function buildCleanWhatsAppText(property) {
 
   const propId = property.id || property.propertyId || property._id;
   const maskedId = encodeId(propId);
-  const baseUrl = import.meta.env.VITE_PUBLIC_SHARE_URL || 'https://share.helloproperties.in';
+  const baseUrl = import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin;
   const publicShareUrl = `${baseUrl}/p/${maskedId}`;
 
   const messageLines = [
@@ -228,17 +228,17 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Public Shareable Product Link</span>
         <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
           <a 
-            href={`${import.meta.env.VITE_PUBLIC_SHARE_URL || 'https://share.helloproperties.in'}/p/${encodeId(property.id || property.propertyId || property._id)}`}
+            href={`${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`}
             target="_blank"
             rel="noreferrer"
             className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline truncate flex-1 font-medium cursor-pointer"
           >
-            {`${import.meta.env.VITE_PUBLIC_SHARE_URL || 'https://share.helloproperties.in'}/p/${encodeId(property.id || property.propertyId || property._id)}`}
+            {`${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`}
           </a>
           <button
             type="button"
             onClick={() => {
-              const link = `${import.meta.env.VITE_PUBLIC_SHARE_URL || 'https://share.helloproperties.in'}/p/${encodeId(property.id || property.propertyId || property._id)}`;
+              const link = `${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`;
               navigator.clipboard.writeText(link);
               setCopied(true);
               setTimeout(() => setCopied(false), 3000);

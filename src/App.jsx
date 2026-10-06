@@ -110,6 +110,7 @@ export default function App() {
 
               {/* Root Domain & Non-ID Public Routes */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/p/:id" element={<PublicPropertyDetail />} />
               <Route path="/p" element={<RootOrPublicRoute />} />
               <Route path="/property" element={<RootOrPublicRoute />} />
               <Route path="/share" element={<RootOrPublicRoute />} />

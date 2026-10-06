@@ -59,7 +59,8 @@ export default function Properties() {
     computeMatchScore,
     computePropertyMatchesLocally,
     computeRequirementMatchesLocally,
-    uploadImageFile
+    uploadImageFile,
+    uploadVideoFile
   } = useContext(PropertyContext);
 
   const location = useLocation();
@@ -630,13 +631,27 @@ export default function Properties() {
         }
       }
 
+      let finalVideoUrl = editPropForm.videoUrl || '';
+      
+      if (editPropForm.videoFiles && editPropForm.videoFiles.length > 0) {
+        const uploadPromises = editPropForm.videoFiles.map(file => uploadVideoFile(file));
+        const uploadedVideos = await Promise.all(uploadPromises);
+        const validVideoUrls = uploadedVideos.filter(v => v).map(v => typeof v === 'string' ? v : v.videoUrl).filter(Boolean);
+        
+        let existingUrls = typeof finalVideoUrl === 'string' ? finalVideoUrl.split(',').filter(Boolean) : [];
+        existingUrls = existingUrls.filter(u => !u.startsWith('blob:'));
+        finalVideoUrl = [...existingUrls, ...validVideoUrls].join(',');
+      }
+
       const formattedPayload = {
         ...editPropForm,
         imageUrl: finalImageUrl,
         imageFile: null, // clear this so context doesn't upload again
         imageFiles: null, 
-        videoUrl: editPropForm.videoUrl || editPropForm.video || '',
-        video: editPropForm.videoUrl || editPropForm.video || '',
+        videoUrl: finalVideoUrl,
+        video: finalVideoUrl,
+        videoFile: null,
+        videoFiles: null,
         area: parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
         expectedPrice: parsePriceWithUnit(editPropForm.expectedPrice, editPropForm.expectedPriceUnit || '/ Cent'),
         monthlyRent: parsePriceWithUnit(editPropForm.monthlyRent, editPropForm.monthlyRentUnit || '/ Month'),
@@ -955,10 +970,20 @@ export default function Properties() {
   };
 
   const handleVideoFileChange = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setEditPropForm(prev => ({ ...prev, videoUrl: previewUrl, video: previewUrl, videoFile: file }));
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const previewUrls = files.map(file => URL.createObjectURL(file));
+      setEditPropForm(prev => {
+        const existingStr = prev.videoUrl || prev.video || '';
+        const existingUrls = existingStr ? existingStr.split(',').filter(Boolean) : [];
+        const newUrlStr = [...existingUrls, ...previewUrls].join(',');
+        return { 
+          ...prev, 
+          videoUrl: newUrlStr, 
+          video: newUrlStr, 
+          videoFiles: [...(prev.videoFiles || []), ...files] 
+        };
+      });
     }
   };
 
@@ -1661,7 +1686,8 @@ export default function Properties() {
             <div className="space-y-3">
               {(() => {
                 const item = viewingDetailTarget.item;
-                const vUrl = item.videoUrl || item.video || item.video_url;
+                const vUrlStr = item.videoUrl || item.video || item.video_url;
+                const vUrls = typeof vUrlStr === 'string' ? vUrlStr.split(',').filter(Boolean) : [];
                 const isFallbackOrInvalid = !item.imageUrl || 
                                             item.imageUrl === 'null' || 
                                             item.imageUrl === 'undefined' || 
@@ -1669,11 +1695,11 @@ export default function Properties() {
                                             (typeof item.imageUrl === 'string' && item.imageUrl.includes('images.unsplash.com'));
                 
                 const hasImage = !isFallbackOrInvalid;
-                const hasVideo = !!vUrl;
+                const hasVideo = vUrls.length > 0;
 
                 return (
                   <>
-                    {(hasImage || (!hasImage && !hasVideo)) && (
+                    {(hasImage || (!hasImage && !hasVideo) || hasVideo) && (
                       <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-2 w-full mx-auto" style={{ scrollbarWidth: 'thin' }}>
                         {(() => {
                           let imageUrls = [];
@@ -1682,11 +1708,11 @@ export default function Properties() {
                           } else if (item.imageUrl) {
                             imageUrls = [item.imageUrl];
                           }
-                          if (imageUrls.length === 0) {
+                          if (imageUrls.length === 0 && !hasVideo) {
                             imageUrls = ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'];
                           }
                           return imageUrls.map((url, idx) => (
-                            <div key={idx} className="h-64 w-64 sm:h-80 sm:w-80 shrink-0 snap-center rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-md flex items-center justify-center">
+                            <div key={'img-'+idx} className="h-64 w-64 sm:h-80 sm:w-80 shrink-0 snap-center rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-md flex items-center justify-center">
                               <img 
                                 src={url} 
                                 alt={item.title || "Property"}
@@ -1698,26 +1724,25 @@ export default function Properties() {
                             </div>
                           ));
                         })()}
-                      </div>
-                    )}
-
-                    {hasVideo && (
-                      <div className="relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-md h-64 w-64 sm:h-80 sm:w-80 shrink-0 flex items-center justify-center">
-                        {vUrl.includes('youtu') || vUrl.includes('embed') || vUrl.includes('instagram.com') ? (
-                          <iframe
-                            src={vUrl.includes('instagram.com') ? (vUrl.split('?')[0].endsWith('/') ? vUrl.split('?')[0] + 'embed/' : vUrl.split('?')[0] + '/embed/') : vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                            title="Property Video"
-                            className="w-full h-full border-0"
-                            allowFullScreen
-                          />
-                        ) : (
-                          <video
-                            src={vUrl}
-                            preload="none"
-                            controls
-                            className="w-full h-full object-cover"
-                          />
-                        )}
+                        {vUrls.map((vUrl, idx) => (
+                          <div key={'vid-'+idx} className="relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-md h-64 w-64 sm:h-80 sm:w-80 shrink-0 flex items-center justify-center">
+                            {vUrl.includes('youtu') || vUrl.includes('embed') || vUrl.includes('instagram.com') ? (
+                              <iframe
+                                src={vUrl.includes('instagram.com') ? (vUrl.split('?')[0].endsWith('/') ? vUrl.split('?')[0] + 'embed/' : vUrl.split('?')[0] + '/embed/') : vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                                title="Property Video"
+                                className="w-full h-full border-0"
+                                allowFullScreen
+                              />
+                            ) : (
+                              <video
+                                src={vUrl}
+                                preload="none"
+                                controls
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </>
@@ -2308,109 +2333,92 @@ export default function Properties() {
               </div>
 
               {/* Video URL / Upload Video */}
-              <div className="flex flex-col space-y-2">
+              <div className="flex flex-col space-y-2 mb-6">
                 <div className="flex items-center justify-between">
                   <label className="text-[13.5px] font-semibold text-slate-800 flex items-center">
-                    Video URL / Upload Video
+                    Video URLs (comma separated) / Upload Videos
                   </label>
                   {(editPropForm.videoUrl || editPropForm.video) && (
                     <button
                       type="button"
-                      onClick={() => setEditPropForm(prev => ({ ...prev, videoUrl: '', video: '', videoFile: null }))}
+                      onClick={() => setEditPropForm(prev => ({ ...prev, videoUrl: '', video: '', videoFiles: [] }))}
                       className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove Video</span>
+                      <span>Remove All Videos</span>
                     </button>
                   )}
                 </div>
 
-                {(editPropForm.videoUrl || editPropForm.video) ? (
-                  <div className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center gap-3 p-3">
-                    <div className="relative w-full sm:w-44 h-32 shrink-0 rounded-lg overflow-hidden bg-slate-950 border border-slate-800 shadow-xs flex items-center justify-center">
-                      {videoLoadError ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-slate-900 text-slate-400">
-                          <Film className="w-6 h-6 mb-1 text-slate-500" />
-                          <span className="text-[11px] font-medium text-slate-400">Preview unavailable</span>
-                        </div>
-                      ) : (() => {
-                        const vUrl = editPropForm.videoUrl || editPropForm.video || '';
-                        if (vUrl.includes('youtu') || vUrl.includes('embed') || vUrl.includes('instagram.com')) {
-                          return (
-                            <iframe
-                              src={vUrl.includes('instagram.com') ? (vUrl.split('?')[0].endsWith('/') ? vUrl.split('?')[0] + 'embed/' : vUrl.split('?')[0] + '/embed/') : vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                              title="Video Preview"
-                              className="w-full h-full rounded-lg border-0"
-                              allowFullScreen
-                              onError={() => setVideoLoadError(true)}
-                            />
-                          );
-                        }
-                        return (
-                          <video
-                            src={vUrl}
-                            preload="none"
-                            controls
-                            className="w-full h-full object-cover rounded-lg"
-                            onError={() => setVideoLoadError(true)}
-                            onLoadedData={() => setVideoLoadError(false)}
-                          />
-                        );
-                      })()}
-                    </div>
-
-                    <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
-                      <input
-                        type="text"
-                        value={editPropForm.videoUrl || editPropForm.video || ''}
-                        onChange={(e) => {
-                          setVideoLoadError(false);
-                          setEditPropForm({ ...editPropForm, videoUrl: e.target.value, video: e.target.value });
-                        }}
-                        placeholder="YouTube link or video URL..."
-                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#B0004F]"
-                      />
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-slate-400 truncate">
-                          {editPropForm.videoFile ? editPropForm.videoFile.name : 'Video URL linked'}
-                        </span>
-                        <label className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap shrink-0">
-                          <Upload className="w-3.5 h-3.5 text-slate-600" />
-                          <span>Replace</span>
-                          <input
-                            type="file"
-                            accept="video/*"
-                            onChange={handleVideoFileChange}
-                            className="hidden"
-                          />
-                        </label>
+                <div className="flex flex-col gap-4">
+                  {(() => {
+                    const vUrlStr = editPropForm.videoUrl || editPropForm.video || '';
+                    const vUrls = typeof vUrlStr === 'string' ? vUrlStr.split(',').filter(Boolean) : [];
+                    return vUrls.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {vUrls.map((vUrl, idx) => (
+                          <div key={idx} className="relative group rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex flex-col p-2">
+                            <div className="relative w-full h-40 shrink-0 rounded-lg overflow-hidden bg-slate-950 border border-slate-800 shadow-xs flex items-center justify-center">
+                              {vUrl.includes('youtu') || vUrl.includes('embed') || vUrl.includes('instagram.com') ? (
+                                <iframe
+                                  src={vUrl.includes('instagram.com') ? (vUrl.split('?')[0].endsWith('/') ? vUrl.split('?')[0] + 'embed/' : vUrl.split('?')[0] + '/embed/') : vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                                  title="Video Preview"
+                                  className="w-full h-full rounded-lg border-0"
+                                  allowFullScreen
+                                />
+                              ) : (
+                                <video
+                                  src={vUrl}
+                                  preload="none"
+                                  controls
+                                  className="w-full h-full object-cover rounded-lg"
+                                />
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditPropForm(prev => {
+                                    const str = prev.videoUrl || prev.video || '';
+                                    const urls = str.split(',').filter(Boolean);
+                                    const newUrls = urls.filter((_, i) => i !== idx);
+                                    return { ...prev, videoUrl: newUrls.join(','), video: newUrls.join(',') };
+                                  });
+                                }}
+                                className="absolute top-2 right-2 bg-black/80 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-colors cursor-pointer z-20"
+                                title="Remove Video"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  </div>
-                ) : (
+                    );
+                  })()}
+
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <input
                       type="text"
                       value={editPropForm.videoUrl || editPropForm.video || ''}
                       onChange={(e) => {
-                        setVideoLoadError(false);
                         setEditPropForm({ ...editPropForm, videoUrl: e.target.value, video: e.target.value });
                       }}
-                      placeholder="YouTube link or Video URL (https://...)"
+                      placeholder="Multiple YouTube links or Video URLs separated by commas..."
                       className="flex-1 px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F]"
                     />
                     <label className="h-[52px] px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-[10px] text-xs font-semibold text-slate-700 flex items-center justify-center space-x-2 cursor-pointer transition-colors whitespace-nowrap shrink-0">
                       <Upload className="w-4 h-4 text-slate-600" />
-                      <span>Upload Video</span>
+                      <span>Upload Videos</span>
                       <input
                         type="file"
                         accept="video/*"
+                        multiple
                         onChange={handleVideoFileChange}
                         className="hidden"
                       />
                     </label>
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="flex flex-col space-y-1.5">

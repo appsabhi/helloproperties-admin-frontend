@@ -321,33 +321,42 @@ export default function PublicPropertyDetail() {
             )}
 
             {/* Property Video Tour Section */}
-            {(property.video || property.videoUrl) && (
-              <div className="space-y-2 pt-2">
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <Video className="w-4 h-4 text-[#B0004F]" />
-                  <span>Property Video Tour</span>
-                </h4>
-                <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 shadow-md overflow-hidden h-[400px] sm:h-[600px] w-full sm:w-1/2 mx-auto flex items-center justify-center">
-                  {typeof (property.video || property.videoUrl) === 'string' && ((property.video || property.videoUrl).includes('youtu') || (property.video || property.videoUrl).includes('embed') || (property.video || property.videoUrl).includes('instagram.com')) ? (
-                    <iframe
-                      src={(property.video || property.videoUrl).includes('instagram.com') ? ((property.video || property.videoUrl).split('?')[0].endsWith('/') ? (property.video || property.videoUrl).split('?')[0] + 'embed/' : (property.video || property.videoUrl).split('?')[0] + '/embed/') : (property.video || property.videoUrl).replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                      title="Property Video"
-                      className="w-full h-full rounded-xl border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <video
-                      src={typeof (property.video || property.videoUrl) === 'string' ? (property.video || property.videoUrl) : URL.createObjectURL(property.video || property.videoUrl)}
-                      preload="none"
-                      poster={imageUrl}
-                      controls
-                      className="w-full h-full rounded-xl object-contain"
-                    />
-                  )}
+            {(() => {
+              const vUrlStr = property.videoUrl || property.video || '';
+              const vUrls = typeof vUrlStr === 'string' ? vUrlStr.split(',').filter(Boolean) : [];
+              if (vUrls.length === 0) return null;
+              
+              return (
+                <div className="space-y-2 pt-2">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Video className="w-4 h-4 text-[#B0004F]" />
+                    <span>Property Video Tour{vUrls.length > 1 ? 's' : ''}</span>
+                  </h4>
+                  <div className={`grid grid-cols-1 ${vUrls.length > 1 ? 'sm:grid-cols-2' : ''} gap-4`}>
+                    {vUrls.map((vUrl, idx) => (
+                      <div key={idx} className="p-3 rounded-2xl bg-slate-950 border border-slate-800 shadow-md overflow-hidden h-[400px] w-full mx-auto flex items-center justify-center">
+                        {vUrl.includes('youtu') || vUrl.includes('embed') || vUrl.includes('instagram.com') ? (
+                          <iframe
+                            src={vUrl.includes('instagram.com') ? (vUrl.split('?')[0].endsWith('/') ? vUrl.split('?')[0] + 'embed/' : vUrl.split('?')[0] + '/embed/') : vUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                            title={`Property Video ${idx + 1}`}
+                            className="w-full h-full rounded-xl border-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          />
+                        ) : (
+                          <video
+                            src={vUrl}
+                            preload="none"
+                            controls
+                            className="w-full h-full rounded-xl object-contain"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </main>

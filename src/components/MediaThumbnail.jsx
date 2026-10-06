@@ -12,7 +12,8 @@ export default function MediaThumbnail({
 }) {
   const [generatedPoster, setGeneratedPoster] = useState(null);
   
-  const actualVideoUrl = videoUrl || video || video_url;
+  const rawVideoUrl = videoUrl || video || video_url;
+  const actualVideoUrl = typeof rawVideoUrl === 'string' ? rawVideoUrl.split(',')[0] : rawVideoUrl;
   const isFallbackOrInvalid = !imageUrl || 
                               imageUrl === 'null' || 
                               imageUrl === 'undefined' || 

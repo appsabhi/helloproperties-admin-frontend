@@ -53,9 +53,10 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     if (initVideo && typeof initVideo === 'string') {
       defaultData.videoUrl = initVideo;
       defaultData.video = initVideo;
-      const extractedName = initVideo.split('/').pop().split('?')[0];
+      const vUrls = initVideo.split(',').filter(Boolean);
+      const extractedName = vUrls.map(u => u.split('/').pop().split('?')[0]).join(', ');
       setVideoFileName({ video: extractedName });
-      setVideoPreviews({ video: initVideo });
+      setVideoPreviews({ video: vUrls });
     }
 
     setFormData(defaultData);
@@ -147,68 +148,78 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
   };
 
   const handleVideoSelect = async (e, fieldId) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     e.target.value = '';
 
     const allowedExtensions = ['mp4', 'webm', 'mov'];
-    const fileName = file.name || '';
-    const ext = fileName.split('.').pop().toLowerCase();
-    const mimeType = file.type || '';
-
-    const isAllowedFormat = allowedExtensions.includes(ext) ||
-      mimeType === 'video/mp4' ||
-      mimeType === 'video/webm' ||
-      mimeType === 'video/quicktime' ||
-      mimeType.includes('mov');
-
-    if (!isAllowedFormat) {
-      setVideoErrors(prev => ({
-        ...prev,
-        [fieldId]: 'Unsupported video format. Please upload an MP4, WebM, or MOV video file.'
-      }));
-      return;
-    }
-
     const MAX_50MB = 50 * 1024 * 1024;
-    if (file.size > MAX_50MB) {
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-      setVideoErrors(prev => ({
-        ...prev,
-        [fieldId]: `Video size (${sizeMB} MB) exceeds the maximum allowed 50 MB limit.`
-      }));
-      return;
+    const validFiles = [];
+
+    for (const file of files) {
+      const fileName = file.name || '';
+      const ext = fileName.split('.').pop().toLowerCase();
+      const mimeType = file.type || '';
+      const isAllowedFormat = allowedExtensions.includes(ext) ||
+        mimeType === 'video/mp4' || mimeType === 'video/webm' ||
+        mimeType === 'video/quicktime' || mimeType.includes('mov');
+      
+      if (!isAllowedFormat) {
+        setVideoErrors(prev => ({ ...prev, [fieldId]: 'Unsupported video format. Please upload MP4, WebM, or MOV.' }));
+        return;
+      }
+      if (file.size > MAX_50MB) {
+        setVideoErrors(prev => ({ ...prev, [fieldId]: `Video size exceeds the maximum allowed 50 MB limit.` }));
+        return;
+      }
+      validFiles.push(file);
     }
 
     setVideoErrors(prev => ({ ...prev, [fieldId]: null }));
     setVideoUploading(prev => ({ ...prev, [fieldId]: true }));
-    setVideoFileName(prev => ({ ...prev, [fieldId]: fileName }));
+    setVideoFileName(prev => ({ 
+      ...prev, 
+      [fieldId]: prev[fieldId] ? prev[fieldId] + ', ' + validFiles.map(f => f.name).join(', ') : validFiles.map(f => f.name).join(', ') 
+    }));
 
-    const localPreviewUrl = URL.createObjectURL(file);
-    setVideoPreviews(prev => ({ ...prev, [fieldId]: localPreviewUrl }));
+    const localPreviewUrls = validFiles.map(f => URL.createObjectURL(f));
+    setVideoPreviews(prev => {
+      const existing = prev[fieldId] ? (Array.isArray(prev[fieldId]) ? prev[fieldId] : [prev[fieldId]]) : [];
+      return { ...prev, [fieldId]: [...existing, ...localPreviewUrls] };
+    });
 
     try {
       const uploadFn = uploadVideoFile || (async () => ({ success: false, error: 'Upload service unavailable' }));
-      const res = await uploadFn(file);
+      const uploadedUrls = [];
+      for (const file of validFiles) {
+        const res = await uploadFn(file);
+        if (res && res.success && res.videoUrl) {
+          uploadedUrls.push(typeof res.videoUrl === 'string' ? res.videoUrl : '');
+        } else {
+          throw new Error((res && res.error) ? res.error : 'Video upload failed.');
+        }
+      }
 
       setVideoUploading(prev => ({ ...prev, [fieldId]: false }));
 
-      if (res && res.success && res.videoUrl) {
-        const returnedUrl = typeof res.videoUrl === 'string' ? res.videoUrl : '';
-        setVideoPreviews(prev => ({ ...prev, [fieldId]: returnedUrl }));
-        setFormData(prev => ({
+      setFormData(prev => {
+        const existingStr = prev[fieldId] || prev.videoUrl || '';
+        const existingUrls = typeof existingStr === 'string' ? existingStr.split(',').filter(Boolean) : [];
+        const newUrlStr = [...existingUrls, ...uploadedUrls].join(',');
+        
+        setVideoPreviews(p => ({ ...p, [fieldId]: [...existingUrls, ...uploadedUrls] }));
+        
+        return {
           ...prev,
-          [fieldId]: returnedUrl,
-          videoUrl: returnedUrl,
-          video: returnedUrl,
+          [fieldId]: newUrlStr,
+          videoUrl: newUrlStr,
+          video: newUrlStr,
           videoFile: null
-        }));
-        if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
-      } else {
-        const errorMsg = (res && res.error) ? res.error : 'Video upload failed. Please try again.';
-        setVideoErrors(prev => ({ ...prev, [fieldId]: errorMsg }));
-      }
+        };
+      });
+      if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
+
     } catch (err) {
       setVideoUploading(prev => ({ ...prev, [fieldId]: false }));
       setVideoErrors(prev => ({ ...prev, [fieldId]: err.message || 'Network error during upload.' }));
@@ -653,86 +664,65 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                       </div>
 
                     /* Case B: Video Preview (Uploaded or Loaded from Edit) */
-                    ) : (videoPreviews[field.id] || (formData.videoUrl && typeof formData.videoUrl === 'string') || (formData[field.id] && typeof formData[field.id] === 'string')) ? (
-                      <div className="flex flex-col gap-2">
-                        <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
-                          {(() => {
-                            const currentVideoSrc = videoPreviews[field.id] || formData.videoUrl || (typeof formData[field.id] === 'string' ? formData[field.id] : '');
-
-                            if (currentVideoSrc && (currentVideoSrc.includes('youtu') || currentVideoSrc.includes('embed') || currentVideoSrc.includes('instagram.com'))) {
-                              return (
-                                <iframe
-                                  src={currentVideoSrc.includes('instagram.com') ? (currentVideoSrc.split('?')[0].endsWith('/') ? currentVideoSrc.split('?')[0] + 'embed/' : currentVideoSrc.split('?')[0] + '/embed/') : currentVideoSrc.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                                  title="Video Preview"
-                                  className="w-full h-48 sm:h-56 rounded-2xl border-0"
-                                  allowFullScreen
-                                />
-                              );
-                            }
-
-                            return (
-                              <video
-                                src={currentVideoSrc}
-                                preload="none"
-                                controls
-                                className="w-full max-h-56 object-cover rounded-2xl"
-                              />
-                            );
-                          })()}
-
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveVideo(field.id)}
-                            className="absolute top-3 right-3 bg-black/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-lg transition-colors cursor-pointer z-20"
-                            title="Remove Video"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                    ) : (videoPreviews[field.id] && Array.isArray(videoPreviews[field.id]) && videoPreviews[field.id].length > 0) || (typeof formData.videoUrl === 'string' && formData.videoUrl) || (typeof formData[field.id] === 'string' && formData[field.id]) ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {(() => {
+                          const currentVideoSrcStr = (videoPreviews[field.id] && Array.isArray(videoPreviews[field.id]) ? videoPreviews[field.id].join(',') : videoPreviews[field.id]) || formData.videoUrl || formData[field.id] || '';
+                          const videoUrls = typeof currentVideoSrcStr === 'string' ? currentVideoSrcStr.split(',').filter(Boolean) : [];
+                          
+                          return videoUrls.map((currentVideoSrc, idx) => (
+                            <div key={idx} className="flex flex-col gap-2">
+                              <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 shadow-md">
+                                {currentVideoSrc && (currentVideoSrc.includes('youtu') || currentVideoSrc.includes('embed') || currentVideoSrc.includes('instagram.com')) ? (
+                                  <iframe
+                                    src={currentVideoSrc.includes('instagram.com') ? (currentVideoSrc.split('?')[0].endsWith('/') ? currentVideoSrc.split('?')[0] + 'embed/' : currentVideoSrc.split('?')[0] + '/embed/') : currentVideoSrc.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                                    title={`Video Preview ${idx+1}`}
+                                    className="w-full h-40 sm:h-48 rounded-2xl border-0"
+                                    allowFullScreen
+                                  />
+                                ) : (
+                                  <video
+                                    src={currentVideoSrc}
+                                    preload="none"
+                                    controls
+                                    className="w-full max-h-48 object-cover rounded-2xl"
+                                  />
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveVideo(field.id, idx)}
+                                  className="absolute top-2 right-2 bg-black/80 hover:bg-red-600 text-white rounded-full p-1.5 shadow-lg transition-colors cursor-pointer z-20"
+                                  title="Remove Video"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ));
+                        })()}
                         </div>
-
-                        {/* File Details & Action Controls */}
-                        <div className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl border border-slate-200/70">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Film className="w-4 h-4 text-[#B0004F] shrink-0" />
-                            <span className="text-xs font-medium text-slate-700 truncate">
-                              {videoFileName[field.id] || (formData.videoUrl ? formData.videoUrl.split('/').pop().split('?')[0] : 'Uploaded Video')}
-                            </span>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0 border border-emerald-200">
-                              <Check className="w-3 h-3 text-emerald-600" />
-                              Ready
-                            </span>
+                        <label className="relative flex items-center gap-3 bg-[#F4F4F6] hover:bg-white border-2 border-dashed border-slate-200 hover:border-[#B0004F]/40 rounded-2xl px-4 py-3 transition-all cursor-pointer group mt-2">
+                          <input
+                            type="file"
+                            accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                            multiple
+                            onChange={(e) => handleVideoSelect(e, field.id)}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          />
+                          <div className="w-8 h-8 rounded-xl bg-[#B0004F]/10 group-hover:bg-[#B0004F] text-[#B0004F] group-hover:text-white flex items-center justify-center transition-colors shrink-0">
+                            <Plus className="w-4 h-4" />
                           </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            <label className="text-xs font-semibold text-[#B0004F] hover:text-[#88003d] hover:underline cursor-pointer">
-                              Replace
-                              <input
-                                type="file"
-                                accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
-                                onChange={(e) => handleVideoSelect(e, field.id)}
-                                className="hidden"
-                              />
-                            </label>
-                            <span className="text-slate-300">|</span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveVideo(field.id)}
-                              className="text-xs font-semibold text-red-500 hover:text-red-700 hover:underline cursor-pointer"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
+                          <span className="text-[13px] font-semibold text-slate-700 group-hover:text-[#B0004F] transition-colors">
+                            Add Another Video
+                          </span>
+                        </label>
                       </div>
-
                     /* Case C: File Selector Dropzone + Video Link Input */
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <label className="relative flex items-center gap-3 bg-[#F4F4F6] hover:bg-white border-2 border-dashed border-slate-200 hover:border-[#B0004F]/40 rounded-2xl px-4 py-3.5 transition-all cursor-pointer group">
-                          <input
-                            type="file"
-                            accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
-                            onChange={(e) => handleVideoSelect(e, field.id)}
+                          <input type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" multiple onChange={(e) => handleVideoSelect(e, field.id)}
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                           />
                           <div className="w-9 h-9 rounded-xl bg-[#B0004F]/10 group-hover:bg-[#B0004F] text-[#B0004F] group-hover:text-white flex items-center justify-center transition-colors shrink-0">

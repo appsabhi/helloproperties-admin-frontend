@@ -131,21 +131,43 @@ export const PropertyProvider = ({ children }) => {
 
     try {
       const token = localStorage.getItem('hp_auth_token');
-      const sanitizedName = fileName.replace(/[^a-zA-Z0-9_.-]/g, '_');
-      const targetPath = `properties/videos/property-${Date.now()}-${sanitizedName}`;
-
       const handleUploadEndpoint = `${API_BASE_URL}/upload/handle-upload`;
 
-      const blob = await upload(targetPath, file, {
-        access: 'public',
-        handleUploadUrl: handleUploadEndpoint,
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        clientPayload: JSON.stringify({
-          originalName: fileName,
-          size: file.size,
-          mimeType: file.type
+      const presignResponse = await fetch(handleUploadEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          filename: fileName,
+          contentType: file.type || 'video/mp4'
         })
       });
+
+      if (!presignResponse.ok) {
+        throw new Error('Failed to get secure upload URL from server.');
+      }
+
+      const { presignedUrl, publicUrl } = await presignResponse.json();
+
+      if (!presignedUrl || !publicUrl) {
+        throw new Error('Invalid upload credentials received from server.');
+      }
+
+      const uploadResponse = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type || 'video/mp4'
+        }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload video to storage.');
+      }
+
+      const blob = { url: publicUrl };
 
       if (blob && blob.url) {
         return {

@@ -209,6 +209,7 @@ export default function PublicPropertyDetail() {
               alt={property.title || 'Property Image'}
               onError={() => setImageError(true)}
               className="w-full h-full object-cover"
+              decoding="async"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
             

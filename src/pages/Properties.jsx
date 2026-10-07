@@ -426,7 +426,7 @@ export default function Properties() {
 
   // Statuses list
   const propertyStatuses = ['Available', 'Under Negotiation', 'Sold', 'Inactive'];
-  const requirementStatuses = ['Active', 'Fulfilled', 'Suspended'];
+  const requirementStatuses = ['Active', 'Property Found', 'Closed', 'Cancelled'];
   const propertyTypes = ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Commercial Building', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'];
 
   // Filtering listings
@@ -599,7 +599,7 @@ export default function Properties() {
       phoneNumber: prop.phoneNumber || prop.ownerPhone || '',
       ownerAddress: prop.ownerAddress || '',
       status: prop.status || 'Available',
-      imageUrl: prop.imageUrl || '',
+      imageUrl: (prop.imageUrl || '').split(',').map(u=>u.trim()).filter(u => u && !u.includes('images.unsplash.com')).join(','),
       videoUrl: prop.videoUrl || prop.video_url || prop.video || '',
       video: prop.videoUrl || prop.video_url || prop.video || '',
       listingType: prop.listingType || 'Sale'
@@ -1512,6 +1512,16 @@ export default function Properties() {
                             {req.buyerStatus.split(' (')[0]} Lead
                           </span>
                         )}
+                        {req.status && (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                            req.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            req.status === 'Property Found' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            req.status === 'Closed' ? 'bg-slate-100 text-slate-700 border-slate-300' :
+                            'bg-red-50 text-red-700 border-red-200'
+                          }`}>
+                            {req.status}
+                          </span>
+                        )}
                         {req.createdAt && (
                           <span className="text-[10px] text-slate-400 font-semibold tracking-wide ml-1">
                             Added {new Date(req.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -1703,10 +1713,12 @@ export default function Properties() {
                       <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-2 w-full mx-auto" style={{ scrollbarWidth: 'thin' }}>
                         {(() => {
                           let imageUrls = [];
-                          if (item.imageUrl && typeof item.imageUrl === 'string') {
-                            imageUrls = item.imageUrl.split(',').map(u => u.trim()).filter(u => u);
-                          } else if (item.imageUrl) {
-                            imageUrls = [item.imageUrl];
+                          if (!isFallbackOrInvalid) {
+                            if (item.imageUrl && typeof item.imageUrl === 'string') {
+                              imageUrls = item.imageUrl.split(',').map(u => u.trim()).filter(u => u);
+                            } else if (item.imageUrl) {
+                              imageUrls = [item.imageUrl];
+                            }
                           }
                           if (imageUrls.length === 0 && !hasVideo) {
                             imageUrls = ['https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80'];
@@ -1717,6 +1729,8 @@ export default function Properties() {
                                 src={url} 
                                 alt={item.title || "Property"}
                                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                                loading="lazy"
+                                decoding="async"
                                 onError={(e) => {
                                   e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
                                 }}
@@ -2285,7 +2299,7 @@ export default function Properties() {
                   {/* Existing Images */}
                   {editPropForm.imageUrl && typeof editPropForm.imageUrl === 'string' && editPropForm.imageUrl.split(',').map((url, idx) => url.trim() && (
                     <div key={`existing-${idx}`} className="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 group bg-slate-100 shrink-0">
-                      <img src={url.trim()} alt="" className="w-full h-full object-cover" />
+                      <img src={url.trim()} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       <button 
                         type="button"
                         onClick={() => {
@@ -2302,7 +2316,7 @@ export default function Properties() {
                   {/* Newly selected files */}
                   {editPropForm.imageFiles?.map((file, idx) => (
                     <div key={`new-${idx}`} className="relative w-24 h-24 rounded-lg overflow-hidden border border-slate-200 group bg-slate-100 shrink-0">
-                      <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" />
+                      <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       <button 
                         type="button"
                         onClick={() => {
@@ -2877,8 +2891,21 @@ export default function Properties() {
                   </div>
                 </div>
               )}
-
               
+              <div className="flex flex-col space-y-1.5">
+                <label className="text-[14px] font-medium text-slate-800 flex items-center">
+                  Status <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                </label>
+                <select
+                  value={editReqForm.status}
+                  onChange={(e) => setEditReqForm({ ...editReqForm, status: e.target.value })}
+                  className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
+                >
+                  {requirementStatuses.map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="md:col-span-2 flex flex-col space-y-1.5">
                 <label className="text-[14px] font-medium text-slate-800">Description / Remarks</label>

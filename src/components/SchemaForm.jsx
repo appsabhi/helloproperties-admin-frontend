@@ -625,7 +625,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                         <div className="flex gap-2 flex-wrap max-w-full z-20">
                           {imagePreviews[field.id].map((previewUrl, idx) => (
                             <div key={idx} className="relative w-[54px] h-[54px] flex-shrink-0 rounded-xl overflow-hidden ring-1 ring-slate-200">
-                              <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                              <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                               <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); handleRemoveImage(field.id, idx); }}

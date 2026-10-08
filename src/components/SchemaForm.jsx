@@ -11,6 +11,8 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
   const [formData, setFormData] = useState({});
   const [errors, setErrors] = useState({});
   const [imagePreviews, setImagePreviews] = useState({});
+  const [imageErrors, setImageErrors] = useState({});
+  const [imageDetails, setImageDetails] = useState({});
   const [videoPreviews, setVideoPreviews] = useState({});
   const [videoUploading, setVideoUploading] = useState({});
   const [videoErrors, setVideoErrors] = useState({});
@@ -110,24 +112,46 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
 
   const handleImageChange = (e, fieldId) => {
     const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      const newPreviews = files.map(f => URL.createObjectURL(f));
-      setImagePreviews(prev => {
-        const existing = prev[fieldId] ? (Array.isArray(prev[fieldId]) ? prev[fieldId] : [prev[fieldId]]) : [];
-        return { ...prev, [fieldId]: [...existing, ...newPreviews] };
-      });
-      setFormData(prev => {
-        const existingFiles = prev.imageFiles || [];
-        const existingUrlStr = prev.imageUrl || (prev[fieldId] && typeof prev[fieldId] === 'string' ? prev[fieldId] : '');
-        const existingUrls = typeof existingUrlStr === 'string' ? existingUrlStr.split(',').filter(Boolean) : [];
-        const newUrlStr = [...existingUrls, ...newPreviews].join(',');
-        return { ...prev, [fieldId]: newUrlStr, imageFiles: [...existingFiles, ...files], imageUrl: newUrlStr };
-      });
-      if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
+    if (files.length === 0) return;
+    
+    e.target.value = '';
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+    const validFiles = [];
+
+    for (const file of files) {
+      if (file.size > MAX_IMAGE_SIZE) {
+        setImageErrors(prev => ({ ...prev, [fieldId]: `File '${file.name}' (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds maximum 10 MB limit.` }));
+        return;
+      }
+      validFiles.push(file);
     }
+
+    setImageErrors(prev => ({ ...prev, [fieldId]: null }));
+    const newPreviews = [];
+    const newDetails = { ...imageDetails };
+    validFiles.forEach(f => {
+      const url = URL.createObjectURL(f);
+      newPreviews.push(url);
+      newDetails[url] = { name: f.name, size: f.size };
+    });
+    setImageDetails(newDetails);
+    
+    setImagePreviews(prev => {
+      const existing = prev[fieldId] ? (Array.isArray(prev[fieldId]) ? prev[fieldId] : [prev[fieldId]]) : [];
+      return { ...prev, [fieldId]: [...existing, ...newPreviews] };
+    });
+    setFormData(prev => {
+      const existingFiles = prev.imageFiles || [];
+      const existingUrlStr = prev.imageUrl || (prev[fieldId] && typeof prev[fieldId] === 'string' ? prev[fieldId] : '');
+      const existingUrls = typeof existingUrlStr === 'string' ? existingUrlStr.split(',').filter(Boolean) : [];
+      const newUrlStr = [...existingUrls, ...newPreviews].join(',');
+      return { ...prev, [fieldId]: newUrlStr, imageFiles: [...existingFiles, ...validFiles], imageUrl: newUrlStr };
+    });
+    if (errors[fieldId]) setErrors(prev => ({ ...prev, [fieldId]: null }));
   };
 
   const handleRemoveImage = (fieldId, indexToRemove) => {
+    setImageErrors(prev => ({ ...prev, [fieldId]: null }));
     setImagePreviews(prev => {
       const existing = prev[fieldId] ? (Array.isArray(prev[fieldId]) ? prev[fieldId] : [prev[fieldId]]) : [];
       const newPreviews = existing.filter((_, idx) => idx !== indexToRemove);
@@ -154,7 +178,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     e.target.value = '';
 
     const allowedExtensions = ['mp4', 'webm', 'mov'];
-    const MAX_50MB = 50 * 1024 * 1024;
+    const MAX_VIDEO_SIZE = 100 * 1024 * 1024;
     const validFiles = [];
 
     for (const file of files) {
@@ -169,8 +193,8 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
         setVideoErrors(prev => ({ ...prev, [fieldId]: 'Unsupported video format. Please upload MP4, WebM, or MOV.' }));
         return;
       }
-      if (file.size > MAX_50MB) {
-        setVideoErrors(prev => ({ ...prev, [fieldId]: `Video size exceeds the maximum allowed 50 MB limit.` }));
+      if (file.size > MAX_VIDEO_SIZE) {
+        setVideoErrors(prev => ({ ...prev, [fieldId]: `File '${file.name}' (${(file.size / (1024 * 1024)).toFixed(2)} MB) exceeds maximum 100 MB limit.` }));
         return;
       }
       validFiles.push(file);
@@ -180,7 +204,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     setVideoUploading(prev => ({ ...prev, [fieldId]: true }));
     setVideoFileName(prev => ({ 
       ...prev, 
-      [fieldId]: prev[fieldId] ? prev[fieldId] + ', ' + validFiles.map(f => f.name).join(', ') : validFiles.map(f => f.name).join(', ') 
+      [fieldId]: prev[fieldId] ? prev[fieldId] + ', ' + validFiles.map(f => `${f.name} (${(f.size / (1024*1024)).toFixed(1)} MB)`).join(', ') : validFiles.map(f => `${f.name} (${(f.size / (1024*1024)).toFixed(1)} MB)`).join(', ') 
     }));
 
     const localPreviewUrls = validFiles.map(f => URL.createObjectURL(f));
@@ -618,7 +642,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                           <span className="block text-[13px] font-medium text-slate-500 group-hover:text-slate-700">
                             Click to upload
                           </span>
-                          <span className="text-[11px] text-slate-400">PNG, JPG or WEBP · Max 5 MB</span>
+                          <span className="text-[11px] text-slate-400">JPG, JPEG, PNG, WEBP • Maximum 10 MB per image</span>
                         </div>
                       </label>
                       {imagePreviews[field.id] && Array.isArray(imagePreviews[field.id]) && imagePreviews[field.id].length > 0 && (
@@ -626,6 +650,11 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                           {imagePreviews[field.id].map((previewUrl, idx) => (
                             <div key={idx} className="relative w-[54px] h-[54px] flex-shrink-0 rounded-xl overflow-hidden ring-1 ring-slate-200">
                               <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                              {imageDetails[previewUrl] && (
+                                <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] font-medium text-center truncate px-0.5 py-0.5 pointer-events-none">
+                                  {(imageDetails[previewUrl].size / (1024 * 1024)).toFixed(1)} MB
+                                </div>
+                              )}
                               <button
                                 type="button"
                                 onClick={(e) => { e.preventDefault(); handleRemoveImage(field.id, idx); }}
@@ -639,6 +668,12 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                         </div>
                       )}
                     </div>
+                    {imageErrors[field.id] && (
+                      <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium mt-1">
+                        <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                        <span className="flex-1">{imageErrors[field.id]}</span>
+                      </div>
+                    )}
                   </div>
 
                 ) : field.type === "video" ? (
@@ -649,7 +684,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                         {field.label}{field.required && <span className="text-[#B0004F] ml-0.5">*</span>}
                       </span>
                       <span className="text-[10.5px] text-slate-400">
-                        MP4, WebM or MOV · Max 50 MB
+                        MP4, MOV, WEBM • Maximum 100 MB
                       </span>
                     </div>
 
@@ -732,7 +767,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                             <span className="block text-[13px] font-semibold text-slate-700 group-hover:text-[#B0004F] transition-colors">
                               Click to select video
                             </span>
-                            <span className="block text-[11px] text-slate-400">MP4, WebM or MOV · Max 50 MB</span>
+                            <span className="block text-[11px] text-slate-400">MP4, MOV, WEBM • Maximum 100 MB</span>
                           </div>
                         </label>
 

@@ -359,7 +359,7 @@ export default function LocationSelector({
   const stateError = errors.state;
 
   return (
-    <div className="sm:col-span-2 space-y-4 pt-1">
+    <div id={`field-${locationFieldName}`} className="sm:col-span-2 space-y-4 pt-1">
       {/* Section header — matches SchemaForm style */}
       <div className="flex items-center gap-3 mt-2 mb-1">
         <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-[#B0004F]/50 whitespace-nowrap">Location</span>
@@ -484,7 +484,7 @@ export default function LocationSelector({
       {!(allowMultiple && formData[locationFieldName] && String(formData[locationFieldName]).trim().length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Column 1: State */}
-          <div className="flex flex-col gap-1">
+          <div id="field-state" className="flex flex-col gap-1">
             <div className="relative">
             <select
               id="state-select"
@@ -515,7 +515,7 @@ export default function LocationSelector({
         </div>
 
         {/* Column 2: District */}
-        <div className="flex flex-col gap-1">
+        <div id="field-district" className="flex flex-col gap-1">
           <div className="relative">
             <select
               id="district-select"

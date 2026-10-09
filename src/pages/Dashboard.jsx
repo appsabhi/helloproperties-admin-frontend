@@ -95,6 +95,21 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        {stats.map((stat, idx) => (
+          <div key={idx} className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] flex items-center space-x-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${stat.color}`}>
+              <stat.icon className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">{stat.label}</p>
+              <h4 className="text-2xl font-bold text-slate-900">{stat.value}</h4>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Recent Properties Grid */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">

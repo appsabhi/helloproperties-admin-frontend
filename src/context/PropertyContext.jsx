@@ -353,7 +353,7 @@ export const PropertyProvider = ({ children }) => {
       const listingType = propertyData.listingType || 'Sale';
 
       const payload = {
-        title: propertyData.title,
+        title: propertyData.title || (propertyData.location ? `${propertyData.location} Property` : (propertyData.district ? `${propertyData.district} Property` : 'Property')),
         listingType: listingType,
         propertyType: propertyData.propertyType || 'Plot/Land',
         location: propertyData.location,
@@ -425,7 +425,7 @@ export const PropertyProvider = ({ children }) => {
       const requirementType = reqData.requirementType || 'Buy';
 
       const payload = {
-        requirementTitle: reqData.requirementTitle || `${reqData.buyerName}'s Requirement`,
+        requirementTitle: reqData.requirementTitle || (reqData.buyerName ? `${reqData.buyerName} Requirement` : 'Requirement'),
         requirementType: requirementType,
         propertyType: reqData.propertyType || 'Plot/Land',
         preferredLocation: reqData.preferredLocation,
@@ -595,7 +595,7 @@ export const PropertyProvider = ({ children }) => {
       const listingType = updatedData.listingType || 'Sale';
 
       const payload = {
-        title: updatedData.title,
+        title: updatedData.title || (updatedData.location ? `${updatedData.location} Property` : (updatedData.district ? `${updatedData.district} Property` : 'Property')),
         listingType: listingType,
         propertyType: updatedData.propertyType || 'Plot/Land',
         location: updatedData.location,
@@ -752,7 +752,7 @@ export const PropertyProvider = ({ children }) => {
       const requirementType = updatedData.requirementType || 'Buy';
 
       const payload = {
-        requirementTitle: updatedData.requirementTitle || `${updatedData.buyerName}'s Requirement`,
+        requirementTitle: updatedData.requirementTitle || (updatedData.buyerName ? `${updatedData.buyerName} Requirement` : 'Requirement'),
         requirementType: requirementType,
         propertyType: updatedData.propertyType || 'Plot/Land',
         preferredLocation: updatedData.preferredLocation,

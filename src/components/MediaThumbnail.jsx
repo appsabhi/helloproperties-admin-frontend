@@ -20,7 +20,7 @@ export default function MediaThumbnail({
                               String(imageUrl).trim() === '' || 
                               (typeof imageUrl === 'string' && imageUrl.includes('images.unsplash.com'));
 
-  if (!actualVideoUrl || !isFallbackOrInvalid) {
+  if (!actualVideoUrl) {
     return (
       <img 
         src={!isFallbackOrInvalid ? imageUrl : fallbackSrc} 
@@ -106,14 +106,22 @@ export default function MediaThumbnail({
                   e.target.currentTime = 0; 
                 }}
               />
-            ) : (
+            ) : !isFallbackOrInvalid ? (
               <img 
-                src={!isFallbackOrInvalid ? imageUrl : fallbackSrc}
+                src={imageUrl}
                 alt={title || "Video Placeholder"}
                 className={className}
                 loading="lazy"
                 decoding="async"
                 onError={(e) => { e.target.src = fallbackSrc; }}
+              />
+            ) : (
+              <video 
+                src={`${actualVideoUrl}#t=0.1`}
+                className={className}
+                preload="metadata"
+                muted
+                playsInline
               />
             )}
           </div>

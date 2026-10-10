@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, Check, MessageCircle, ExternalLink } from 'lucide-react';
+import { Share2, Check, MessageCircle, ExternalLink, Video } from 'lucide-react';
 import Modal from './Modal';
 
 function formatDisplayArea(areaStr) {
@@ -39,6 +39,44 @@ function formatDisplayArea(areaStr) {
 
 export const encodeId = (str) => Array.from(String(str)).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
 
+export function parsePropertyMedia(property) {
+  const backendBase = (import.meta.env.VITE_API_BASE_URL || 'https://helloproperties-backend.vercel.app/api').replace(/\/api$/, '');
+
+  const rawImg = property?.imageUrl || property?.image_url || property?.images;
+  let images = [];
+  if (Array.isArray(rawImg)) {
+    images = rawImg;
+  } else if (typeof rawImg === 'string') {
+    images = rawImg.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  const cleanImages = images
+    .filter(u => typeof u === 'string' && !u.startsWith('blob:') && u !== 'null' && u !== 'undefined')
+    .map(u => u.startsWith('/uploads/') ? `${backendBase}${u}` : u);
+
+  const rawVid = property?.videoUrl || property?.video || property?.video_url;
+  let videos = [];
+  if (Array.isArray(rawVid)) {
+    videos = rawVid;
+  } else if (typeof rawVid === 'string') {
+    videos = rawVid.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  const cleanVideos = videos
+    .filter(u => typeof u === 'string' && !u.startsWith('blob:') && u !== 'null' && u !== 'undefined')
+    .map(u => u.startsWith('/uploads/') ? `${backendBase}${u}` : u);
+
+  const realImages = cleanImages.filter(u => !u.includes('images.unsplash.com'));
+  const primaryImage = realImages[0] || cleanImages[0] || null;
+
+  return {
+    images: cleanImages,
+    realImages,
+    primaryImage,
+    videos: cleanVideos,
+    hasRealImage: realImages.length > 0,
+    hasVideo: cleanVideos.length > 0
+  };
+}
+
 export function buildCleanWhatsAppText(property) {
   const isRent = property?.listingType === 'Rent';
   const priceLines = [];
@@ -61,13 +99,11 @@ export function buildCleanWhatsAppText(property) {
     priceLines.push(`💰 Price: ${formattedPrice}`);
   }
 
-  const validImageUrl = (property?.imageUrl && typeof property.imageUrl === 'string' && !property.imageUrl.startsWith('blob:'))
-    ? property.imageUrl.trim()
-    : null;
+  const { realImages, hasVideo } = parsePropertyMedia(property);
 
   const propId = property.id || property.propertyId || property._id;
   const maskedId = encodeId(propId);
-  const baseUrl = import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin;
+  const baseUrl = import.meta.env.VITE_PUBLIC_SHARE_URL || import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin;
   const publicShareUrl = `${baseUrl}/p/${maskedId}`;
 
   const messageLines = [
@@ -78,15 +114,22 @@ export function buildCleanWhatsAppText(property) {
     `🏡 Property Type: ${property.propertyType || 'Plot/Land'}`,
     `📍 District: ${property.district || '—'}`,
     `📐 Area: ${formatDisplayArea(property.area)}`,
-    ...priceLines,
-    ``,
-    `🔗 View Full Product Details Online:`,
-    `${publicShareUrl}`
+    ...priceLines
   ];
+
+  if (hasVideo) {
+    messageLines.push(`🎬 Video Tour: Included in link`);
+  }
+  if (realImages.length > 1) {
+    messageLines.push(`📸 Photos: ${realImages.length} Property Images Available`);
+  }
 
   messageLines.push(
     ``,
-    `Please let us know if you are interested.`,
+    `🔗 View Full Property Details & Media:`,
+    `${publicShareUrl}`,
+    ``,
+    `Please let us know if you would like to arrange a site visit.`,
     ``,
     `Regards,`,
     `HelloProperties`
@@ -141,10 +184,8 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
     maximumFractionDigits: 0
   }).format(property.monthlyRent || 0);
 
+  const { primaryImage, hasVideo, realImages } = parsePropertyMedia(property);
   const whatsappUrl = buildWhatsAppShareUrl(property, buyer?.phoneNumber || buyer?.buyerPhone);
-  const validImageUrl = (property?.imageUrl && typeof property.imageUrl === 'string' && !property.imageUrl.startsWith('blob:'))
-    ? property.imageUrl.trim()
-    : null;
 
   const handleCopyText = () => {
     const text = buildCleanWhatsAppText(property);
@@ -157,6 +198,10 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
     openWhatsAppShareWindow(whatsappUrl);
   };
 
+  const propId = property.id || property.propertyId || property._id;
+  const baseUrl = import.meta.env.VITE_PUBLIC_SHARE_URL || import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin;
+  const shareLink = `${baseUrl}/p/${encodeId(propId)}`;
+
   return (
     <Modal
       isOpen={true}
@@ -168,11 +213,18 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
       footer={
         <div className="flex flex-col sm:flex-row gap-2 w-full">
           <button
+            onClick={handleOpenWhatsApp}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-xs rounded-xl shadow-sm transition-all cursor-pointer active:scale-95"
+          >
+            <MessageCircle className="w-4 h-4 fill-white" />
+            <span>Send on WhatsApp</span>
+          </button>
+          <button
             onClick={handleCopyText}
-            className="flex-1 inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
           >
             {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-            <span>{copied ? 'Copied!' : 'Copy Property Details Text'}</span>
+            <span>{copied ? 'Copied Details!' : 'Copy Details'}</span>
           </button>
         </div>
       }
@@ -183,18 +235,34 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
           Customer-Facing Details Preview
         </span>
 
-        {validImageUrl && (
-          <div className="h-44 w-full rounded-lg overflow-hidden border border-slate-200 bg-white">
+        {primaryImage ? (
+          <div className="relative h-44 w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-900">
             <img
-              src={validImageUrl}
+              src={primaryImage}
               alt={property.title || 'Property Image'}
               className="w-full h-full object-cover"
               onError={(e) => {
                 e.target.src = 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
               }}
             />
+            {hasVideo && (
+              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold flex items-center gap-1 shadow">
+                <Video className="w-3 h-3 text-[#B0004F]" />
+                <span>+ Video Tour</span>
+              </div>
+            )}
+            {realImages.length > 1 && (
+              <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold shadow">
+                {realImages.length} Photos
+              </div>
+            )}
           </div>
-        )}
+        ) : hasVideo ? (
+          <div className="h-44 w-full rounded-lg overflow-hidden border border-slate-200 bg-slate-900 flex flex-col items-center justify-center text-white space-y-2">
+            <Video className="w-8 h-8 text-[#B0004F]" />
+            <span className="text-xs font-semibold">Video Tour Included</span>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2 text-xs text-slate-700 pt-1">
           <div>
@@ -228,18 +296,17 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
         <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Public Shareable Product Link</span>
         <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
           <a 
-            href={`${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`}
+            href={shareLink}
             target="_blank"
             rel="noreferrer"
             className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline truncate flex-1 font-medium cursor-pointer"
           >
-            {`${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`}
+            {shareLink}
           </a>
           <button
             type="button"
             onClick={() => {
-              const link = `${import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin}/p/${encodeId(property.id || property.propertyId || property._id)}`;
-              navigator.clipboard.writeText(link);
+              navigator.clipboard.writeText(shareLink);
               setCopied(true);
               setTimeout(() => setCopied(false), 3000);
             }}

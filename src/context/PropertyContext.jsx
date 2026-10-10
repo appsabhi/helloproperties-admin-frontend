@@ -58,11 +58,17 @@ export const PropertyProvider = ({ children }) => {
     if (!url || typeof url !== 'string' || url.startsWith('blob:')) {
       return 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
     }
-    if (url.startsWith('/uploads/')) {
-      const backendBase = API_BASE_URL.endsWith('/api') ? API_BASE_URL.slice(0, -4) : API_BASE_URL;
-      return `${backendBase}${url}`;
+    const backendBase = API_BASE_URL.endsWith('/api') ? API_BASE_URL.slice(0, -4) : API_BASE_URL;
+    const parts = url.split(',').map(u => u.trim()).filter(Boolean);
+    if (parts.length === 0) {
+      return 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=600&q=80';
     }
-    return url;
+    return parts.map(u => {
+      if (u.startsWith('/uploads/')) {
+        return backendBase + u;
+      }
+      return u;
+    }).join(',');
   };
 
   const uploadImageFile = async (file) => {

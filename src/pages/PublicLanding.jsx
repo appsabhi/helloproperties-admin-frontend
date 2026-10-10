@@ -34,7 +34,7 @@ export default function PublicLanding() {
 
   const handleWhatsAppContact = () => {
     const text = encodeURIComponent("Hello HelloProperties! 👋\n\nI am looking for property details or would like to request listings in Kerala. Please assist me. Thank you!");
-    window.open(`https://web.whatsapp.com/send?phone=919605182753&text=${text}`, '_blank');
+    window.open(`https://web.whatsapp.com/send?phone=917907898072&text=${text}`, '_blank');
   };
 
   const districts = [

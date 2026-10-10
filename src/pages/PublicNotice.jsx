@@ -5,7 +5,7 @@ import { Building2, MessageCircle } from 'lucide-react';
 export default function PublicNotice() {
   const handleWhatsAppContact = () => {
     const text = encodeURIComponent("Hello HelloProperties! 👋\n\nI am looking for property details. Please assist me. Thank you!");
-    window.open(`https://web.whatsapp.com/send?phone=919605182753&text=${text}`, '_blank');
+    window.open(`https://web.whatsapp.com/send?phone=917907898072&text=${text}`, '_blank');
   };
 
   return (

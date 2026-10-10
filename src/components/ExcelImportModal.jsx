@@ -52,7 +52,7 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
         Price_or_Budget: 4500000,
         MonthlyRent: '',
         ContactName: 'Ramesh Krishnan',
-        PhoneNumber: '9876543210',
+        PhoneNumber: '7907898072',
         Description: 'Clear title, road frontage with electricity connection'
       },
       {

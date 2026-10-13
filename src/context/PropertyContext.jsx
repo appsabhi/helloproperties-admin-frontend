@@ -28,6 +28,69 @@ export const PropertyProvider = ({ children }) => {
   const [apiLoadingCount, setApiLoadingCount] = useState(0);
   const [apiLoadingMessage, setApiLoadingMessage] = useState('');
 
+  // Persistent Filter States for Properties & Requirements
+  const [propertyFilters, setPropertyFiltersState] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('hp_property_filters');
+      return saved ? JSON.parse(saved) : { searchQuery: '', statusFilter: '', propertyTypeFilter: '', dateFilter: '' };
+    } catch {
+      return { searchQuery: '', statusFilter: '', propertyTypeFilter: '', dateFilter: '' };
+    }
+  });
+
+  const [requirementFilters, setRequirementFiltersState] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('hp_requirement_filters');
+      return saved ? JSON.parse(saved) : { searchQuery: '', statusFilter: '', propertyTypeFilter: '', dateFilter: '' };
+    } catch {
+      return { searchQuery: '', statusFilter: '', propertyTypeFilter: '', dateFilter: '' };
+    }
+  });
+
+  const setPropertyFilters = useCallback((updater) => {
+    setPropertyFiltersState(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      try {
+        sessionStorage.setItem('hp_property_filters', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save property filters', e);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearPropertyFilters = useCallback(() => {
+    const cleared = { searchQuery: '', statusFilter: '', propertyTypeFilter: '', dateFilter: '' };
+    setPropertyFiltersState(cleared);
+    try {
+      sessionStorage.setItem('hp_property_filters', JSON.stringify(cleared));
+    } catch (e) {
+      console.error('Failed to clear property filters', e);
+    }
+  }, []);
+
+  const setRequirementFilters = useCallback((updater) => {
+    setRequirementFiltersState(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      try {
+        sessionStorage.setItem('hp_requirement_filters', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save requirement filters', e);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearRequirementFilters = useCallback(() => {
+    const cleared = { searchQuery: '', statusFilter: '', propertyTypeFilter: '', dateFilter: '' };
+    setRequirementFiltersState(cleared);
+    try {
+      sessionStorage.setItem('hp_requirement_filters', JSON.stringify(cleared));
+    } catch (e) {
+      console.error('Failed to clear requirement filters', e);
+    }
+  }, []);
+
   // Optional / Toggleable Property Sharing Feature state
   const [isPropertySharingEnabled, setIsPropertySharingEnabled] = useState(() => {
     return localStorage.getItem('hp_enable_property_sharing') === 'true';
@@ -1726,7 +1789,13 @@ export const PropertyProvider = ({ children }) => {
       uploadVideoFile,
       importHistory,
       bulkAddItems,
-      revertImportBatch
+      revertImportBatch,
+      propertyFilters,
+      setPropertyFilters,
+      clearPropertyFilters,
+      requirementFilters,
+      setRequirementFilters,
+      clearRequirementFilters
     }}>
       {children}
     </PropertyContext.Provider>

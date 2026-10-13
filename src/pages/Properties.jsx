@@ -60,7 +60,13 @@ export default function Properties() {
     computePropertyMatchesLocally,
     computeRequirementMatchesLocally,
     uploadImageFile,
-    uploadVideoFile
+    uploadVideoFile,
+    propertyFilters,
+    setPropertyFilters,
+    clearPropertyFilters,
+    requirementFilters,
+    setRequirementFilters,
+    clearRequirementFilters
   } = useContext(PropertyContext);
 
   const location = useLocation();
@@ -73,6 +79,8 @@ export default function Properties() {
       return 'requirements';
     } else if (location.pathname.includes('/rent')) {
       return 'rent';
+    } else if (location.state?.fromTab) {
+      return location.state.fromTab;
     }
     return 'sale';
   });
@@ -97,12 +105,16 @@ export default function Properties() {
     }
   }, [id, properties, requirements, location.pathname]);
 
-
   useEffect(() => {
     if (location.pathname.includes('/requirements') || location.pathname.includes('/buy')) {
       setActiveTab('requirements');
     } else if (location.pathname.includes('/rent')) {
       setActiveTab('rent');
+    } else if (location.pathname.startsWith('/properties/') && id) {
+      // Maintain tab when viewing detail
+      if (location.state?.fromTab) {
+        setActiveTab(location.state.fromTab);
+      }
     } else {
       setActiveTab('sale');
     }
@@ -120,23 +132,64 @@ export default function Properties() {
     setExpandedBreakdowns({});
     setMatchFilter('all');
     setSharingTarget(null);
-    
-    const currentParams = new URLSearchParams(location.search);
-    const q = currentParams.get('search') || '';
-    setSearchQuery(q);
-    
-    setStatusFilter('');
-    setPropertyTypeFilter('');
-    setDateFilter('');
-  }, [location.pathname, location.search]);
+  }, [location.pathname, id]);
 
-  const [searchQuery, setSearchQuery] = useState(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('search') || '';
-  });
-  const [statusFilter, setStatusFilter] = useState('');
-  const [propertyTypeFilter, setPropertyTypeFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  // Synchronize global search param from URL if present (e.g., from top navigation bar)
+  useEffect(() => {
+    const currentParams = new URLSearchParams(location.search);
+    const q = currentParams.get('search');
+    if (q !== null && q !== undefined) {
+      if (activeTab === 'requirements') {
+        setRequirementFilters?.({ searchQuery: q });
+      } else {
+        setPropertyFilters?.({ searchQuery: q });
+      }
+    }
+  }, [location.search, activeTab, setRequirementFilters, setPropertyFilters]);
+
+  // Active filter state binding based on current tab
+  const isReqTab = activeTab === 'requirements';
+  const activeFilters = isReqTab ? (requirementFilters || {}) : (propertyFilters || {});
+  const updateActiveFilters = isReqTab ? setRequirementFilters : setPropertyFilters;
+  const handleClearActiveFilters = isReqTab ? clearRequirementFilters : clearPropertyFilters;
+
+  const searchQuery = activeFilters.searchQuery || '';
+  const statusFilter = activeFilters.statusFilter || '';
+  const propertyTypeFilter = activeFilters.propertyTypeFilter || '';
+  const dateFilter = activeFilters.dateFilter || '';
+
+  const hasActiveFilters = Boolean(searchQuery || statusFilter || propertyTypeFilter || dateFilter);
+
+  const setSearchQuery = (val) => updateActiveFilters?.({ searchQuery: val });
+  const setStatusFilter = (val) => updateActiveFilters?.({ statusFilter: val });
+  const setPropertyTypeFilter = (val) => updateActiveFilters?.({ propertyTypeFilter: val });
+  const setDateFilter = (val) => updateActiveFilters?.({ dateFilter: val });
+
+  const handleClearAllFilters = () => {
+    handleClearActiveFilters?.();
+    if (location.search) {
+      navigate(location.pathname, { replace: true, state: location.state });
+    }
+  };
+
+  const handleBackToList = () => {
+    if (location.state?.returnToMatch) {
+      navigate(-1);
+      setTimeout(() => handleOpenMatches(location.state.returnToMatch.type, location.state.returnToMatch.data), 50);
+    } else if (location.state?.fromPath) {
+      navigate(location.state.fromPath);
+    } else if (window.history.state && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      if (viewingDetailTarget?.type === 'requirement') {
+        navigate('/properties/requirements');
+      } else if (location.state?.fromTab === 'rent' || activeTab === 'rent' || viewingDetailTarget?.item?.listingType === 'Rent') {
+        navigate('/properties/rent');
+      } else {
+        navigate('/properties/sale');
+      }
+    }
+  };
 
   // Expandable cards state: { [id]: boolean }
   const [expandedCards, setExpandedCards] = useState({});
@@ -1089,7 +1142,7 @@ export default function Properties() {
 
       {/* Filters Panel — only on list view */}
       {view === 'list' && !viewingDetailTarget && (
-      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-4 items-center flex-wrap">
+      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-3 items-center flex-wrap">
         {/* Search */}
         <div className="relative w-full md:flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
@@ -1098,8 +1151,18 @@ export default function Properties() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={activeTab === 'sale' || activeTab === 'rent' ? 'Search by title, location, owner...' : 'Search requirements, buyer, location...'}
-            className="w-full pl-9 pr-4 py-2 border border-[#E8E8E8] rounded-lg text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] transition-colors"
+            className="w-full pl-9 pr-9 py-2 border border-[#E8E8E8] rounded-lg text-sm bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] transition-colors"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-2.5 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+              title="Clear search query"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Property Type Filter */}
@@ -1153,6 +1216,19 @@ export default function Properties() {
             )}
           </select>
         </div>
+
+        {/* Clear Filters Button */}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={handleClearAllFilters}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/80 border border-rose-200/60 rounded-lg transition-colors cursor-pointer shrink-0"
+            title="Clear all active filters"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Clear Filters</span>
+          </button>
+        )}
       </div>
       )}
 
@@ -1323,8 +1399,17 @@ export default function Properties() {
       {view === 'list' && !viewingDetailTarget && (<>
       {activeTab === 'sale' || activeTab === 'rent' ? (
         filteredProperties.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 border-dashed text-slate-400">
-            No properties match your active search filters.
+          <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 border-dashed text-slate-400 space-y-3">
+            <p>No properties match your active search filters.</p>
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearAllFilters}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#B0004F] bg-[#FFF1F6] hover:bg-[#FFE4EE] rounded-lg border border-[#B0004F]/20 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Clear Filters</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -1332,7 +1417,7 @@ export default function Properties() {
               <div key={prop.id} className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.08)] hover:border-slate-300/80 transition-all duration-200 overflow-hidden flex flex-col group">
                 {/* Image */}
                 <div 
-                  onClick={() => navigate(`/properties/${prop.id}`)}
+                  onClick={() => navigate(`/properties/${prop.id}`, { state: { fromPath: location.pathname + location.search, fromTab: activeTab } })}
                   className="h-44 w-full relative bg-slate-100 overflow-hidden flex-shrink-0 cursor-pointer"
                   title="Click to view full property details"
                 >
@@ -1365,7 +1450,7 @@ export default function Properties() {
                   <div className="space-y-2.5">
                     <div className="flex items-start justify-between gap-3">
                       <h3 
-                        onClick={() => navigate(`/properties/${prop.id}`)}
+                        onClick={() => navigate(`/properties/${prop.id}`, { state: { fromPath: location.pathname + location.search, fromTab: activeTab } })}
                         className="font-bold text-base sm:text-[17px] text-slate-900 leading-snug flex-1 min-w-0 hover:text-[#B0004F] transition-colors cursor-pointer"
                         title="Click to view full property details"
                       >
@@ -1448,7 +1533,7 @@ export default function Properties() {
 
                     <div className="flex items-center gap-1.5 justify-start sm:justify-end flex-wrap">
                       <button
-                        onClick={() => navigate(`/properties/${prop.id}`)}
+                        onClick={() => navigate(`/properties/${prop.id}`, { state: { fromPath: location.pathname + location.search, fromTab: activeTab } })}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-all cursor-pointer"
                         title="View full property details in popup"
                       >
@@ -1482,8 +1567,17 @@ export default function Properties() {
         )
       ) : (
         filteredRequirements.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 border-dashed text-slate-400">
-            No buyer requirements match your active search filters.
+          <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 border-dashed text-slate-400 space-y-3">
+            <p>No buyer requirements match your active search filters.</p>
+            {hasActiveFilters && (
+              <button
+                onClick={handleClearAllFilters}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#B0004F] bg-[#FFF1F6] hover:bg-[#FFE4EE] rounded-lg border border-[#B0004F]/20 transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Clear Filters</span>
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -1529,7 +1623,7 @@ export default function Properties() {
                         )}
                       </div>
                       <div 
-                        onClick={() => navigate(`/requirements/${req.id}`)}
+                        onClick={() => navigate(`/requirements/${req.id}`, { state: { fromPath: location.pathname + location.search, fromTab: activeTab } })}
                         className="cursor-pointer group"
                         title="Click to view full requirement details"
                       >
@@ -1612,7 +1706,7 @@ export default function Properties() {
                 <div className="bg-slate-50/50 border-t border-slate-100 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-auto group-hover:bg-slate-50 transition-colors">
                   <div className="flex flex-wrap items-center gap-2.5 w-full">
                     <button
-                      onClick={() => navigate(`/requirements/${req.id}`)}
+                      onClick={() => navigate(`/requirements/${req.id}`, { state: { fromPath: location.pathname + location.search, fromTab: activeTab } })}
                       className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-bold rounded-xl text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-100 hover:text-slate-900 transition-colors cursor-pointer"
                       title="View full requirement details in popup"
                     >
@@ -1647,6 +1741,13 @@ export default function Properties() {
               {/* HEADER AREA */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 sm:p-8 border-b border-slate-100 gap-4">
                 <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleBackToList}
+                    className="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+                    title="Back to listings"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
                   <div className="w-10 h-10 rounded-full bg-[#B0004F]/10 flex items-center justify-center">
                     <Building2 className="w-5 h-5 text-[#B0004F]" />
                   </div>
@@ -1673,17 +1774,11 @@ export default function Properties() {
                 {/* ACTION BUTTONS */}
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => {
-                      if (location.state?.returnToMatch) {
-                        navigate(-1);
-                        setTimeout(() => handleOpenMatches(location.state.returnToMatch.type, location.state.returnToMatch.data), 50);
-                      } else {
-                        navigate(viewingDetailTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings');
-                      }
-                    }}
+                    onClick={handleBackToList}
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                   >
-                    Back to List
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to List</span>
                   </button>
                 </div>
               </div>
@@ -2039,17 +2134,11 @@ export default function Properties() {
                   </button>
                 )}
                 <button
-                  onClick={() => {
-                    if (location.state?.returnToMatch) {
-                      navigate(-1);
-                      setTimeout(() => handleOpenMatches(location.state.returnToMatch.type, location.state.returnToMatch.data), 50);
-                    } else {
-                      navigate(viewingDetailTarget.type === 'requirement' ? '/properties/requirements' : '/properties/listings');
-                    }
-                  }}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                  onClick={handleBackToList}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer transition-colors"
                 >
-                  Back to List
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to List</span>
                 </button>
               </div>
             </div>

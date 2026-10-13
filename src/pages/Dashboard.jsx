@@ -135,7 +135,7 @@ export default function Dashboard() {
             {recentProperties.map((prop) => (
               <div 
                 key={prop.id}
-                onClick={() => navigate(`/properties/${prop.id}`)}
+                onClick={() => navigate(`/properties/${prop.id}`, { state: { fromPath: '/dashboard' } })}
                 className="group bg-white rounded-2xl border border-slate-200/80 p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-[#C4005A]/40 transition-all duration-200 cursor-pointer flex items-center space-x-4"
               >
                 <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-slate-100 border border-slate-200 relative">
@@ -203,7 +203,7 @@ export default function Dashboard() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/properties/${prop.id}`);
+                        navigate(`/properties/${prop.id}`, { state: { fromPath: '/dashboard' } });
                       }}
                       className="inline-flex items-center gap-1 text-2xs font-bold text-[#C4005A] hover:text-[#B0004F] bg-[#FFF1F6] px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
                     >

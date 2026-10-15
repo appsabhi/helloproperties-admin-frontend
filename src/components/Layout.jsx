@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import logo from '../assets/HELLO PROPERTIES LOGO.png';
 import MinimalLoader from './MinimalLoader';
+import SubmissionNotifications from './SubmissionNotifications';
 import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
 
@@ -109,6 +110,7 @@ export default function Layout({ children }) {
         { to: '/properties/requirements', label: 'Buyer Requirements', icon: UserDollarIcon }
       ]
     },
+    ...(user?.role === 'Admin' ? [{ to: '/submissions/sale', label: 'Customer Submissions', icon: Bell }] : []),
     ...(user?.role === 'Admin' ? [{ to: '/users', label: 'User Management', icon: Shield }] : []),
     ...(user?.role === 'Admin' ? [{ to: '/activities', label: 'Activity Logs', icon: Activity }] : []),
     { to: '/settings', label: 'Settings', icon: SettingsIcon }
@@ -290,9 +292,7 @@ export default function Layout({ children }) {
                 <span className="truncate max-w-[140px]">{apiLoadingMessage || 'Syncing...'}</span>
               </div>
             )}
-            <button className="p-1.5 rounded-full text-[#6B6B6B] hover:text-[#C4005A] hover:bg-[#FFF1F6] transition-colors cursor-pointer">
-              <Bell className="w-4 h-4" />
-            </button>
+            {user && ['Admin', 'Staff'].includes(user.role) && <SubmissionNotifications key={user.userId || user.id || user.username} user={user} />}
             <button className="p-1.5 rounded-full text-[#6B6B6B] hover:text-[#C4005A] hover:bg-[#FFF1F6] transition-colors cursor-pointer">
               <HelpCircle className="w-4 h-4" />
             </button>

@@ -1,3 +1,4 @@
+import CustomerSubmissions from './pages/CustomerSubmissions';
 import React, { useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
@@ -116,6 +117,7 @@ export default function App() {
               <Route path="/share" element={<RootOrPublicRoute />} />
 
               {/* Protected Internal Routes */}
+              {['sale', 'rent', 'buyer'].map(type => <Route key={type} path={`/submissions/${type}`} element={<AdminRoute><CustomerSubmissions key={type} type={type} /></AdminRoute>} />)}
               <Route
                 path="/dashboard"
                 element={

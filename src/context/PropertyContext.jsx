@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useCallback, useContext } fr
 import { upload } from '@vercel/blob/client';
 import { ActivityContext } from './ActivityContext';
 import { AuthContext } from './AuthContext';
+import { refreshIndependently, refreshList } from '../utils/submissionWorkflow';
 
 export const PropertyContext = createContext();
 
@@ -338,36 +339,13 @@ export const PropertyProvider = ({ children }) => {
   // Fetch properties & buy requirements from API
   const fetchFromBackend = useCallback(async () => {
     return trackApiCall(async () => {
-      try {
-        const [propRes, reqRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/properties`, { headers: getAuthHeaders(), credentials: 'include' }),
-          fetch(`${API_BASE_URL}/buy-requirements`, { headers: getAuthHeaders(), credentials: 'include' })
-        ]);
-
-        if (propRes.ok && reqRes.ok) {
-          const propData = await propRes.json();
-          const reqData = await reqRes.json();
-
-          if (propData.success && Array.isArray(propData.data)) {
-            setProperties(propData.data.map(formatBackendProperty));
-          } else {
-            setProperties([]);
-          }
-
-          if (reqData.success && Array.isArray(reqData.data)) {
-            setRequirements(reqData.data.map(formatBackendRequirement));
-          } else {
-            setRequirements([]);
-          }
-
-          setIsBackendConnected(true);
-        } else {
-          setIsBackendConnected(false);
-        }
-      } catch (error) {
-        console.warn('Backend API unavailable:', error.message);
-        setIsBackendConnected(false);
-      }
+      const options = { headers: getAuthHeaders(), credentials: 'include' };
+      const outcome = await refreshIndependently({
+        properties: () => refreshList(`${API_BASE_URL}/properties`, options, formatBackendProperty, setProperties),
+        requirements: () => refreshList(`${API_BASE_URL}/buy-requirements`, options, formatBackendRequirement, setRequirements)
+      });
+      setIsBackendConnected(outcome.success);
+      return outcome;
     }, 'Syncing database...');
   }, [trackApiCall]);
 

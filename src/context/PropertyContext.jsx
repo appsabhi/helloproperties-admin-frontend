@@ -285,6 +285,8 @@ export const PropertyProvider = ({ children }) => {
     area: p.area,
     areaUnit: p.areaUnit || p.area_unit,
     expectedPrice: Number(p.expectedPrice || p.expected_price || 0),
+    displayPrice: p.displayPrice,
+    displayPriceUnit: p.displayPriceUnit,
     expectedPriceUnit: p.expectedPriceUnit || p.expected_price_unit || p.priceUnit || p.price_unit,
     monthlyRent: Number(p.monthlyRent || p.monthly_rent || 0),
     monthlyRentUnit: p.monthlyRentUnit || p.monthly_rent_unit,

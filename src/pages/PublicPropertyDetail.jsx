@@ -223,7 +223,7 @@ export default function PublicPropertyDetail() {
   const handleWhatsAppInquiry = () => {
     if (!property) return;
     const isRent = property.listingType === 'Rent';
-    const priceText = isRent ? formatPrice(property.monthlyRent, 'Rent', property.monthlyRentUnit) : formatPrice(property.expectedPrice, 'Sale', property.expectedPriceUnit);
+    const priceText = isRent ? formatPrice(property.monthlyRent, 'Rent', property.monthlyRentUnit) : formatPrice(property.displayPrice ?? property.expectedPrice, 'Sale', property.displayPriceUnit ?? property.expectedPriceUnit);
     
     const text = `Hello HelloProperties! 👋\n\nI am interested in this property listing:\n\n🏡 *${property.title || property.propertyType || 'Property Listing'}*\n📍 Location: ${property.location || ''}, ${property.district || 'Kerala'}\n📐 Area: ${formatArea(property.area)}\n💰 Price: ${priceText}\n\n🔗 Link: ${window.location.href}\n\nPlease share more details and arrange a site visit. Thank you!`;
     
@@ -262,7 +262,7 @@ export default function PublicPropertyDetail() {
   const isRent = property.listingType === 'Rent';
   const priceDisplay = isRent
     ? formatPrice(property.monthlyRent, 'Rent', property.monthlyRentUnit)
-    : formatPrice(property.expectedPrice, 'Sale', property.expectedPriceUnit);
+    : formatPrice(property.displayPrice ?? property.expectedPrice, 'Sale', property.displayPriceUnit ?? property.expectedPriceUnit);
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased selection:bg-[#B0004F] selection:text-white py-6 sm:py-10">

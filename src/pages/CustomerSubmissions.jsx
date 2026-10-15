@@ -57,6 +57,7 @@ function SubmissionMedia({ payload }) {
 export default function CustomerSubmissions({ type = 'sale' }) {
   const { fetchFromBackend } = useContext(PropertyContext) || {};
   const [status, setStatus] = useState('pending'), [search, setSearch] = useState(''), [page, setPage] = useState(1);
+  const [requirementType, setRequirementType] = useState('all');
   const [rows, setRows] = useState([]), [total, setTotal] = useState(0), [selected, setSelected] = useState(null);
   const [reason, setReason] = useState(''), [error, setErrorState] = useState(''), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true);
   const [errorNotice, setErrorNotice] = useState('');
@@ -83,18 +84,18 @@ export default function CustomerSubmissions({ type = 'sale' }) {
     const version = ++generation.current;
     setLoading(true);
     try {
-      const result = await loadSubmissionPage(request, type, { status, search, page, limit: 20 });
+      const result = await loadSubmissionPage(request, type, { status, search, page, limit: 20, ...(type === 'buyer' ? { requirementType } : {}) });
       if (version === generation.current) {
         setRows(result.data); setTotal(result.total); setPage(result.page); setError('');
         setRefreshWarnings(current => { const next = { ...current }; delete next['submission queue']; return next; });
       }
       return { success: true };
     } catch (e) {
-      if (version === generation.current) setError(e.message);
+      if (version === generation.current) { setRows([]); setTotal(0); setError(e.message); }
       return { success: false, error: e.message };
     }
     finally { if (version === generation.current) setLoading(false); }
-  }, [type, status, search, page, setError]);
+  }, [type, status, search, page, requirementType, setError]);
   useEffect(() => { const counter = generation; load(); return () => { counter.current++; }; }, [load]);
   async function open(id) {
     setBusy(true); setError(''); setSelected(null);
@@ -153,7 +154,8 @@ export default function CustomerSubmissions({ type = 'sale' }) {
   const customerKeys = ['fullName', 'phoneNumber', 'email', 'ownerName', 'ownerPhone', 'ownerAddress', 'buyerName', 'buyerPhone', 'buyerAddress'];
   const locationKeys = ['location', 'preferredLocations'];
   const fields = entries.filter(([key, value]) => {
-    if ([...customerKeys, ...locationKeys, 'images', 'videoUrl'].includes(key)) return false;
+    if ([...customerKeys, ...locationKeys, 'images', 'videoUrl', 'urgencyTimeline'].includes(key)) return false;
+    if (type !== 'rent' && ['monthlyRent', 'monthlyRentUnit', 'securityDeposit', 'securityDepositUnit'].includes(key)) return false;
     if (key === 'keywords') {
       return Array.isArray(value)
         ? value.some(keyword => String(keyword ?? '').trim())
@@ -174,6 +176,7 @@ export default function CustomerSubmissions({ type = 'sale' }) {
       <nav aria-label="Submission types" className="flex overflow-x-auto border-b border-slate-200 px-3 sm:px-5">{Object.entries(titles).map(([key, title]) => { const Icon = tabIcons[key]; return <NavLink className={({ isActive }) => `flex shrink-0 items-center gap-2 border-b-2 px-4 py-4 text-sm font-semibold transition-colors ${isActive ? 'border-[#B0004F] text-[#B0004F] bg-[#FFF7FA]' : 'border-transparent text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`} key={key} to={`/submissions/${key}`}><Icon size={16} aria-hidden="true" />{title}</NavLink>; })}</nav>
       <div className="flex flex-wrap items-end gap-3 border-b border-slate-100 p-4 sm:p-5">
         <label className="block w-full text-xs font-semibold text-slate-600 sm:w-44">Status<select className="submission-input mt-2 capitalize" value={status} disabled={busy} onChange={e => { setStatus(e.target.value); setPage(1); }}>{['pending', 'approved', 'rejected', 'changes_requested', 'all'].map(s => <option key={s} value={s}>{label(s)}</option>)}</select></label>
+        {type === 'buyer' && <label className="block w-full text-xs font-semibold text-slate-600 sm:w-44">Requirement type<select className="submission-input mt-2" value={requirementType} disabled={busy} onChange={e => { setRequirementType(e.target.value); setPage(1); setSelected(null); }}><option value="all">All requirements</option><option value="Buy">Buy requirements</option><option value="Rent">Rent requirements</option></select></label>}
         <label className="block min-w-0 flex-1 basis-60 text-xs font-semibold text-slate-600">Search submissions<div className="relative mt-2"><Search size={17} className="pointer-events-none absolute left-3 top-3 text-slate-400" aria-hidden="true" /><input className="submission-input pl-10" placeholder="Search name, phone, title or district..." value={search} disabled={busy} onChange={e => { setSearch(e.target.value); setPage(1); }} /></div></label>
         <button className={button} onClick={load} disabled={loading || busy}><RefreshCw size={16} className={loading ? 'animate-spin motion-reduce:animate-none' : ''} aria-hidden="true" />Refresh</button>
       </div>

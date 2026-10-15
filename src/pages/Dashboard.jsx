@@ -188,10 +188,10 @@ export default function Dashboard() {
                       <span className="font-extrabold text-slate-900 text-sm">
                         {prop.listingType === 'Rent'
                           ? formatPrice(prop.monthlyRent)
-                          : formatPrice(prop.expectedPrice)}
+                          : formatPrice(prop.displayPrice ?? prop.expectedPrice)}
                       </span>
                       {(() => {
-                        const unit = prop.listingType === 'Rent' ? prop.monthlyRentUnit : prop.expectedPriceUnit;
+                        const unit = prop.listingType === 'Rent' ? prop.monthlyRentUnit : (prop.displayPriceUnit ?? prop.expectedPriceUnit);
                         return unit && unit !== 'All Properties' ? (
                           <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F]">
                             {unit}

@@ -5,6 +5,45 @@ import { loadSubmissionPage, refreshIndependently, refreshList, reviewAndRefresh
 const ok = data => ({ ok: true, json: async () => ({ success: true, data }) });
 const identity = value => value;
 
+for (const wanted of ['Buy', 'Rent']) {
+  test(`legacy backend filters ${wanted} across all pages before counting and paginating`, async () => {
+    const rows = Array.from({ length: 105 }, (_, id) => ({ id: String(id) }));
+    const result = await loadSubmissionPage(async path => {
+      if (!path.includes('?')) {
+        const id = Number(path.split('/')[1]);
+        return { data: { payload: { requirementType: id % 2 ? 'Buy' : 'Rent' } } };
+      }
+      const params = new URLSearchParams(path.split('?')[1]);
+      assert.equal(params.get('status'), 'pending');
+      assert.equal(params.get('search'), 'town');
+      const page = Number(params.get('page'));
+      const limit = Number(params.get('limit'));
+      return { total: rows.length, data: rows.slice((page - 1) * limit, page * limit) };
+    }, 'buyer', { requirementType: wanted, status: 'pending', search: 'town', page: 3, limit: 20 });
+    const expected = rows.filter(row => (Number(row.id) % 2 ? 'Buy' : 'Rent') === wanted);
+    assert.equal(result.total, expected.length);
+    assert.equal(result.page, 3);
+    assert.deepEqual(result.data, expected.slice(40, 60));
+  });
+}
+
+test('legacy type lookup failure reports an error instead of showing all requirements', async () => {
+  await assert.rejects(loadSubmissionPage(async path => {
+    if (!path.includes('?')) throw new Error('Details unavailable');
+    return { total: 1, data: [{ id: 'one' }] };
+  }, 'buyer', { requirementType: 'Rent', page: 1, limit: 20 }), /Details unavailable/);
+});
+
+test('All requirements does not fetch details or filter rows', async () => {
+  let calls = 0;
+  const result = await loadSubmissionPage(async () => {
+    calls++;
+    return { total: 2, data: [{ id: 'buy' }, { id: 'rent' }] };
+  }, 'buyer', { requirementType: 'all', page: 1, limit: 20 });
+  assert.equal(calls, 1);
+  assert.equal(result.total, 2);
+});
+
 for (const failed of ['properties', 'requirements']) {
   test(`${failed} failure preserves cached data without blocking the other list`, async () => {
     const state = { properties: ['cached'], requirements: ['cached'] };
@@ -119,8 +158,8 @@ test('removing the final row on page two reloads page one with the same filters'
   const paths = [];
   const result = await loadSubmissionPage(async path => {
     paths.push(path);
-    return { total: 20, data: paths.length === 1 ? [] : [{ id: 'remaining' }] };
-  }, 'buyer', { page: 2, limit: 20, status: 'pending', search: 'district' });
+    return { total: 20, requirementType: 'Rent', data: paths.length === 1 ? [] : [{ id: 'remaining' }] };
+  }, 'buyer', { page: 2, limit: 20, status: 'pending', search: 'district', requirementType: 'Rent' });
   assert.equal(result.page, 1);
   assert.deepEqual(result.data, [{ id: 'remaining' }]);
   assert.equal(paths.length, 2);
@@ -129,6 +168,7 @@ test('removing the final row on page two reloads page one with the same filters'
     assert.equal(params.get('page'), String(2 - index));
     assert.equal(params.get('status'), 'pending');
     assert.equal(params.get('search'), 'district');
+    assert.equal(params.get('requirementType'), 'Rent');
   }
 });
 

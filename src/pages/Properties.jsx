@@ -441,7 +441,7 @@ export default function Properties() {
     const isRent = isProp ? item.listingType === 'Rent' : item.requirementType === 'Rent';
 
     let unit = isProp
-      ? (isRent ? item.monthlyRentUnit : item.expectedPriceUnit)
+      ? (isRent ? item.monthlyRentUnit : (item.displayPriceUnit ?? item.expectedPriceUnit))
       : (isRent ? item.maximumMonthlyRentUnit : item.budgetUnit);
 
     if (!unit) {
@@ -1355,10 +1355,10 @@ export default function Properties() {
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{m.matchScore}% Match</span>
                           <div className="flex items-center gap-1">
                             <span className="font-bold text-[#B0004F] text-xs">
-                              {m.listingType === 'Rent' ? formatPrice(m.monthlyRent) : formatPrice(m.expectedPrice)}
+                              {m.listingType === 'Rent' ? formatPrice(m.monthlyRent) : formatPrice(m.displayPrice ?? m.expectedPrice)}
                             </span>
                             {(() => {
-                              const unit = m.listingType === 'Rent' ? m.monthlyRentUnit : m.expectedPriceUnit;
+                              const unit = m.listingType === 'Rent' ? m.monthlyRentUnit : (m.displayPriceUnit ?? m.expectedPriceUnit);
                               return unit && unit !== 'All Properties' ? (
                                 <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F] leading-none">
                                   {unit}
@@ -1484,7 +1484,7 @@ export default function Properties() {
                               <span className="text-[9px] font-bold text-slate-500 block uppercase tracking-wider mb-0.5">Price / Budget</span>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="font-extrabold text-[17px] text-slate-900 tracking-tight leading-none">
-                                  {formatPrice(prop.expectedPrice)}
+                                  {formatPrice(prop.displayPrice ?? prop.expectedPrice)}
                                 </span>
                                 {unitText && unitText !== 'All Properties' && (
                                   <span className="inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F]">
@@ -1911,7 +1911,7 @@ export default function Properties() {
                   {viewingDetailTarget.type === 'property'
                     ? (viewingDetailTarget.item.listingType === 'Rent'
                         ? formatPrice(viewingDetailTarget.item.monthlyRent)
-                        : formatPrice(viewingDetailTarget.item.expectedPrice))
+                        : formatPrice(viewingDetailTarget.item.displayPrice ?? viewingDetailTarget.item.expectedPrice))
                     : (viewingDetailTarget.item.requirementType === 'Rent'
                         ? formatPrice(viewingDetailTarget.item.maximumMonthlyRent)
                         : formatPrice(viewingDetailTarget.item.budget))}
@@ -3480,13 +3480,13 @@ export default function Properties() {
                             {formatPrice(
                               activeMatchTarget.type === 'property'
                                 ? (matchItem.requirementType === 'Rent' ? matchItem.maximumMonthlyRent : matchItem.budget)
-                                : (matchItem.listingType === 'Rent' ? matchItem.monthlyRent : matchItem.expectedPrice)
+                                : (matchItem.listingType === 'Rent' ? matchItem.monthlyRent : (matchItem.displayPrice ?? matchItem.expectedPrice))
                             )}
                           </span>
                           {(() => {
                             const unit = activeMatchTarget.type === 'property'
                               ? (matchItem.requirementType === 'Rent' ? matchItem.maximumMonthlyRentUnit : matchItem.budgetUnit)
-                              : (matchItem.listingType === 'Rent' ? matchItem.monthlyRentUnit : matchItem.expectedPriceUnit);
+                              : (matchItem.listingType === 'Rent' ? matchItem.monthlyRentUnit : (matchItem.displayPriceUnit ?? matchItem.expectedPriceUnit));
                             return unit && unit !== 'All Properties' ? (
                               <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F] leading-none">
                                 {unit}

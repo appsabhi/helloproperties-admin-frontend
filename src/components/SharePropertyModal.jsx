@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Share2, Check, MessageCircle, ExternalLink, Video } from 'lucide-react';
 import Modal from './Modal';
 
-function formatDisplayArea(areaStr) {
+function formatDisplayArea(areaStr, areaUnit = '') {
   if (!areaStr) return '—';
-  const s = String(areaStr).trim();
+  let s = String(areaStr).trim();
   if (s === '—' || s === 'Any Area') return s;
+  if (areaUnit && !s.toLowerCase().includes(String(areaUnit).toLowerCase())) {
+    s = `${s} ${areaUnit}`;
+  }
 
   const numMatch = s.match(/^([\d.,]+)/);
   if (!numMatch) return s;
@@ -106,6 +109,7 @@ export function buildCleanWhatsAppText(property) {
   const baseUrl = import.meta.env.VITE_PUBLIC_SHARE_URL || import.meta.env.VITE_PUBLIC_VIEWER_URL || window.location.origin;
   const publicShareUrl = `${baseUrl}/p/${maskedId}`;
 
+  const isHouseAndLand = property.propertyType === 'House + Land';
   const messageLines = [
     `Hello! 👋`,
     ``,
@@ -113,7 +117,12 @@ export function buildCleanWhatsAppText(property) {
     ``,
     `🏡 Property Type: ${property.propertyType || 'Plot/Land'}`,
     `📍 District: ${property.district || '—'}`,
-    `📐 Area: ${formatDisplayArea(property.area)}`,
+    ...(isHouseAndLand
+      ? [
+          `🏠 House / Building Area: ${formatDisplayArea(property.houseArea ?? property.house_area, property.houseAreaUnit || property.house_area_unit)}`,
+          `🌳 Land Area: ${formatDisplayArea(property.landArea ?? property.land_area, property.landAreaUnit || property.land_area_unit)}`
+        ]
+      : [`📐 Area: ${formatDisplayArea(property.area, property.areaUnit || property.area_unit)}`]),
     ...priceLines
   ];
 
@@ -273,10 +282,23 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
             <span className="text-slate-400 block text-[10px] uppercase font-semibold">District</span>
             <span className="font-bold text-slate-900">{property.district || '—'}</span>
           </div>
-          <div>
-            <span className="text-slate-400 block text-[10px] uppercase font-semibold">Total Area</span>
-            <span className="font-bold text-slate-900">{formatDisplayArea(property.area)}</span>
-          </div>
+          {isHouseAndLand ? (
+            <>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">House / Building Area</span>
+                <span className="font-bold text-slate-900">{formatDisplayArea(property.houseArea ?? property.house_area, property.houseAreaUnit || property.house_area_unit)}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-semibold">Land Area</span>
+                <span className="font-bold text-slate-900">{formatDisplayArea(property.landArea ?? property.land_area, property.landAreaUnit || property.land_area_unit)}</span>
+              </div>
+            </>
+          ) : (
+            <div>
+              <span className="text-slate-400 block text-[10px] uppercase font-semibold">Total Area</span>
+              <span className="font-bold text-slate-900">{formatDisplayArea(property.area, property.areaUnit || property.area_unit)}</span>
+            </div>
+          )}
           {isRent ? (
             <div>
               <span className="text-slate-400 block text-[10px] uppercase font-semibold">Rent</span>

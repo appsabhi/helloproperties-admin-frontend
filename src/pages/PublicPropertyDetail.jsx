@@ -40,10 +40,13 @@ function formatPrice(value, listingType = 'Sale', unit = '') {
   return formatted;
 }
 
-function formatArea(areaStr) {
+function formatArea(areaStr, areaUnit = '') {
   if (!areaStr) return '—';
-  const s = String(areaStr).trim();
+  let s = String(areaStr).trim();
   if (s === '—' || s === 'Any Area') return s;
+  if (areaUnit && !s.toLowerCase().includes(String(areaUnit).toLowerCase())) {
+    s = `${s} ${areaUnit}`;
+  }
 
   const numMatch = s.match(/^([\d.,]+)/);
   if (!numMatch) return s;
@@ -225,7 +228,10 @@ export default function PublicPropertyDetail() {
     const isRent = property.listingType === 'Rent';
     const priceText = isRent ? formatPrice(property.monthlyRent, 'Rent', property.monthlyRentUnit) : formatPrice(property.displayPrice ?? property.expectedPrice, 'Sale', property.displayPriceUnit ?? property.expectedPriceUnit);
     
-    const text = `Hello HelloProperties! 👋\n\nI am interested in this property listing:\n\n🏡 *${property.title || property.propertyType || 'Property Listing'}*\n📍 Location: ${property.location || ''}, ${property.district || 'Kerala'}\n📐 Area: ${formatArea(property.area)}\n💰 Price: ${priceText}\n\n🔗 Link: ${window.location.href}\n\nPlease share more details and arrange a site visit. Thank you!`;
+    const areaText = property.propertyType === 'House + Land'
+      ? `House / Building Area: ${formatArea(property.houseArea ?? property.house_area, property.houseAreaUnit || property.house_area_unit)}\n🌳 Land Area: ${formatArea(property.landArea ?? property.land_area, property.landAreaUnit || property.land_area_unit)}`
+      : `Area: ${formatArea(property.area, property.areaUnit || property.area_unit)}`;
+    const text = `Hello HelloProperties! 👋\n\nI am interested in this property listing:\n\n🏡 *${property.title || property.propertyType || 'Property Listing'}*\n📍 Location: ${property.location || ''}, ${property.district || 'Kerala'}\n📐 ${areaText}\n💰 Price: ${priceText}\n\n🔗 Link: ${window.location.href}\n\nPlease share more details and arrange a site visit. Thank you!`;
     
     const encoded = encodeURIComponent(text);
     const whatsappUrl = `https://web.whatsapp.com/send?phone=917907898072&text=${encoded}`;
@@ -639,10 +645,27 @@ export default function PublicPropertyDetail() {
                 <span className="text-sm sm:text-base font-extrabold text-slate-800 mt-1 block">{property.propertyType || '—'}</span>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
-                <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">Total Area / Size</span>
-                <span className="text-sm sm:text-base font-extrabold text-[#B0004F] mt-1 block">{formatArea(property.area)}</span>
-              </div>
+              {property.propertyType === 'House + Land' ? (
+                <>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
+                    <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">House / Building Area</span>
+                    <span className="text-sm sm:text-base font-extrabold text-[#B0004F] mt-1 block">
+                      {formatArea(property.houseArea ?? property.house_area, property.houseAreaUnit || property.house_area_unit)}
+                    </span>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
+                    <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">Land Area</span>
+                    <span className="text-sm sm:text-base font-extrabold text-[#B0004F] mt-1 block">
+                      {formatArea(property.landArea ?? property.land_area, property.landAreaUnit || property.land_area_unit)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
+                  <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">Total Area / Size</span>
+                  <span className="text-sm sm:text-base font-extrabold text-[#B0004F] mt-1 block">{formatArea(property.area, property.areaUnit || property.area_unit)}</span>
+                </div>
+              )}
 
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70">
                 <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider block">Listing Type</span>

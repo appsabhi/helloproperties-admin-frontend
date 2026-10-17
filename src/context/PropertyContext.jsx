@@ -284,6 +284,10 @@ export const PropertyProvider = ({ children }) => {
     state: p.state || '',
     area: p.area,
     areaUnit: p.areaUnit || p.area_unit,
+    houseArea: p.houseArea ?? p.house_area ?? '',
+    houseAreaUnit: p.houseAreaUnit || p.house_area_unit || '',
+    landArea: p.landArea ?? p.land_area ?? '',
+    landAreaUnit: p.landAreaUnit || p.land_area_unit || '',
     expectedPrice: Number(p.expectedPrice || p.expected_price || 0),
     displayPrice: p.displayPrice,
     displayPriceUnit: p.displayPriceUnit,
@@ -410,6 +414,10 @@ export const PropertyProvider = ({ children }) => {
         state: propertyData.state || '',
         area: propertyData.area,
         areaUnit: propertyData.areaUnit,
+        houseArea: propertyData.propertyType === 'House + Land' ? Number(propertyData.houseArea) : null,
+        houseAreaUnit: propertyData.propertyType === 'House + Land' ? propertyData.houseAreaUnit : null,
+        landArea: propertyData.propertyType === 'House + Land' ? Number(propertyData.landArea) : null,
+        landAreaUnit: propertyData.propertyType === 'House + Land' ? propertyData.landAreaUnit : null,
         expectedPrice: listingType === 'Sale' ? Number(propertyData.expectedPrice || 0) : 0,
         expectedPriceUnit: propertyData.expectedPriceUnit,
         priceUnit: propertyData.expectedPriceUnit || propertyData.monthlyRentUnit,
@@ -652,6 +660,10 @@ export const PropertyProvider = ({ children }) => {
         state: updatedData.state || '',
         area: updatedData.area,
         areaUnit: updatedData.areaUnit,
+        houseArea: updatedData.propertyType === 'House + Land' ? Number(updatedData.houseArea) : null,
+        houseAreaUnit: updatedData.propertyType === 'House + Land' ? updatedData.houseAreaUnit : null,
+        landArea: updatedData.propertyType === 'House + Land' ? Number(updatedData.landArea) : null,
+        landAreaUnit: updatedData.propertyType === 'House + Land' ? updatedData.landAreaUnit : null,
         expectedPrice: listingType === 'Sale' ? Number(updatedData.expectedPrice || 0) : 0,
         expectedPriceUnit: updatedData.expectedPriceUnit,
         priceUnit: updatedData.expectedPriceUnit || updatedData.monthlyRentUnit,
@@ -1505,7 +1517,10 @@ export const PropertyProvider = ({ children }) => {
     matchReasons.push({ factor: 'Budget', score: budgetScore, maxScore: 15, detail: budgetDetail });
 
     // ── Factor 5: Area Fit (15 pts) ──
-    const propAreaSqFt = parseAreaToSqFt(prop.area);
+    const propertyArea = prop.propertyType === 'House + Land'
+      ? `${prop.landArea ?? prop.land_area ?? ''} ${prop.landAreaUnit || prop.land_area_unit || ''}`.trim()
+      : prop.area;
+    const propAreaSqFt = parseAreaToSqFt(propertyArea);
     const reqAreaRange = parseAreaRange(req.requiredArea);
     let areaScore = 0;
     let areaDetail = '';
@@ -1783,7 +1798,5 @@ export const PropertyProvider = ({ children }) => {
 };
 
 export const usePropertyContext = () => React.useContext(PropertyContext);
-
-
 
 

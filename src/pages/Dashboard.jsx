@@ -171,7 +171,11 @@ export default function Dashboard() {
                         {prop.propertyType}
                       </span>
                     )}
-                    {prop.area && (
+                    {prop.propertyType === 'House + Land' ? (
+                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60 truncate">
+                        House: {prop.houseArea ?? prop.house_area} {prop.houseAreaUnit || prop.house_area_unit || 'Sq. Ft.'} · Land: {prop.landArea ?? prop.land_area} {prop.landAreaUnit || prop.land_area_unit || 'Cent'}
+                      </span>
+                    ) : prop.area && (
                       <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60 truncate">
                         {prop.area}
                       </span>

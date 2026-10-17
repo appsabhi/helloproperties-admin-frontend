@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
-import { sellPropertySchema, buyRequirementSchema } from '../schemas/formSchemas';
+import { sellPropertySchema, buyRequirementSchema, PROPERTY_TYPE_OPTIONS } from '../schemas/formSchemas';
+import { HOUSE_BUILDING_AREA_UNITS, LAND_AREA_UNITS, getHouseLandAreaFormValues, getHouseLandAreaPayload, selectHouseLandAreaUnit } from '../utils/houseLandAreas';
 import SchemaForm from '../components/SchemaForm';
 import LocationSelector from '../components/LocationSelector';
 import PropertyKeywordsSelector from '../components/PropertyKeywordsSelector';
@@ -407,6 +408,11 @@ export default function Properties() {
     return `${num} ${rest}`;
   };
 
+  const formatHouseAndLandAreas = (property) => ({
+    house: formatDisplayArea(property.houseArea ?? property.house_area, property.houseAreaUnit || property.house_area_unit),
+    land: formatDisplayArea(property.landArea ?? property.land_area, property.landAreaUnit || property.land_area_unit)
+  });
+
   const cleanUnitName = (str) => {
     if (!str) return '';
     let s = String(str).trim().replace(/^\/\s*/, '');
@@ -480,7 +486,7 @@ export default function Properties() {
   // Statuses list
   const propertyStatuses = ['Available', 'Under Negotiation', 'Sold', 'Inactive'];
   const requirementStatuses = ['Active', 'Property Found', 'Closed', 'Cancelled'];
-  const propertyTypes = ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Commercial Building', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'];
+  const propertyTypes = PROPERTY_TYPE_OPTIONS;
 
   // Filtering listings
   const filteredProperties = properties.filter(prop => {
@@ -564,7 +570,9 @@ export default function Properties() {
         imageUrl: finalImageUrl,
         imageFile: null,
         imageFiles: null,
-        area: parseAreaWithUnit(formData.area, formData.areaUnit || 'Cent'),
+        area: formData.propertyType === 'House + Land' ? null : parseAreaWithUnit(formData.area, formData.areaUnit || 'Cent'),
+        areaUnit: formData.propertyType === 'House + Land' ? null : formData.areaUnit,
+        ...getHouseLandAreaPayload(formData),
         expectedPrice: parsePriceWithUnit(formData.expectedPrice, formData.expectedPriceUnit || '/ Cent', formData.area),
         monthlyRent: parsePriceWithUnit(formData.monthlyRent, formData.monthlyRentUnit || '/ Month', formData.area),
         securityDeposit: parseDepositVal(formData.securityDeposit, formData.securityDepositUnit, formData.monthlyRent)
@@ -631,6 +639,7 @@ export default function Properties() {
 
     let rentVal = prop.monthlyRent !== undefined ? prop.monthlyRent : '';
     let rentUnitVal = prop.monthlyRentUnit || '/ Month';
+    const houseLandAreaFormValues = getHouseLandAreaFormValues(prop);
 
     setEditPropForm({
       title: prop.title || '',
@@ -640,6 +649,7 @@ export default function Properties() {
       state: prop.state || '',
       area: areaVal,
       areaUnit: areaUnitVal,
+      ...houseLandAreaFormValues,
       expectedPrice: priceVal,
       expectedPriceUnit: priceUnitVal,
       monthlyRent: rentVal,
@@ -664,6 +674,11 @@ export default function Properties() {
   const handleSaveEditProperty = async (e) => {
     e.preventDefault();
     if (!editingProperty) return;
+    if (editPropForm.propertyType === 'House + Land' &&
+      [editPropForm.houseArea, editPropForm.landArea].some(value => value === '' || !Number.isFinite(Number(value)) || Number(value) <= 0)) {
+      setEditPropError('House / Building Area and Land Area must both be greater than zero.');
+      return;
+    }
 
     setIsSubmittingEditProp(true);
     setEditPropError(null);
@@ -1288,7 +1303,8 @@ export default function Properties() {
                         </div>
                         <p className="text-xs font-semibold text-slate-800">{m.propertyType} — {m.preferredLocation}, {m.district}</p>
                         <p className="text-xs text-slate-500">{m.buyerName} · {m.phoneNumber}</p>
-                      </div>
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#B0004F]">View buyer details <ArrowRight className="w-3 h-3" /></span>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -1933,16 +1949,33 @@ export default function Properties() {
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
                 <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.propertyType}</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
-                </span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                  {viewingDetailTarget.type === 'property' 
-                    ? formatDisplayArea(viewingDetailTarget.item.area) 
-                    : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
-                </span>
-              </div>
+              {viewingDetailTarget.type === 'property' && viewingDetailTarget.item.propertyType === 'House + Land' ? (
+                <>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">House / Building Area</span>
+                    <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                      {formatHouseAndLandAreas(viewingDetailTarget.item).house}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Land Area</span>
+                    <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                      {formatHouseAndLandAreas(viewingDetailTarget.item).land}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
+                  </span>
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                    {viewingDetailTarget.type === 'property'
+                      ? formatDisplayArea(viewingDetailTarget.item.area, viewingDetailTarget.item.areaUnit)
+                      : formatDisplayArea(viewingDetailTarget.item.requiredArea, viewingDetailTarget.item.requiredAreaUnit)}
+                  </span>
+                </div>
+              )}
               <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 sm:col-span-2 lg:col-span-1">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Location / City</span>
                   <div>
@@ -2194,7 +2227,29 @@ export default function Properties() {
                 </label>
                 <select
                   value={editPropForm.propertyType}
-                  onChange={(e) => setEditPropForm({ ...editPropForm, propertyType: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEditPropForm(prev => ({
+                      ...prev,
+                      propertyType: value,
+                      ...(value === 'House + Land'
+                        ? {
+                            area: '',
+                            houseArea: '',
+                            landArea: '',
+                            expectedPriceUnit: `/ ${prev.landAreaUnit || 'Cent'}`,
+                            monthlyRentUnit: `/ ${prev.landAreaUnit || 'Cent'}`
+                          }
+                        : prev.propertyType === 'House + Land'
+                          ? {
+                              houseArea: '',
+                              landArea: '',
+                              expectedPriceUnit: `/ ${prev.areaUnit || 'Cent'}`,
+                              monthlyRentUnit: `/ ${prev.areaUnit || 'Cent'}`
+                            }
+                          : {})
+                    }));
+                  }}
                   className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
                 >
                   {propertyTypes.map(pt => (
@@ -2229,6 +2284,7 @@ export default function Properties() {
                 isEdit={true}
               />
 
+              {editPropForm.propertyType !== 'House + Land' ? (
               <div className="flex flex-col space-y-1.5">
                 <label className="text-[14px] font-medium text-slate-800 flex items-center">
                   Area <span className="text-[#B0004F] ml-1 font-bold">*</span>
@@ -2269,6 +2325,45 @@ export default function Properties() {
                   </div>
                 </div>
               </div>
+              ) : (
+                <>
+                  {[
+                    { id: 'houseArea', label: 'House / Building Area', unitId: 'houseAreaUnit', units: HOUSE_BUILDING_AREA_UNITS, fallback: HOUSE_BUILDING_AREA_UNITS[0] },
+                    { id: 'landArea', label: 'Land Area', unitId: 'landAreaUnit', units: LAND_AREA_UNITS, fallback: LAND_AREA_UNITS[0] }
+                  ].map(({ id: fieldId, label, unitId, units, fallback }) => (
+                    <div key={fieldId} className="flex flex-col space-y-1.5">
+                      <label htmlFor={`edit-${fieldId}`} className="text-[14px] font-medium text-slate-800 flex items-center">
+                        {label} <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                      </label>
+                      <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                        <input
+                          id={`edit-${fieldId}`}
+                          type="number"
+                          required
+                          min="0.000000001"
+                          step="any"
+                          value={editPropForm[fieldId]}
+                          onChange={(e) => setEditPropForm(prev => ({ ...prev, [fieldId]: e.target.value }))}
+                          placeholder="Enter area"
+                          className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                        />
+                        <div className="h-6 w-px bg-slate-200 shrink-0" />
+                        <div className="relative w-[125px] shrink-0 h-full flex items-center">
+                          <select
+                            aria-label={`${label} unit`}
+                            value={editPropForm[unitId] || fallback}
+                            onChange={(e) => setEditPropForm(prev => selectHouseLandAreaUnit(prev, unitId, e.target.value))}
+                            className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                          >
+                            {units.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
 
               {editPropForm.listingType === 'Rent' ? (
                 <>

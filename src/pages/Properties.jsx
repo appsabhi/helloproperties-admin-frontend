@@ -400,6 +400,7 @@ export default function Properties() {
     house: formatDisplayArea(property.houseArea ?? property.house_area, property.houseAreaUnit || property.house_area_unit),
     land: formatDisplayArea(property.landArea ?? property.land_area, property.landAreaUnit || property.land_area_unit)
   });
+  const hasAreaValue = value => value !== undefined && value !== null && value !== '';
 
   const cleanUnitName = (str) => {
     if (!str) return '';
@@ -1519,6 +1520,34 @@ export default function Properties() {
                       </div>
                     </div>
 
+                    {(prop.propertyType === 'House + Land'
+                      ? hasAreaValue(prop.houseArea ?? prop.house_area) || hasAreaValue(prop.landArea ?? prop.land_area)
+                      : Boolean(prop.area)) && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {prop.propertyType === 'House + Land' ? (
+                          <>
+                            {hasAreaValue(prop.houseArea ?? prop.house_area) && (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                                <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>House / Building: {formatDisplayArea(prop.houseArea ?? prop.house_area, prop.houseAreaUnit || prop.house_area_unit)}</span>
+                              </div>
+                            )}
+                            {hasAreaValue(prop.landArea ?? prop.land_area) && (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                                <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>Land: {formatDisplayArea(prop.landArea ?? prop.land_area, prop.landAreaUnit || prop.land_area_unit)}</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                            <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>Area: {formatDisplayArea(prop.area, prop.areaUnit || prop.area_unit)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {prop.description && (
                       <div className="pt-2 text-[13px] text-slate-500 line-clamp-2 leading-relaxed">
                         {prop.description}
@@ -1694,12 +1723,12 @@ export default function Properties() {
                         <span>{req.district}{req.state ? `, ${req.state}` : ''}</span>
                       </div>
                     )}
-                    {req.requiredArea && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">
-                        <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{formatDisplayArea(req.requiredArea, req.requiredAreaUnit)}</span>
-                      </div>
-                    )}
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">
+                      <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">
+                        Area needed: {req.requiredArea ? formatDisplayArea(req.requiredArea, req.requiredAreaUnit) : 'Any area'}
+                      </span>
+                    </div>
                     {req.enquirySource && (
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700">
                         <span className="truncate">Src: {req.enquirySource === 'Other' ? req.otherEnquirySource : req.enquirySource}</span>

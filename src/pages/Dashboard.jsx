@@ -4,6 +4,7 @@ import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
 import ActivityLogView from '../components/ActivityLogView';
 import MediaThumbnail from '../components/MediaThumbnail';
+import RentalSummary from '../components/RentalSummary';
 import { 
   Building2, 
   CheckCircle2, 
@@ -95,6 +96,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <RentalSummary />
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         {stats.map((stat, idx) => (
@@ -244,4 +246,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

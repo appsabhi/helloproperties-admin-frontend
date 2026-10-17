@@ -1,4 +1,7 @@
 import CustomerSubmissions from './pages/CustomerSubmissions';
+import RentalAgreements from './pages/RentalAgreements';
+import RentalReminders from './pages/RentalReminders';
+import { RentalProvider } from './context/RentalContext';
 import React, { useContext } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
@@ -101,6 +104,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <RentalProvider>
       <PropertyProvider>
         <ActivityProvider>
           <BrowserRouter>
@@ -117,6 +121,8 @@ export default function App() {
               <Route path="/share" element={<RootOrPublicRoute />} />
 
               {/* Protected Internal Routes */}
+              <Route path="/rentals" element={<ProtectedRoute><RentalAgreements /></ProtectedRoute>} />
+              <Route path="/rental-reminders" element={<ProtectedRoute><RentalReminders /></ProtectedRoute>} />
               {['sale', 'rent', 'buyer'].map(type => <Route key={type} path={`/submissions/${type}`} element={<AdminRoute><CustomerSubmissions key={type} type={type} /></AdminRoute>} />)}
               <Route
                 path="/dashboard"
@@ -229,6 +235,7 @@ export default function App() {
           </BrowserRouter>
         </ActivityProvider>
       </PropertyProvider>
+      </RentalProvider>
     </AuthProvider>
   );
 }

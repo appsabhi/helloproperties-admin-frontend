@@ -22,6 +22,7 @@ import {
 import logo from '../assets/HELLO PROPERTIES LOGO.png';
 import MinimalLoader from './MinimalLoader';
 import SubmissionNotifications from './SubmissionNotifications';
+import { RentalContext } from '../context/RentalContext';
 import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
 
@@ -59,6 +60,7 @@ const UserDollarIcon = ({ className = "w-5 h-5" }) => (
 );
 
 export default function Layout({ children }) {
+  const rentals = useContext(RentalContext);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
@@ -100,6 +102,7 @@ export default function Layout({ children }) {
 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    ...(['Admin', 'Staff'].includes(user?.role) ? [{ to: '/rentals', label: 'Rental Agreements', icon: Key }, { to: '/rental-reminders', label: 'Rental Reminders', icon: Bell, unread: rentals?.remindersAvailable && !rentals?.loading && !rentals?.error ? rentals?.unread.length : 0 }] : []),
     { 
       to: '/properties', 
       label: 'Properties', 
@@ -143,6 +146,7 @@ export default function Layout({ children }) {
               <div className="relative flex items-center w-full">
                 <NavLink
                   to={item.to}
+                  end={!item.subItems}
                   onClick={() => !item.subItems && setIsMobileOpen(false)}
                   title={isCollapsed ? item.label : undefined}
                   className={`flex-1 flex items-center rounded-lg text-[14px] font-semibold transition-all duration-150 border border-transparent ${
@@ -157,6 +161,7 @@ export default function Layout({ children }) {
                     <item.icon className={`w-[18px] h-[18px] flex-shrink-0 transition-colors duration-150 ${isActive ? 'text-[#C4005A]' : 'text-[#6B6B6B]'}`} />
                     {!isCollapsed && <span className="animate-fade-in">{item.label}</span>}
                   </div>
+                  {item.unread > 0 && <span aria-label={`${item.unread} unread rental reminders`} className={`rounded-full bg-[#C4005A] px-1.5 py-0.5 text-[10px] font-bold text-white ${isCollapsed ? "absolute right-0 top-0" : "ml-2"}`}>{item.unread > 99 ? "99+" : item.unread}</span>}
                 </NavLink>
                 {item.subItems && !isCollapsed && (
                   <button
@@ -293,6 +298,7 @@ export default function Layout({ children }) {
               </div>
             )}
             {user && ['Admin', 'Staff'].includes(user.role) && <SubmissionNotifications key={user.userId || user.id || user.username} user={user} />}
+            {user && ['Admin', 'Staff'].includes(user.role) && <NavLink to="/rental-reminders" title={(rentals?.error || (!rentals?.loading && !rentals?.remindersAvailable)) ? 'Rental notifications unavailable — open to retry' : 'Rental notifications'} aria-label={`Rental notifications: ${(rentals?.error || (!rentals?.loading && !rentals?.remindersAvailable)) ? 'unavailable' : rentals?.loading ? 'loading' : rentals?.unread.length || 0}`} className="relative rounded-full p-2 text-[#C4005A] hover:bg-[#FFF1F6]"><Key className="h-5 w-5" /><span className="absolute -right-1 -top-1 rounded-full bg-[#C4005A] px-1 text-xs text-white">{(rentals?.error || (!rentals?.loading && !rentals?.remindersAvailable)) ? '!' : rentals?.loading ? '…' : rentals?.unread.length || 0}</span></NavLink>}
             <button className="p-1.5 rounded-full text-[#6B6B6B] hover:text-[#C4005A] hover:bg-[#FFF1F6] transition-colors cursor-pointer">
               <HelpCircle className="w-4 h-4" />
             </button>

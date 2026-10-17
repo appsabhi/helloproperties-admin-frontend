@@ -351,19 +351,7 @@ export default function Properties() {
     if (!price && price !== 0) return '—';
     const num = Number(price);
     if (isNaN(num)) return price;
-    if (num >= 10000000) {
-      const v = num / 10000000;
-      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Crore`;
-    }
-    if (num >= 100000) {
-      const v = num / 100000;
-      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Lakh`;
-    }
-    if (num >= 1000) {
-      const v = num / 1000;
-      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Thousand`;
-    }
-    return `₹${num}`;
+    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
   };
 
   const formatDisplayArea = (areaStr, areaUnitStr) => {
@@ -720,7 +708,9 @@ export default function Properties() {
         video: finalVideoUrl,
         videoFile: null,
         videoFiles: null,
-        area: parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
+        area: editPropForm.propertyType === 'House + Land' ? null : parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
+        areaUnit: editPropForm.propertyType === 'House + Land' ? null : editPropForm.areaUnit,
+        ...getHouseLandAreaPayload(editPropForm),
         expectedPrice: parsePriceWithUnit(editPropForm.expectedPrice, editPropForm.expectedPriceUnit || '/ Cent'),
         monthlyRent: parsePriceWithUnit(editPropForm.monthlyRent, editPropForm.monthlyRentUnit || '/ Month'),
         securityDeposit: parseDepositVal(editPropForm.securityDeposit, editPropForm.securityDepositUnit, editPropForm.monthlyRent)
@@ -1284,7 +1274,13 @@ export default function Properties() {
                       </span>
                     </div>
                     {addPropertyResult.matches.map((m, idx) => (
-                      <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                      <button
+                        key={m.id || m._id || m.requirementId || idx}
+                        type="button"
+                        onClick={() => navigate(`/requirements/${encodeURIComponent(m.id || m._id || m.requirementId)}`, { state: { fromPath: location.pathname + location.search, fromTab: activeTab } })}
+                        className="block w-full text-left bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1 hover:bg-white hover:border-[#B0004F]/40 focus-visible:outline-2 focus-visible:outline-[#B0004F] transition-colors cursor-pointer"
+                        aria-label={`View buyer details for ${m.buyerName || 'matching buyer'}`}
+                      >
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{m.matchScore}% Match</span>
                           <div className="flex items-center gap-1">

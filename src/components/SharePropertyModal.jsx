@@ -181,6 +181,7 @@ export default function SharePropertyModal({ property, buyer, onClose }) {
   if (!property) return null;
 
   const isRent = property?.listingType === 'Rent';
+  const isHouseAndLand = property.propertyType === 'House + Land';
   const formattedPrice = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',

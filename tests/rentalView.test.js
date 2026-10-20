@@ -24,6 +24,17 @@ test('search, filters, stable sorting and pagination handle shrinking results', 
   assert.equal(selectAgreements(rows, { page: 3 }, '2026-10-16').rows.length, 1);
   assert.equal(selectAgreements(rows, { page: 3, search: 'RA-25' }, '2026-10-16').page, 1);
   assert.equal(selectAgreements(rows, { status: 'Completed' }, '2026-10-16').total, 0);
+
+  // Voided agreements are excluded from active list and appear in voided view
+  const voided = { ...base, id: 99, tenant_name: 'Test Tenant 9', voided_at: '2026-10-18', void_reason: 'Testing void' };
+  const mixed = [...rows, voided];
+  assert.equal(selectAgreements(mixed, {}, '2026-10-16').total, 25);
+  assert.ok(!selectAgreements(mixed, {}, '2026-10-16').rows.some(r => r.id === 99));
+  assert.equal(selectAgreements(mixed, { view: 'voided' }, '2026-10-16').total, 1);
+  assert.equal(selectAgreements(mixed, { view: 'voided' }, '2026-10-16').rows[0].id, 99);
+  assert.equal(selectAgreements(mixed, { status: 'Voided' }, '2026-10-16').total, 1);
+  assert.equal(selectAgreements(mixed, { view: 'voided', search: 'Tenant 9' }, '2026-10-16').total, 1);
+  assert.equal(selectAgreements(mixed, { view: 'voided', search: 'Anita' }, '2026-10-16').total, 0);
 });
 test('form validation rejects invalid dates, blank tenants and premature renewal', () => {
   const form = { propertyId: 1, tenantName: '  ', rentAmount: -1, reminderDays: 30, startDate: '2026-02-30' };

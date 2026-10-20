@@ -27,9 +27,26 @@ export function displayDate(date) {
 export function rentLabel(a) {
   return a.rent_amount === null || a.rent_amount === undefined ? 'Not recorded' : `${new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(a.rent_amount))} / month`;
 }
-export function selectAgreements(agreements, { search = '', status = '', sort = 'expiry-asc', page = 1, pageSize = 12 }, today) {
+export function selectAgreements(agreements, { search = '', status = '', sort = 'expiry-asc', page = 1, pageSize = 12, view = 'active' } = {}, today) {
   const query = search.trim().toLowerCase();
-  const rows = agreements.filter(a => (!status || agreementStatus(a, today) === status) && (!query || [a.tenant_name, a.title, a.property_id, agreementId(a)].some(value => String(value || '').toLowerCase().includes(query))));
+  const isVoidedView = view === 'voided' || view === 'archived' || status === 'Voided';
+  const rows = agreements.filter(a => {
+    const st = agreementStatus(a, today);
+    const isVoided = st === 'Voided';
+    if (isVoidedView) {
+      if (!isVoided) return false;
+      if (status && status !== 'Voided' && st !== status) return false;
+    } else if (view !== 'all') {
+      if (isVoided) return false;
+      if (status && st !== status) return false;
+    } else if (status && st !== status) {
+      return false;
+    }
+    if (query && ![a.tenant_name, a.title, a.property_id, agreementId(a)].some(value => String(value || '').toLowerCase().includes(query))) {
+      return false;
+    }
+    return true;
+  });
   rows.sort((a, b) => {
     const key = sort.startsWith('created') ? 'created_at' : 'end_date';
     const comparison = String(a[key] || '').localeCompare(String(b[key] || '')) || Number(a.id) - Number(b.id);

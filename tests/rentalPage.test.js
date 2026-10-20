@@ -24,6 +24,24 @@ test('rental page renders real agreement data, states and permission restriction
     assert.match(renderRentalPage({ agreements: [completedForDelete], capabilities: { deleteAgreement: true } }, { path: '/rentals?agreement=7' }), /Delete Agreement/);
     assert.doesNotMatch(renderRentalPage({ agreements: [{ ...completedForDelete, voided_at: '2026-10-17' }], capabilities: { deleteAgreement: true } }), />Delete Agreement</);
 
+    const voidedAgreement = { id: 9, property_db_id: 12, property_id: 'HP-R012', title: 'Mountain Villa', tenant_name: 'Rahul', tenant_phone: '9876543210', start_date: '2025-05-01', end_date: '2026-04-30', reminder_days: 30, rent_amount: 25000, voided_at: '2026-10-18T10:00:00Z', voided_by: 'admin', void_reason: 'Test contract cancelled' };
+    const mixedPageHtml = renderRentalPage({ agreements: [agreement, voidedAgreement] });
+    assert.ok(mixedPageHtml.includes('RA-7'), 'Active list should include active RA-7');
+    assert.ok(!mixedPageHtml.includes('RA-9'), 'Active list should exclude voided RA-9');
+    assert.match(mixedPageHtml, /Active Agreements/);
+    assert.match(mixedPageHtml, /Voided \/ Archived/);
+
+    const voidedPageHtml = renderRentalPage({ agreements: [agreement, voidedAgreement] }, { path: '/rentals?view=voided' });
+    assert.ok(voidedPageHtml.includes('RA-9'), 'Voided view should include RA-9');
+    assert.ok(!voidedPageHtml.includes('RA-7'), 'Voided view should exclude active RA-7');
+    assert.ok(voidedPageHtml.includes('Voided on'), 'Voided view displays voided timestamp');
+    assert.ok(voidedPageHtml.includes('Test contract cancelled'), 'Voided view displays void reason');
+
+    const voidedDetailsHtml = renderRentalPage({ agreements: [agreement, voidedAgreement] }, { path: '/rentals?agreement=9' });
+    assert.ok(voidedDetailsHtml.includes('Voided agreement'), 'Details modal displays voided banner');
+    assert.ok(voidedDetailsHtml.includes('Test contract cancelled'), 'Details modal displays void reason');
+    assert.ok(voidedDetailsHtml.includes('Agreement history'), 'Details modal displays agreement history');
+
     for (const value of ['RA-7','Lake House','Anita','1234567890','18,000','Expiring Soon','View details','Confirm Move-Out']) assert.ok(html.includes(value), value);
     assert.doesNotMatch(renderRentalPage({ agreements: [{ ...agreement, move_out_date: '2026-10-15' }] }), />Confirm Move-Out</);
     assert.match(renderRentalPage({ capabilities: {} }), /Deploy the rental history API/);

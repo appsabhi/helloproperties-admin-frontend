@@ -4,6 +4,7 @@ import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
 import ActivityLogView from '../components/ActivityLogView';
 import MediaThumbnail from '../components/MediaThumbnail';
+import RentalSummary from '../components/RentalSummary';
 import { 
   Building2, 
   CheckCircle2, 
@@ -95,6 +96,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <RentalSummary />
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         {stats.map((stat, idx) => (
@@ -171,7 +173,11 @@ export default function Dashboard() {
                         {prop.propertyType}
                       </span>
                     )}
-                    {prop.area && (
+                    {prop.propertyType === 'House + Land' ? (
+                      <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60 truncate">
+                        House: {prop.houseArea ?? prop.house_area} {prop.houseAreaUnit || prop.house_area_unit || 'Sq. Ft.'} · Land: {prop.landArea ?? prop.land_area} {prop.landAreaUnit || prop.land_area_unit || 'Cent'}
+                      </span>
+                    ) : prop.area && (
                       <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60 truncate">
                         {prop.area}
                       </span>
@@ -240,4 +246,3 @@ export default function Dashboard() {
     </div>
   );
 }
-

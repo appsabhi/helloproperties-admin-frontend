@@ -3,6 +3,7 @@ import { PropertyContext } from "../context/PropertyContext";
 import { Loader2, ChevronDown, ImagePlus, X, Sparkles, Plus, Check, Video, Film, Link, AlertCircle } from "lucide-react";
 import LocationSelector from "./LocationSelector";
 import PropertyKeywordsSelector, { DESCRIPTION_KEYWORDS } from "./PropertyKeywordsSelector";
+import { selectHouseLandAreaUnit } from "../utils/houseLandAreas";
 
 const DEFAULT_INITIAL_VALUES = {};
 
@@ -87,8 +88,26 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     const { value } = eOrFieldName.target;
     const fieldId = fieldIdOrValue;
     setFormData(prev => {
+      if (fieldId === "houseAreaUnit" || fieldId === "landAreaUnit") {
+        return selectHouseLandAreaUnit(prev, fieldId, value);
+      }
       const next = { ...prev, [fieldId]: value };
-      if (fieldId === "listingType") {
+      if (fieldId === "propertyType") {
+        if (value === "House + Land") {
+          next.area = "";
+          next.houseArea = "";
+          next.houseAreaUnit = next.houseAreaUnit || "Sq. Ft.";
+          next.landArea = "";
+          next.landAreaUnit = next.landAreaUnit || "Cent";
+          next.expectedPriceUnit = `/ ${next.landAreaUnit}`;
+          next.monthlyRentUnit = `/ ${next.landAreaUnit}`;
+        } else if (prev.propertyType === "House + Land") {
+          next.houseArea = "";
+          next.landArea = "";
+          next.expectedPriceUnit = `/ ${next.areaUnit || "Cent"}`;
+          next.monthlyRentUnit = `/ ${next.areaUnit || "Cent"}`;
+        }
+      } else if (fieldId === "listingType") {
         if (value === "Sale") { next.monthlyRent = ""; next.securityDeposit = ""; }
         else if (value === "Rent") { next.expectedPrice = ""; }
       } else if (fieldId === "requirementType") {
@@ -315,7 +334,10 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     const listingType = formData.listingType || (formData.requirementType ? (formData.requirementType === 'Buy' ? 'Purchase' : 'Rent') : 'Sale');
     const loc = formData.location || formData.preferredLocation || "";
     const dist = formData.district || "";
-    const area = formData.area || formData.requiredArea || "";
+    const isHouseAndLand = formData.propertyType === "House + Land";
+    const area = isHouseAndLand
+      ? `House / Building: ${formData.houseArea || ""} ${formData.houseAreaUnit || "Sq. Ft."}; Land: ${formData.landArea || ""} ${formData.landAreaUnit || "Cent"}`
+      : formData.area || formData.requiredArea || "";
     const areaUnit = formData.areaUnit || formData.requiredAreaUnit || "Cent";
     const price = formData.expectedPrice || formData.monthlyRent || formData.budget || formData.maximumMonthlyRent || "";
     const priceUnit = formData.expectedPriceUnit || formData.monthlyRentUnit || formData.budgetUnit || formData.maximumMonthlyRentUnit || "";
@@ -333,7 +355,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     }
 
     if (area) {
-      parts.push(`Total Area: ${area} ${areaUnit}.`);
+      parts.push(isHouseAndLand ? `${area}.` : `Total Area: ${area} ${areaUnit}.`);
     }
 
     if (price) {
@@ -377,7 +399,9 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
       }
       if (field.type === "number" && val !== undefined && val !== null && val !== "") {
         const num = Number(val);
-        if (isNaN(num) || num < 0) newErrors[field.id] = "Value must be a valid positive number.";
+        if (isNaN(num) || num < 0 || (field.positive && num <= 0)) {
+          newErrors[field.id] = field.positive ? "Value must be greater than zero." : "Value must be a valid positive number.";
+        }
       }
       if (field.type === "tel" && val) {
         const phoneDigits = String(val).replace(/\D/g, "");
@@ -408,7 +432,7 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
   const getSectionHeader = (fieldId) => {
     if (fieldId === "title" || fieldId === "listingType") return "Property Information";
     if (fieldId === "requirementType") return "Requirement Information";
-    if (fieldId === "area") return "Specifications & Pricing";
+    if (fieldId === "area" || fieldId === "houseArea" || fieldId === "landArea") return "Specifications & Pricing";
     if (fieldId === "requiredArea") return "Specifications & Budget";
     if (fieldId === "ownerName") return "Owner & Contact";
     if (fieldId === "buyerName") return "Buyer & Contact";
@@ -428,55 +452,58 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
     peer-focus:top-2 peer-focus:text-[10.5px] peer-focus:text-[#B0004F] peer-focus:font-semibold
     peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[10.5px] peer-[:not(:placeholder-shown)]:text-slate-400 peer-[:not(:placeholder-shown)]:font-semibold`;
 
+  let previousSectionHeader = null;
+
   return (
     <form onSubmit={handleSubmit}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
         {schema.map((field) => {
-          if (field.showIf && !field.showIf(formData)) return null;
+            if (field.showIf && !field.showIf(formData)) return null;
 
-          const sectionHeader = getSectionHeader(field.id);
-          const hasError = !!errors[field.id];
+            const sectionHeader = getSectionHeader(field.id);
+            const showSectionHeader = sectionHeader && sectionHeader !== previousSectionHeader;
+            if (sectionHeader) previousSectionHeader = sectionHeader;
+            const hasError = !!errors[field.id];
 
-          if (field.type === "location_selector") {
+            if (field.type === "location_selector") {
+              return (
+                <React.Fragment key={field.id}>
+                  <LocationSelector
+                    formData={formData}
+                    onChange={handleChange}
+                    errors={errors}
+                    locationFieldName={field.locationFieldName || "location"}
+                    allowMultiple={field.allowMultiple}
+                  />
+                </React.Fragment>
+              );
+            }
+
+            const isFullWidth =
+              field.type === "textarea" ||
+              field.type === "image" ||
+              field.type === "video" ||
+              field.id === "title" ||
+              field.id === "requirementTitle" ||
+              field.id === "description" ||
+              field.id === "ownerAddress" ||
+              field.id === "buyerAddress";
+
             return (
               <React.Fragment key={field.id}>
-                <LocationSelector
-                  formData={formData}
-                  onChange={handleChange}
-                  errors={errors}
-                  locationFieldName={field.locationFieldName || "location"}
-                  allowMultiple={field.allowMultiple}
-                />
-              </React.Fragment>
-            );
-          }
+                {showSectionHeader && (
+                  <div className="sm:col-span-2 flex items-center gap-3 mt-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-[#B0004F]/50 whitespace-nowrap">
+                      {sectionHeader}
+                    </span>
+                    <div className="flex-1 h-px bg-slate-100" />
+                  </div>
+                )}
 
-          const isFullWidth =
-            field.type === "textarea" ||
-            field.type === "image" ||
-            field.type === "video" ||
-            field.id === "title" ||
-            field.id === "requirementTitle" ||
-            field.id === "description" ||
-            field.id === "ownerAddress" ||
-            field.id === "buyerAddress";
-
-          return (
-            <React.Fragment key={field.id}>
-              {/* Section header */}
-              {sectionHeader && (
-                <div className="sm:col-span-2 flex items-center gap-3 mt-2 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.13em] text-[#B0004F]/50 whitespace-nowrap">
-                    {sectionHeader}
-                  </span>
-                  <div className="flex-1 h-px bg-slate-100" />
-                </div>
-              )}
-
-              <div
-                id={`field-${field.id}`}
-                className={`flex flex-col gap-1 ${isFullWidth ? "sm:col-span-2" : ""}`}
-              >
+                <div
+                  id={`field-${field.id}`}
+                  className={`flex flex-col gap-1 ${isFullWidth ? "sm:col-span-2" : ""}`}
+                >
                 {/* Textarea — with Auto Fill & Quick Keyword Chips */}
                 {field.type === "textarea" ? (
                   <div className="flex flex-col gap-2">
@@ -808,7 +835,9 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                 ) : field.hasUnit ? (
                   /* Input with integrated right-aligned unit selector */
                   (() => {
-                    const rawAreaUnit = formData.areaUnit || formData.requiredAreaUnit || 'Cent';
+                    const rawAreaUnit = formData.propertyType === "House + Land"
+                      ? (formData.landAreaUnit || 'Cent')
+                      : (formData.areaUnit || formData.requiredAreaUnit || 'Cent');
                     let cleanAreaUnit = String(rawAreaUnit).replace(/^\/\s*/, '').trim();
 
                     let unitOptionsList = field.unitOptions || [];
@@ -839,7 +868,8 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                             <input
                               id={`input-${field.id}`}
                               type={field.type === "number" ? "number" : "text"}
-                              step={field.type === "number" ? "any" : undefined}
+                              step={field.type === "number" ? (field.step || "any") : undefined}
+                              min={field.type === "number" ? field.min : undefined}
                               value={formData[field.id] || ""}
                               onChange={(e) => handleChange(e, field.id)}
                               onWheel={(e) => field.type === "number" && e.target.blur()}
@@ -882,6 +912,8 @@ export default function SchemaForm({ schema, onSubmit, onCancel, submitLabel = "
                       id={`input-${field.id}`}
                       type={field.type}
                       value={formData[field.id] || ""}
+                      min={field.type === "number" ? field.min : undefined}
+                      step={field.type === "number" ? (field.step || "any") : undefined}
                       onChange={(e) => handleChange(e, field.id)}
                       onWheel={(e) => field.type === "number" && e.target.blur()}
                       placeholder=" "

@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -25,6 +25,24 @@ export default function Modal({
   closeOnEscape = true,
   className = ''
 }) {
+  const surfaceRef = useRef(null);
+  const titleId = useId();
+  useEffect(() => {
+    if (!isOpen) return;
+    const previous = document.activeElement;
+    const surface = surfaceRef.current;
+    surface?.focus();
+    const trap = e => {
+      if (e.key !== 'Tab') return;
+      const controls = [...(surface?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]') || [])].filter(el => el.getClientRects().length);
+      if (!controls.length) { e.preventDefault(); surface?.focus(); return; }
+      const first = controls[0], last = controls[controls.length - 1];
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === surface)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && (document.activeElement === last || document.activeElement === surface)) { e.preventDefault(); first.focus(); }
+    };
+    surface?.addEventListener('keydown', trap);
+    return () => { surface?.removeEventListener('keydown', trap); if (previous?.isConnected) previous.focus(); };
+  }, [isOpen]);
   // Handle Escape key press
   const handleKeyDown = useCallback(
     (e) => {
@@ -68,6 +86,10 @@ export default function Modal({
         className={`relative bg-white rounded-2xl border border-slate-200/80 shadow-2xl flex flex-col w-full max-h-[90vh] my-auto overflow-hidden animate-scale-up z-10 ${maxWidthClass} ${className}`}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : 'Dialog'}
+        tabIndex={-1}
+        ref={surfaceRef}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header */}
@@ -82,7 +104,7 @@ export default function Modal({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
                   {title && (
-                    <h3 className="font-bold text-base sm:text-lg text-slate-900 truncate">
+                    <h3 id={titleId} className="font-bold text-base sm:text-lg text-slate-900 truncate">
                       {title}
                     </h3>
                   )}

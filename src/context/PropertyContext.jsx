@@ -284,6 +284,10 @@ export const PropertyProvider = ({ children }) => {
     state: p.state || '',
     area: p.area,
     areaUnit: p.areaUnit || p.area_unit,
+    houseArea: p.houseArea ?? p.house_area ?? '',
+    houseAreaUnit: p.houseAreaUnit || p.house_area_unit || '',
+    landArea: p.landArea ?? p.land_area ?? '',
+    landAreaUnit: p.landAreaUnit || p.land_area_unit || '',
     expectedPrice: Number(p.expectedPrice || p.expected_price || 0),
     displayPrice: p.displayPrice,
     displayPriceUnit: p.displayPriceUnit,
@@ -410,6 +414,10 @@ export const PropertyProvider = ({ children }) => {
         state: propertyData.state || '',
         area: propertyData.area,
         areaUnit: propertyData.areaUnit,
+        houseArea: propertyData.propertyType === 'House + Land' ? Number(propertyData.houseArea) : null,
+        houseAreaUnit: propertyData.propertyType === 'House + Land' ? propertyData.houseAreaUnit : null,
+        landArea: propertyData.propertyType === 'House + Land' ? Number(propertyData.landArea) : null,
+        landAreaUnit: propertyData.propertyType === 'House + Land' ? propertyData.landAreaUnit : null,
         expectedPrice: listingType === 'Sale' ? Number(propertyData.expectedPrice || 0) : 0,
         expectedPriceUnit: propertyData.expectedPriceUnit,
         priceUnit: propertyData.expectedPriceUnit || propertyData.monthlyRentUnit,
@@ -457,7 +465,14 @@ export const PropertyProvider = ({ children }) => {
             });
           }
 
-          return { success: true, property: formatted, matches: resData.matches || [] };
+          const matches = (resData.matches || []).map(match => {
+            const matchIds = [match.id, match._id, match.requirementId].filter(Boolean).map(String);
+            const savedRequirement = requirements.find(requirement =>
+              [requirement.id, requirement.requirementId].filter(Boolean).some(value => matchIds.includes(String(value)))
+            );
+            return { ...match, ...(savedRequirement || formatBackendRequirement(match)), matchScore: match.matchScore };
+          });
+          return { success: true, property: formatted, matches };
         } else {
           return { success: false, error: resData.message || 'Failed to save property to database' };
         }
@@ -652,6 +667,10 @@ export const PropertyProvider = ({ children }) => {
         state: updatedData.state || '',
         area: updatedData.area,
         areaUnit: updatedData.areaUnit,
+        houseArea: updatedData.propertyType === 'House + Land' ? Number(updatedData.houseArea) : null,
+        houseAreaUnit: updatedData.propertyType === 'House + Land' ? updatedData.houseAreaUnit : null,
+        landArea: updatedData.propertyType === 'House + Land' ? Number(updatedData.landArea) : null,
+        landAreaUnit: updatedData.propertyType === 'House + Land' ? updatedData.landAreaUnit : null,
         expectedPrice: listingType === 'Sale' ? Number(updatedData.expectedPrice || 0) : 0,
         expectedPriceUnit: updatedData.expectedPriceUnit,
         priceUnit: updatedData.expectedPriceUnit || updatedData.monthlyRentUnit,
@@ -731,9 +750,14 @@ export const PropertyProvider = ({ children }) => {
           credentials: 'include'
         });
 
-        const resData = await response.json();
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.success === false) {
+          return { success: false, error: result?.message || result?.error || 'Failed to delete property. Please try again.' };
+        }
 
-        setProperties(prev => prev.filter(p => p.id !== id && p.propertyId !== id));
+        setProperties(prev => prev.filter(p =>
+          ![p.id, p.propertyId, p._id].some(value => value != null && String(value) === String(id))
+        ));
 
         if (logActivity) {
           logActivity({
@@ -749,18 +773,7 @@ export const PropertyProvider = ({ children }) => {
         return { success: true };
       } catch (err) {
         console.error('Failed to delete property from API:', err.message);
-        setProperties(prev => prev.filter(p => p.id !== id && p.propertyId !== id));
-        if (logActivity) {
-          logActivity({
-            category: 'Properties',
-            action: 'DELETE_PROPERTY',
-            actionLabel: 'Deleted Property',
-            details: `Deleted Property listing (ID: ${id})`,
-            targetId: id,
-            badgeColor: 'red'
-          });
-        }
-        return { success: true };
+        return { success: false, error: err.message || 'Network error deleting property. Please try again.' };
       }
     }, 'Deleting property...');
   };
@@ -1428,7 +1441,7 @@ export const PropertyProvider = ({ children }) => {
       } else {
         const plotTypes = ['plot/land', 'commercial plot', 'residential plot', 'industrial plot'];
         const bothPlots = propTypes.some(pt => plotTypes.includes(pt)) && reqTypes.some(rt => plotTypes.includes(rt));
-        const resBuildingTypes = ['house/villa', 'apartment/flat'];
+        const resBuildingTypes = ['house/villa', 'apartment/flat', 'house + land'];
         const bothResBuildings = propTypes.some(pt => resBuildingTypes.includes(pt)) && reqTypes.some(rt => resBuildingTypes.includes(rt));
         const landTypes = ['agricultural land', 'plot/land'];
         const bothLand = propTypes.some(pt => landTypes.includes(pt)) && reqTypes.some(rt => landTypes.includes(rt));
@@ -1505,7 +1518,10 @@ export const PropertyProvider = ({ children }) => {
     matchReasons.push({ factor: 'Budget', score: budgetScore, maxScore: 15, detail: budgetDetail });
 
     // ── Factor 5: Area Fit (15 pts) ──
-    const propAreaSqFt = parseAreaToSqFt(prop.area);
+    const propertyArea = prop.propertyType === 'House + Land'
+      ? `${prop.landArea ?? prop.land_area ?? ''} ${prop.landAreaUnit || prop.land_area_unit || ''}`.trim()
+      : prop.area;
+    const propAreaSqFt = parseAreaToSqFt(propertyArea);
     const reqAreaRange = parseAreaRange(req.requiredArea);
     let areaScore = 0;
     let areaDetail = '';
@@ -1783,7 +1799,5 @@ export const PropertyProvider = ({ children }) => {
 };
 
 export const usePropertyContext = () => React.useContext(PropertyContext);
-
-
 
 

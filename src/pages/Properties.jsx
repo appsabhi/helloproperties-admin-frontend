@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PropertyContext } from '../context/PropertyContext';
 import { AuthContext } from '../context/AuthContext';
-import { sellPropertySchema, buyRequirementSchema } from '../schemas/formSchemas';
+import { sellPropertySchema, buyRequirementSchema, PROPERTY_TYPE_OPTIONS } from '../schemas/formSchemas';
+import { HOUSE_BUILDING_AREA_UNITS, LAND_AREA_UNITS, getHouseLandAreaFormValues, getHouseLandAreaPayload, selectHouseLandAreaUnit } from '../utils/houseLandAreas';
 import SchemaForm from '../components/SchemaForm';
 import LocationSelector from '../components/LocationSelector';
 import PropertyKeywordsSelector from '../components/PropertyKeywordsSelector';
@@ -350,19 +351,7 @@ export default function Properties() {
     if (!price && price !== 0) return '—';
     const num = Number(price);
     if (isNaN(num)) return price;
-    if (num >= 10000000) {
-      const v = num / 10000000;
-      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Crore`;
-    }
-    if (num >= 100000) {
-      const v = num / 100000;
-      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Lakh`;
-    }
-    if (num >= 1000) {
-      const v = num / 1000;
-      return `₹${v % 1 === 0 ? v : v.toFixed(2)} Thousand`;
-    }
-    return `₹${num}`;
+    return `₹${num.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
   };
 
   const formatDisplayArea = (areaStr, areaUnitStr) => {
@@ -406,6 +395,12 @@ export default function Properties() {
 
     return `${num} ${rest}`;
   };
+
+  const formatHouseAndLandAreas = (property) => ({
+    house: formatDisplayArea(property.houseArea ?? property.house_area, property.houseAreaUnit || property.house_area_unit),
+    land: formatDisplayArea(property.landArea ?? property.land_area, property.landAreaUnit || property.land_area_unit)
+  });
+  const hasAreaValue = value => value !== undefined && value !== null && value !== '';
 
   const cleanUnitName = (str) => {
     if (!str) return '';
@@ -480,7 +475,7 @@ export default function Properties() {
   // Statuses list
   const propertyStatuses = ['Available', 'Under Negotiation', 'Sold', 'Inactive'];
   const requirementStatuses = ['Active', 'Property Found', 'Closed', 'Cancelled'];
-  const propertyTypes = ['Plot/Land', 'House/Villa', 'Apartment/Flat', 'Commercial Building', 'Residential Plot', 'Commercial Plot', 'Agricultural Land', 'Industrial Plot'];
+  const propertyTypes = PROPERTY_TYPE_OPTIONS;
 
   // Filtering listings
   const filteredProperties = properties.filter(prop => {
@@ -564,7 +559,9 @@ export default function Properties() {
         imageUrl: finalImageUrl,
         imageFile: null,
         imageFiles: null,
-        area: parseAreaWithUnit(formData.area, formData.areaUnit || 'Cent'),
+        area: formData.propertyType === 'House + Land' ? null : parseAreaWithUnit(formData.area, formData.areaUnit || 'Cent'),
+        areaUnit: formData.propertyType === 'House + Land' ? null : formData.areaUnit,
+        ...getHouseLandAreaPayload(formData),
         expectedPrice: parsePriceWithUnit(formData.expectedPrice, formData.expectedPriceUnit || '/ Cent', formData.area),
         monthlyRent: parsePriceWithUnit(formData.monthlyRent, formData.monthlyRentUnit || '/ Month', formData.area),
         securityDeposit: parseDepositVal(formData.securityDeposit, formData.securityDepositUnit, formData.monthlyRent)
@@ -631,6 +628,7 @@ export default function Properties() {
 
     let rentVal = prop.monthlyRent !== undefined ? prop.monthlyRent : '';
     let rentUnitVal = prop.monthlyRentUnit || '/ Month';
+    const houseLandAreaFormValues = getHouseLandAreaFormValues(prop);
 
     setEditPropForm({
       title: prop.title || '',
@@ -640,6 +638,7 @@ export default function Properties() {
       state: prop.state || '',
       area: areaVal,
       areaUnit: areaUnitVal,
+      ...houseLandAreaFormValues,
       expectedPrice: priceVal,
       expectedPriceUnit: priceUnitVal,
       monthlyRent: rentVal,
@@ -664,6 +663,11 @@ export default function Properties() {
   const handleSaveEditProperty = async (e) => {
     e.preventDefault();
     if (!editingProperty) return;
+    if (editPropForm.propertyType === 'House + Land' &&
+      [editPropForm.houseArea, editPropForm.landArea].some(value => value === '' || !Number.isFinite(Number(value)) || Number(value) <= 0)) {
+      setEditPropError('House / Building Area and Land Area must both be greater than zero.');
+      return;
+    }
 
     setIsSubmittingEditProp(true);
     setEditPropError(null);
@@ -705,7 +709,9 @@ export default function Properties() {
         video: finalVideoUrl,
         videoFile: null,
         videoFiles: null,
-        area: parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
+        area: editPropForm.propertyType === 'House + Land' ? null : parseAreaWithUnit(editPropForm.area, editPropForm.areaUnit || 'Cent'),
+        areaUnit: editPropForm.propertyType === 'House + Land' ? null : editPropForm.areaUnit,
+        ...getHouseLandAreaPayload(editPropForm),
         expectedPrice: parsePriceWithUnit(editPropForm.expectedPrice, editPropForm.expectedPriceUnit || '/ Cent'),
         monthlyRent: parsePriceWithUnit(editPropForm.monthlyRent, editPropForm.monthlyRentUnit || '/ Month'),
         securityDeposit: parseDepositVal(editPropForm.securityDeposit, editPropForm.securityDepositUnit, editPropForm.monthlyRent)
@@ -1269,7 +1275,13 @@ export default function Properties() {
                       </span>
                     </div>
                     {addPropertyResult.matches.map((m, idx) => (
-                      <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                      <button
+                        key={m.id || m._id || m.requirementId || idx}
+                        type="button"
+                        onClick={() => navigate(`/requirements/${encodeURIComponent(m.id || m._id || m.requirementId)}`, { state: { fromPath: location.pathname + location.search, fromTab: activeTab } })}
+                        className="block w-full text-left bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1 hover:bg-white hover:border-[#B0004F]/40 focus-visible:outline-2 focus-visible:outline-[#B0004F] transition-colors cursor-pointer"
+                        aria-label={`View buyer details for ${m.buyerName || 'matching buyer'}`}
+                      >
                         <div className="flex justify-between items-center">
                           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{m.matchScore}% Match</span>
                           <div className="flex items-center gap-1">
@@ -1288,7 +1300,8 @@ export default function Properties() {
                         </div>
                         <p className="text-xs font-semibold text-slate-800">{m.propertyType} — {m.preferredLocation}, {m.district}</p>
                         <p className="text-xs text-slate-500">{m.buyerName} · {m.phoneNumber}</p>
-                      </div>
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#B0004F]">View buyer details <ArrowRight className="w-3 h-3" /></span>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -1507,6 +1520,34 @@ export default function Properties() {
                       </div>
                     </div>
 
+                    {(prop.propertyType === 'House + Land'
+                      ? hasAreaValue(prop.houseArea ?? prop.house_area) || hasAreaValue(prop.landArea ?? prop.land_area)
+                      : Boolean(prop.area)) && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {prop.propertyType === 'House + Land' ? (
+                          <>
+                            {hasAreaValue(prop.houseArea ?? prop.house_area) && (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                                <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>House / Building: {formatDisplayArea(prop.houseArea ?? prop.house_area, prop.houseAreaUnit || prop.house_area_unit)}</span>
+                              </div>
+                            )}
+                            {hasAreaValue(prop.landArea ?? prop.land_area) && (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                                <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span>Land: {formatDisplayArea(prop.landArea ?? prop.land_area, prop.landAreaUnit || prop.land_area_unit)}</span>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-600">
+                            <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>Area: {formatDisplayArea(prop.area, prop.areaUnit || prop.area_unit)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {prop.description && (
                       <div className="pt-2 text-[13px] text-slate-500 line-clamp-2 leading-relaxed">
                         {prop.description}
@@ -1682,12 +1723,12 @@ export default function Properties() {
                         <span>{req.district}{req.state ? `, ${req.state}` : ''}</span>
                       </div>
                     )}
-                    {req.requiredArea && (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">
-                        <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">{formatDisplayArea(req.requiredArea, req.requiredAreaUnit)}</span>
-                      </div>
-                    )}
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 font-medium">
+                      <Ruler className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">
+                        Area needed: {req.requiredArea ? formatDisplayArea(req.requiredArea, req.requiredAreaUnit) : 'Any area'}
+                      </span>
+                    </div>
                     {req.enquirySource && (
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700">
                         <span className="truncate">Src: {req.enquirySource === 'Other' ? req.otherEnquirySource : req.enquirySource}</span>
@@ -1933,16 +1974,33 @@ export default function Properties() {
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Property Type</span>
                 <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">{viewingDetailTarget.item.propertyType}</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
-                  {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
-                </span>
-                <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
-                  {viewingDetailTarget.type === 'property' 
-                    ? formatDisplayArea(viewingDetailTarget.item.area) 
-                    : formatDisplayArea(viewingDetailTarget.item.requiredArea)}
-                </span>
-              </div>
+              {viewingDetailTarget.type === 'property' && viewingDetailTarget.item.propertyType === 'House + Land' ? (
+                <>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">House / Building Area</span>
+                    <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                      {formatHouseAndLandAreas(viewingDetailTarget.item).house}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Land Area</span>
+                    <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                      {formatHouseAndLandAreas(viewingDetailTarget.item).land}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
+                    {viewingDetailTarget.type === 'property' ? 'Area / Size' : 'Required Area'}
+                  </span>
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block truncate">
+                    {viewingDetailTarget.type === 'property'
+                      ? formatDisplayArea(viewingDetailTarget.item.area, viewingDetailTarget.item.areaUnit)
+                      : formatDisplayArea(viewingDetailTarget.item.requiredArea, viewingDetailTarget.item.requiredAreaUnit)}
+                  </span>
+                </div>
+              )}
               <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 sm:col-span-2 lg:col-span-1">
                   <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Location / City</span>
                   <div>
@@ -2194,7 +2252,29 @@ export default function Properties() {
                 </label>
                 <select
                   value={editPropForm.propertyType}
-                  onChange={(e) => setEditPropForm({ ...editPropForm, propertyType: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEditPropForm(prev => ({
+                      ...prev,
+                      propertyType: value,
+                      ...(value === 'House + Land'
+                        ? {
+                            area: '',
+                            houseArea: '',
+                            landArea: '',
+                            expectedPriceUnit: `/ ${prev.landAreaUnit || 'Cent'}`,
+                            monthlyRentUnit: `/ ${prev.landAreaUnit || 'Cent'}`
+                          }
+                        : prev.propertyType === 'House + Land'
+                          ? {
+                              houseArea: '',
+                              landArea: '',
+                              expectedPriceUnit: `/ ${prev.areaUnit || 'Cent'}`,
+                              monthlyRentUnit: `/ ${prev.areaUnit || 'Cent'}`
+                            }
+                          : {})
+                    }));
+                  }}
                   className="w-full px-4 h-[52px] border border-slate-200 rounded-[10px] text-sm sm:text-base bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#B0004F]/10 focus:border-[#B0004F] cursor-pointer"
                 >
                   {propertyTypes.map(pt => (
@@ -2229,6 +2309,7 @@ export default function Properties() {
                 isEdit={true}
               />
 
+              {editPropForm.propertyType !== 'House + Land' ? (
               <div className="flex flex-col space-y-1.5">
                 <label className="text-[14px] font-medium text-slate-800 flex items-center">
                   Area <span className="text-[#B0004F] ml-1 font-bold">*</span>
@@ -2269,6 +2350,45 @@ export default function Properties() {
                   </div>
                 </div>
               </div>
+              ) : (
+                <>
+                  {[
+                    { id: 'houseArea', label: 'House / Building Area', unitId: 'houseAreaUnit', units: HOUSE_BUILDING_AREA_UNITS, fallback: HOUSE_BUILDING_AREA_UNITS[0] },
+                    { id: 'landArea', label: 'Land Area', unitId: 'landAreaUnit', units: LAND_AREA_UNITS, fallback: LAND_AREA_UNITS[0] }
+                  ].map(({ id: fieldId, label, unitId, units, fallback }) => (
+                    <div key={fieldId} className="flex flex-col space-y-1.5">
+                      <label htmlFor={`edit-${fieldId}`} className="text-[14px] font-medium text-slate-800 flex items-center">
+                        {label} <span className="text-[#B0004F] ml-1 font-bold">*</span>
+                      </label>
+                      <div className="relative flex items-center h-[52px] border border-slate-200 rounded-[10px] bg-white focus-within:ring-2 focus-within:ring-[#B0004F]/10 focus-within:border-[#B0004F] transition-all">
+                        <input
+                          id={`edit-${fieldId}`}
+                          type="number"
+                          required
+                          min="0.000000001"
+                          step="any"
+                          value={editPropForm[fieldId]}
+                          onChange={(e) => setEditPropForm(prev => ({ ...prev, [fieldId]: e.target.value }))}
+                          placeholder="Enter area"
+                          className="flex-1 min-w-0 h-full px-4 text-sm sm:text-base bg-transparent text-slate-800 focus:outline-none"
+                        />
+                        <div className="h-6 w-px bg-slate-200 shrink-0" />
+                        <div className="relative w-[125px] shrink-0 h-full flex items-center">
+                          <select
+                            aria-label={`${label} unit`}
+                            value={editPropForm[unitId] || fallback}
+                            onChange={(e) => setEditPropForm(prev => selectHouseLandAreaUnit(prev, unitId, e.target.value))}
+                            className="w-full h-full pl-3 pr-7 text-sm font-medium text-slate-700 bg-transparent appearance-none focus:outline-none cursor-pointer"
+                          >
+                            {units.map(unit => <option key={unit} value={unit}>{unit}</option>)}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
 
               {editPropForm.listingType === 'Rent' ? (
                 <>

@@ -153,7 +153,8 @@ export default function ExcelImportModal({ isOpen, onClose, onImportComplete }) 
           
           let rawPropType = String(map['type'] || map['propertytype'] || '').toUpperCase();
           let propertyTypeVal = 'Plot/Land';
-          if (rawPropType.includes('HOUSE')) propertyTypeVal = 'House/Villa';
+          if (rawPropType.includes('HOUSE') && (rawPropType.includes('LAND') || rawPropType.includes('PLOT'))) propertyTypeVal = 'House + Land';
+          else if (rawPropType.includes('HOUSE')) propertyTypeVal = 'House/Villa';
           else if (rawPropType.includes('APARTMENT') || rawPropType.includes('FLAT') || rawPropType.includes('BUILDING')) propertyTypeVal = 'Apartment/Flat';
           else if (rawPropType.includes('LAND') || rawPropType.includes('PLOT')) propertyTypeVal = 'Plot/Land';
           else if (String(map['propertytype']).toUpperCase() === 'COMMERCIAL') propertyTypeVal = 'Commercial Plot';

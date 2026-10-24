@@ -10,6 +10,7 @@ import PropertyKeywordsSelector from '../components/PropertyKeywordsSelector';
 import SharePropertyModal from '../components/SharePropertyModal';
 import Modal from '../components/Modal';
 import MediaThumbnail from '../components/MediaThumbnail';
+import BuyerRequirementPropertyTracking from '../components/BuyerRequirementPropertyTracking';
 import { 
   MapPin, 
   Ruler, 
@@ -41,7 +42,11 @@ import {
 } from 'lucide-react';
 import ExcelImportModal from '../components/ExcelImportModal';
 
-export default function Properties() {
+export default function Properties({
+  initialView = null,
+  initialAddRequirementResult = null,
+  onNavigate = null
+} = {}) {
   const { user } = useContext(AuthContext);
   const { 
     properties, 
@@ -72,7 +77,8 @@ export default function Properties() {
 
   const location = useLocation();
   const { id } = useParams();
-  const navigate = useNavigate();
+  const routerNavigate = useNavigate();
+  const navigate = onNavigate || routerNavigate;
 
   // Active tab state: 'sale' | 'rent' | 'requirements'
   const [activeTab, setActiveTab] = useState(() => {
@@ -87,7 +93,7 @@ export default function Properties() {
   });
 
   // Inline view state: 'list' | 'addProperty' | 'addRequirement'
-  const [view, setView] = useState('list');
+  const [view, setView] = useState(initialView || 'list');
 
   // Full Details Popup Modal State: { type: 'property' | 'requirement', item: any }
   const [viewingDetailTarget, setViewingDetailTarget] = useState(null);
@@ -121,11 +127,15 @@ export default function Properties() {
     }
 
     // Reset all open modal/form states when navigating between tabs or sections
-    setView('list');
+    if (!initialView && !initialAddRequirementResult) {
+      setView('list');
+    }
     setIsAddPropertyOpen(false);
     setAddPropertyResult(null);
     setIsAddRequirementOpen(false);
-    setAddRequirementResult(null);
+    if (!initialAddRequirementResult) {
+      setAddRequirementResult(null);
+    }
     setEditingProperty(null);
     setEditingRequirement(null);
     setDeletingTarget(null);
@@ -133,7 +143,7 @@ export default function Properties() {
     setExpandedBreakdowns({});
     setMatchFilter('all');
     setSharingTarget(null);
-  }, [location.pathname, id]);
+  }, [location.pathname, id, initialView, initialAddRequirementResult]);
 
   // Synchronize global search param from URL if present (e.g., from top navigation bar)
   useEffect(() => {
@@ -208,7 +218,7 @@ export default function Properties() {
 
   // Add Requirement Modal State
   const [isAddRequirementOpen, setIsAddRequirementOpen] = useState(false);
-  const [addRequirementResult, setAddRequirementResult] = useState(null);
+  const [addRequirementResult, setAddRequirementResult] = useState(initialAddRequirementResult || null);
   const [isSubmittingAddReq, setIsSubmittingAddReq] = useState(false);
 
   // Edit Property Modal State
@@ -1362,28 +1372,51 @@ export default function Properties() {
                         {addRequirementResult.matches.length} Found
                       </span>
                     </div>
-                    {addRequirementResult.matches.map((m, idx) => (
-                      <div key={idx} className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{m.matchScore}% Match</span>
-                          <div className="flex items-center gap-1">
-                            <span className="font-bold text-[#B0004F] text-xs">
-                              {m.listingType === 'Rent' ? formatPrice(m.monthlyRent) : formatPrice(m.displayPrice ?? m.expectedPrice)}
-                            </span>
-                            {(() => {
-                              const unit = m.listingType === 'Rent' ? m.monthlyRentUnit : (m.displayPriceUnit ?? m.expectedPriceUnit);
-                              return unit && unit !== 'All Properties' ? (
-                                <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F] leading-none">
-                                  {unit}
-                                </span>
-                              ) : null;
-                            })()}
+                    {addRequirementResult.matches.map((m, idx) => {
+                      const propId = m.id || m._id || m.propertyId;
+                      const handleNavigateToProperty = () => {
+                        navigate(`/properties/${encodeURIComponent(propId)}`, {
+                          state: { fromPath: location.pathname + location.search, fromTab: activeTab }
+                        });
+                      };
+
+                      return (
+                        <button
+                          key={propId || idx}
+                          type="button"
+                          onClick={handleNavigateToProperty}
+                          className="block w-full text-left bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1 hover:bg-white hover:border-[#B0004F]/40 focus-visible:outline-2 focus-visible:outline-[#B0004F] transition-colors cursor-pointer"
+                          aria-label={`View property details for ${m.title || 'matching property'}`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">{m.matchScore}% Match</span>
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-[#B0004F] text-xs">
+                                {m.listingType === 'Rent' ? formatPrice(m.monthlyRent) : formatPrice(m.displayPrice ?? m.expectedPrice)}
+                              </span>
+                              {(() => {
+                                const unit = m.listingType === 'Rent' ? m.monthlyRentUnit : (m.displayPriceUnit ?? m.expectedPriceUnit);
+                                return unit && unit !== 'All Properties' ? (
+                                  <span className="inline-flex text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-[#FFF1F6] text-[#B0004F] leading-none">
+                                    {unit}
+                                  </span>
+                                ) : null;
+                              })()}
+                            </div>
                           </div>
-                        </div>
-                        <p className="text-xs font-semibold text-slate-800">{m.title}</p>
-                        <p className="text-xs text-slate-500">{m.location}, {m.district} · {m.ownerName} · {m.phoneNumber}</p>
-                      </div>
-                    ))}
+                          <p
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNavigateToProperty();
+                            }}
+                            className="text-xs font-semibold text-slate-800 hover:text-[#B0004F] transition-colors cursor-pointer"
+                          >
+                            {m.title}
+                          </p>
+                          <p className="text-xs text-slate-500">{m.location}, {m.district} · {m.ownerName} · {m.phoneNumber}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 <div className="flex justify-end gap-3 pt-2">
@@ -2131,7 +2164,24 @@ export default function Properties() {
             </div>
           </div>
 
-        
+          {/* Buyer Requirement Property Tracking & Journey History */}
+          {viewingDetailTarget.type === 'requirement' && (
+            <BuyerRequirementPropertyTracking
+              requirement={viewingDetailTarget.item}
+              properties={properties}
+              user={user}
+              showToast={showToast}
+              onNavigateToProperty={(propId) => {
+                navigate(`/properties/${propId}`, {
+                  state: {
+                    fromPath: location.pathname + location.search,
+                    fromTab: activeTab
+                  }
+                });
+              }}
+            />
+          )}
+
               </div>
               
               {/* FOOTER ACTIONS */}
